@@ -1,0 +1,25 @@
+// Simple test program for the matrix language
+let x = 42
+let y = 3.14
+let sum = x + y
+let message = "Hello, Matrix Language!"
+
+struct Point {
+    x: Float,
+    y: Float
+}
+
+let p = Point { x: 1.0, y: 2.0 }
+let distance = p.x * p.x + p.y * p.y
+
+fn factorial(n: Int) -> Int = 
+    if n <= 1 then 1 else n * factorial(n - 1)
+
+let fact5 = factorial(5)
+
+let matrix = [[1, 2], [3, 4]]
+let array = [1, 2, 3, 4, 5]
+
+print(message)
+print(sum)
+print(fact5)
