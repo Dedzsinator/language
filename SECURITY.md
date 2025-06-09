@@ -14,15 +14,20 @@ We support security updates for the following versions:
 We take security vulnerabilities seriously. If you discover a security issue, please follow these steps:
 
 ### 1. Do NOT create a public issue
+
 Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.
 
 ### 2. Report privately
+
 Send a detailed report to the maintainers privately:
+
 - **Email**: [security@matrix-lang.org](mailto:security@matrix-lang.org) (if available)
 - **GitHub Security Advisory**: Use GitHub's private vulnerability reporting feature
 
 ### 3. Include detailed information
+
 When reporting a vulnerability, please include:
+
 - **Description**: A clear description of the vulnerability
 - **Steps to reproduce**: Detailed steps to reproduce the issue
 - **Impact**: What could an attacker accomplish?
@@ -30,6 +35,7 @@ When reporting a vulnerability, please include:
 - **Suggested fix**: If you have ideas for how to fix the issue
 
 ### 4. Example report template
+
 ```
 **Summary**: Brief description of the vulnerability
 
@@ -59,13 +65,16 @@ We aim to respond to security reports according to the following timeline:
 ## Security Measures
 
 ### Automated Security Scanning
+
 Our CI/CD pipeline includes:
+
 - **cargo-audit**: Scans for known vulnerabilities in dependencies
 - **cargo-deny**: Enforces security policies for dependencies
 - **Dependency updates**: Weekly automated dependency updates
 - **License compliance**: Ensures only approved licenses are used
 
 ### Secure Development Practices
+
 - All dependencies are vetted for security
 - Regular security audits of the codebase
 - Principle of least privilege in code design
@@ -73,6 +82,7 @@ Our CI/CD pipeline includes:
 - Memory safety through Rust's ownership system
 
 ### Supply Chain Security
+
 - Dependencies are pinned to specific versions
 - Only trusted crate registries are allowed
 - Regular updates to address security advisories
@@ -83,18 +93,23 @@ Our CI/CD pipeline includes:
 As a programming language implementation, Matrix Language has several security considerations:
 
 ### 1. Code Execution
+
 Matrix Language executes user-provided code. When using the interpreter:
+
 - **Sandboxing**: Consider running in a sandboxed environment
 - **Resource limits**: Be aware that code execution can consume system resources
 - **File system access**: The language may have file system access capabilities
 
 ### 2. Memory Safety
+
 - Matrix Language is implemented in Rust, providing memory safety guarantees
 - However, unsafe code blocks or C FFI could introduce vulnerabilities
 - Physics simulation code involves complex calculations that should be validated
 
 ### 3. Dependency Security
+
 The project depends on various crates:
+
 - GUI libraries (egui, eframe)
 - Math libraries (nalgebra)
 - Parsing libraries (logos)
@@ -103,7 +118,9 @@ The project depends on various crates:
 All dependencies are regularly audited and updated.
 
 ### 4. GPU and Hardware Access
+
 Future versions may include:
+
 - GPU compute capabilities
 - Direct hardware access for physics simulation
 - These features will require additional security considerations
@@ -140,6 +157,7 @@ We appreciate security researchers who help keep Matrix Language secure:
 ## Contact
 
 For security-related questions or concerns:
+
 - **Security issues**: Use private vulnerability reporting
 - **General security questions**: Create a public discussion
 - **Emergency contact**: [security@matrix-lang.org](mailto:security@matrix-lang.org)

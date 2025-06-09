@@ -51,15 +51,15 @@ fn main() {
             Arg::new("gui")
                 .long("gui")
                 .short('g')
-                .help("Launch physics visualization GUI")
+                .help("Launch Unity-style game engine editor")
                 .action(clap::ArgAction::SetTrue),
         )
         .get_matches();
 
     if matches.get_flag("gui") {
-        println!("Launching physics visualization GUI...");
-        if let Err(e) = crate::gui::launch_physics_gui() {
-            eprintln!("Failed to launch GUI: {}", e);
+        println!("Launching Unity-style editor...");
+        if let Err(e) = crate::gui::launch_unity_editor() {
+            eprintln!("Failed to launch editor: {}", e);
             std::process::exit(1);
         }
         return;

@@ -128,7 +128,7 @@ jobs:
           title: 'Automated dependency update'
           body: |
             This PR updates all dependencies to their latest compatible versions.
-            
+
             Please review the changes and ensure all tests pass before merging.
           branch: auto-update-dependencies
           delete-branch: true

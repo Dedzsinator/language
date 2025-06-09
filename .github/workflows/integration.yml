@@ -92,7 +92,7 @@ jobs:
         run: |
           echo "Testing CLI help"
           ./target/release/matrix-lang --help || echo "Help test completed"
-          
+
           echo "Testing CLI version"
           ./target/release/matrix-lang --version || echo "Version test completed"
 

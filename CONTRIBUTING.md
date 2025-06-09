@@ -3,6 +3,7 @@
 Thank you for your interest in contributing to Matrix Language! This document provides guidelines and information for contributors.
 
 ## Table of Contents
+
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
@@ -18,9 +19,11 @@ Thank you for your interest in contributing to Matrix Language! This document pr
 This project adheres to a code of conduct adapted from the [Contributor Covenant](https://www.contributor-covenant.org/). By participating, you are expected to uphold this code.
 
 ### Our Pledge
+
 We are committed to making participation in this project a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
 ### Our Standards
+
 - Using welcoming and inclusive language
 - Being respectful of differing viewpoints and experiences
 - Gracefully accepting constructive criticism
@@ -30,11 +33,13 @@ We are committed to making participation in this project a harassment-free exper
 ## Getting Started
 
 ### Prerequisites
+
 - **Rust**: Latest stable version (install via [rustup](https://rustup.rs/))
 - **Git**: Version control
 - **System Dependencies**: See [README.md](README.md) for platform-specific requirements
 
 ### First Steps
+
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/your-username/matrix-lang.git`
 3. Set up the development environment
@@ -44,6 +49,7 @@ We are committed to making participation in this project a harassment-free exper
 ## Development Setup
 
 ### Building the Project
+
 ```bash
 # Clone the repository
 git clone https://github.com/your-username/matrix-lang.git
@@ -65,12 +71,15 @@ cargo test --all-features
 ```
 
 ### VSCode Setup
+
 If you use VSCode, the repository includes configuration files:
+
 - `.vscode/settings.json` - Editor settings optimized for Rust
 - `.vscode/tasks.json` - Common build and test tasks
 - `.vscode/launch.json` - Debug configurations
 
 ### Recommended Tools
+
 ```bash
 # Install useful development tools
 cargo install cargo-watch    # Auto-rebuild on file changes
@@ -83,15 +92,18 @@ cargo install cargo-outdated # Check for outdated dependencies
 ## How to Contribute
 
 ### Types of Contributions
+
 We welcome various types of contributions:
 
 #### Code Contributions
+
 - **Bug fixes**: Fix existing issues
 - **Features**: Implement new language features
 - **Performance improvements**: Optimize existing code
 - **Refactoring**: Improve code structure and maintainability
 
 #### Non-Code Contributions
+
 - **Documentation**: Improve or add documentation
 - **Testing**: Add test cases and improve test coverage
 - **Bug reports**: Report issues with detailed information
@@ -99,6 +111,7 @@ We welcome various types of contributions:
 - **Community support**: Help other users and contributors
 
 ### Finding Issues to Work On
+
 - Browse [open issues](https://github.com/your-username/matrix-lang/issues)
 - Look for `good-first-issue` labels for newcomers
 - Check `help-wanted` labels for areas needing assistance
@@ -106,6 +119,7 @@ We welcome various types of contributions:
 - Issues labeled `enhancement` are good for adding features
 
 ### Before Starting Work
+
 1. **Check existing issues and PRs** to avoid duplicate work
 2. **Comment on the issue** to let others know you're working on it
 3. **Ask questions** if you need clarification
@@ -114,6 +128,7 @@ We welcome various types of contributions:
 ## Pull Request Process
 
 ### 1. Create a Branch
+
 ```bash
 # Create a new branch for your work
 git checkout -b feature/your-feature-name
@@ -122,12 +137,14 @@ git checkout -b fix/issue-number-description
 ```
 
 ### 2. Make Changes
+
 - Write clear, focused commits
 - Follow the coding standards
 - Add tests for new functionality
 - Update documentation as needed
 
 ### 3. Test Your Changes
+
 ```bash
 # Run all tests
 cargo test --all-features
@@ -146,6 +163,7 @@ cargo audit
 ```
 
 ### 4. Commit Guidelines
+
 - Write clear, descriptive commit messages
 - Use the imperative mood ("Add feature" not "Added feature")
 - Reference issue numbers when applicable
@@ -161,12 +179,14 @@ Fixes #123
 ```
 
 ### 5. Submit Pull Request
+
 - **Title**: Clear, descriptive title
 - **Description**: Explain what you changed and why
 - **Testing**: Describe how you tested your changes
 - **Issues**: Link related issues
 
 ### PR Template
+
 ```markdown
 ## Summary
 Brief description of changes
@@ -194,11 +214,13 @@ Fixes #issue_number
 ## Coding Standards
 
 ### Rust Style
+
 - Follow the [Rust Style Guide](https://doc.rust-lang.org/style-guide/)
 - Use `cargo fmt` for automatic formatting
 - Use `cargo clippy` for linting
 
 ### Code Organization
+
 ```
 src/
 ├── main.rs           # Application entry point
@@ -214,6 +236,7 @@ src/
 ```
 
 ### Documentation Standards
+
 - **Public APIs**: Must have rustdoc comments
 - **Modules**: Should have module-level documentation
 - **Complex logic**: Should have inline comments
@@ -234,7 +257,7 @@ src/
 /// # Examples
 /// ```
 /// use matrix_lang::parser::parse_expression;
-/// 
+///
 /// let ast = parse_expression("2 + 3 * 4").unwrap();
 /// assert_eq!(ast.evaluate(), 14);
 /// ```
@@ -244,6 +267,7 @@ pub fn parse_expression(input: &str) -> Result<Expression, ParseError> {
 ```
 
 ### Error Handling
+
 - Use `Result<T, E>` for recoverable errors
 - Use custom error types with `thiserror`
 - Provide meaningful error messages
@@ -256,7 +280,7 @@ use thiserror::Error;
 pub enum ParseError {
     #[error("Unexpected token '{token}' at line {line}, column {column}")]
     UnexpectedToken { token: String, line: usize, column: usize },
-    
+
     #[error("Unterminated string literal starting at line {line}")]
     UnterminatedString { line: usize },
 }
@@ -265,12 +289,14 @@ pub enum ParseError {
 ## Testing Guidelines
 
 ### Test Organization
+
 - **Unit tests**: Test individual functions and modules
 - **Integration tests**: Test component interactions
 - **End-to-end tests**: Test complete workflows
 - **Performance tests**: Verify performance characteristics
 
 ### Test Categories
+
 ```bash
 # Run different test categories
 cargo test unit_tests
@@ -280,6 +306,7 @@ cargo test performance_tests
 ```
 
 ### Writing Tests
+
 - **Clear test names**: Describe what is being tested
 - **Arrange-Act-Assert**: Structure tests clearly
 - **Edge cases**: Test boundary conditions and error cases
@@ -291,13 +318,14 @@ fn test_lexer_handles_unterminated_string() {
     let input = "\"unterminated string";
     let lexer = Lexer::new(input);
     let result = lexer.tokenize();
-    
+
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), LexError::UnterminatedString { .. }));
 }
 ```
 
 ### Coverage Requirements
+
 - Aim for >80% code coverage
 - Critical paths should have 100% coverage
 - Use `cargo tarpaulin` to measure coverage
@@ -305,18 +333,21 @@ fn test_lexer_handles_unterminated_string() {
 ## Documentation
 
 ### Types of Documentation
+
 1. **API Documentation**: Rustdoc for public APIs
 2. **User Guide**: How to use Matrix Language
 3. **Developer Guide**: How to contribute and extend
 4. **Examples**: Practical usage examples
 
 ### Documentation Standards
+
 - Write for your audience (users vs. contributors)
 - Include practical examples
 - Keep documentation up to date
 - Use clear, concise language
 
 ### Building Documentation
+
 ```bash
 # Build and open documentation
 cargo doc --all-features --open
@@ -328,17 +359,20 @@ cargo doc --all-features 2>&1 | grep warning
 ## Community
 
 ### Communication Channels
+
 - **GitHub Issues**: Bug reports and feature requests
 - **GitHub Discussions**: General questions and community discussion
 - **Pull Requests**: Code review and collaboration
 
 ### Getting Help
+
 - **New contributor questions**: Comment on issues or start a discussion
 - **Technical questions**: Use GitHub discussions
 - **Bug reports**: Create a detailed issue
 - **Feature ideas**: Start with a discussion, then create an issue
 
 ### Code Review Process
+
 - All changes require review before merging
 - Reviews focus on:
   - Correctness and functionality
@@ -348,6 +382,7 @@ cargo doc --all-features 2>&1 | grep warning
   - Performance implications
 
 ### Recognition
+
 - Contributors are recognized in release notes
 - Significant contributions may be highlighted
 - First-time contributors receive special acknowledgment
@@ -355,12 +390,15 @@ cargo doc --all-features 2>&1 | grep warning
 ## Release Process
 
 ### Versioning
+
 We follow [Semantic Versioning](https://semver.org/):
+
 - **MAJOR**: Incompatible API changes
 - **MINOR**: Backward-compatible functionality additions
 - **PATCH**: Backward-compatible bug fixes
 
 ### Release Cycle
+
 - Regular releases every 4-6 weeks
 - Patch releases as needed for critical bugs
 - Pre-releases for testing major changes

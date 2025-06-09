@@ -63,14 +63,14 @@ jobs:
             const { data: user } = await github.rest.users.getByUsername({
               username: context.payload.issue.user.login
             });
-            
+
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               creator: context.payload.issue.user.login,
               state: 'all'
             });
-            
+
             if (issues.length === 1) {
               await github.rest.issues.addLabels({
                 issue_number: context.issue.number,
@@ -78,7 +78,7 @@ jobs:
                 repo: context.repo.repo,
                 labels: ['first-time-contributor']
               });
-              
+
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,

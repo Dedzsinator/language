@@ -3,9 +3,10 @@ use super::math::{Vec3, Quat, Mat3, Transform, AABB};
 use super::constraints::{Constraint, ConstraintBody};
 use crate::eval::interpreter::{Value, RuntimeResult};
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 /// Rigid body shapes for collision detection
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Shape {
     Sphere { radius: f64 },
     Box { size: Vec3 },
