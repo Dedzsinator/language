@@ -1,0 +1,150 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug matrix-lang",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=matrix-lang",
+          "--package=matrix-lang"
+        ],
+        "filter": {
+          "name": "matrix-lang",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RUST_BACKTRACE",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug matrix-lang with file",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=matrix-lang",
+          "--package=matrix-lang"
+        ],
+        "filter": {
+          "name": "matrix-lang",
+          "kind": "bin"
+        }
+      },
+      "args": ["${workspaceFolder}/test.matrix"],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RUST_BACKTRACE",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug matrix-lang REPL",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=matrix-lang",
+          "--package=matrix-lang"
+        ],
+        "filter": {
+          "name": "matrix-lang",
+          "kind": "bin"
+        }
+      },
+      "args": ["--repl"],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RUST_BACKTRACE",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--lib",
+          "--package=matrix-lang"
+        ],
+        "filter": {
+          "name": "matrix-lang",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RUST_BACKTRACE",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug comprehensive tests",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--package=matrix-lang"
+        ]
+      },
+      "args": ["comprehensive_tests"],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RUST_BACKTRACE",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug specific test",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--package=matrix-lang"
+        ]
+      },
+      "args": ["${input:testName}"],
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RUST_BACKTRACE",
+          "value": "1"
+        }
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testName",
+      "description": "Test name to debug",
+      "default": "test_",
+      "type": "promptString"
+    }
+  ]
+}

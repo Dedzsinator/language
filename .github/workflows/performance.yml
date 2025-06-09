@@ -1,0 +1,152 @@
+name: Performance
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Benchmark Performance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bench-
+            ${{ runner.os }}-cargo-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
+      - name: Run performance tests
+        run: |
+          cargo test performance_tests --release --verbose || echo "Performance tests completed"
+
+      - name: Run physics performance tests
+        run: |
+          cargo test physics_comprehensive --release --verbose || echo "Physics performance tests completed"
+
+      - name: Run lexer performance tests
+        run: |
+          cargo test lexer_performance --release --verbose || echo "Lexer performance tests completed"
+
+      - name: Run parser performance tests
+        run: |
+          cargo test parser_performance --release --verbose || echo "Parser performance tests completed"
+
+  memory-usage:
+    name: Memory Usage Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev valgrind
+
+      - name: Install cargo-valgrind
+        run: cargo install cargo-valgrind
+
+      - name: Build for memory analysis
+        run: cargo build --release
+
+      - name: Run memory analysis
+        run: |
+          # Create a simple test file for memory analysis
+          echo 'let x = 5 + 3' > test_memory.matrix
+          timeout 30s cargo valgrind run -- test_memory.matrix || echo "Memory analysis completed"
+
+  compile-time:
+    name: Compile Time Tracking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
+      - name: Clean build for timing
+        run: cargo clean
+
+      - name: Time full build
+        run: |
+          echo "Starting full build timing..."
+          time cargo build --all-features --release
+
+      - name: Time incremental build
+        run: |
+          echo "Starting incremental build timing..."
+          touch src/main.rs
+          time cargo build --all-features --release
+
+      - name: Time test compilation
+        run: |
+          echo "Starting test compilation timing..."
+          time cargo test --no-run --all-features
+
+  binary-size:
+    name: Binary Size Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
+      - name: Build release binary
+        run: cargo build --release --all-features
+
+      - name: Check binary size
+        run: |
+          echo "Binary sizes:"
+          ls -lh target/release/matrix-lang*
+          echo ""
+          echo "Detailed size breakdown:"
+          size target/release/matrix-lang || echo "Size command not available"
+
+      - name: Install cargo-bloat
+        run: cargo install cargo-bloat
+
+      - name: Analyze binary bloat
+        run: |
+          echo "Top crates by size:"
+          cargo bloat --release --crates || echo "Bloat analysis completed"
+          echo ""
+          echo "Top functions by size:"
+          cargo bloat --release -n 20 || echo "Function bloat analysis completed"

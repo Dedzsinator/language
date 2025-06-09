@@ -1,0 +1,87 @@
+---
+name: Performance Issue
+about: Report a performance problem or regression
+title: '[PERFORMANCE] '
+labels: ['performance', 'needs-investigation']
+assignees: ''
+
+---
+
+## Performance Issue Description
+Describe the performance problem you're experiencing.
+
+## Performance Characteristics
+- **Component**: [Lexer/Parser/Interpreter/Physics/GUI/Other]
+- **Operation**: What specific operation is slow?
+- **Input Size**: How large is the input that causes the slowdown?
+- **Expected Time**: How long should this operation take?
+- **Actual Time**: How long does it actually take?
+
+## Reproduction Steps
+1. Create input: '...'
+2. Run command: '...'
+3. Measure time with: '...'
+
+## Code Sample
+```matrix
+// Provide the Matrix Language code that exhibits the performance issue
+let slow_operation = expensive_computation()
+```
+
+## Performance Measurements
+If you have specific measurements, please include them:
+
+```
+# Example measurements
+Operation: parsing large file
+Input size: 10MB
+Time taken: 45 seconds
+Expected: < 5 seconds
+
+# Use tools like:
+time matrix-lang large_file.matrix
+cargo bench
+```
+
+## Environment Information
+- **OS**: [e.g. Ubuntu 22.04, Windows 11, macOS 13]
+- **Hardware**: [CPU, RAM, etc.]
+- **Rust Version**: [output of `rustc --version`]
+- **Matrix Language Version**: [output of `matrix-lang --version`]
+- **Build Type**: [Debug/Release]
+
+## Profiling Information
+If you've done any profiling, please include:
+- Profiler used (e.g., perf, Instruments, etc.)
+- Hotspots identified
+- Memory usage patterns
+- Screenshots of profiler output
+
+## Regression Information
+- **Is this a regression?**: [Yes/No/Unknown]
+- **When did you first notice this?**: [Version, date, etc.]
+- **Previous performance**: [If known]
+
+## Impact Assessment
+- **Severity**: [Low/Medium/High/Critical]
+- **Frequency**: [Always/Often/Sometimes/Rare]
+- **User Impact**: How does this affect users?
+
+## Potential Solutions
+If you have ideas for fixes or optimizations:
+- Algorithmic improvements
+- Caching strategies
+- Data structure changes
+- Parallelization opportunities
+
+## Additional Context
+Any other relevant information:
+- Similar issues in other tools
+- Performance comparisons
+- Related performance issues
+
+## Checklist
+- [ ] I have verified this is actually a performance issue (not user error)
+- [ ] I have tested with release builds (not debug)
+- [ ] I have provided specific measurements where possible
+- [ ] I have searched for existing performance issues

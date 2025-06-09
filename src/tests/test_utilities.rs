@@ -7,13 +7,9 @@ use crate::ast::nodes::*;
 
 /// Helper to create a complete pipeline from source to interpreted result
 pub fn full_pipeline_test(source: &str) -> Result<String, String> {
-    // Lexing
+    // Lexing & Parsing (combined in new API)
     let lexer = Lexer::new(source);
-    let tokens = lexer.tokenize().map_err(|e| format!("Lex error: {:?}", e))?;
-    
-    // Parsing
-    let mut parser = Parser::new(tokens.into_iter().map(|t| t.token).collect())
-        .map_err(|e| format!("Parser creation error: {:?}", e))?;
+    let mut parser = Parser::new(lexer).map_err(|e| format!("Parser creation error: {:?}", e))?;
     let ast = parser.parse_program().map_err(|e| format!("Parse error: {:?}", e))?;
     
     // Type checking
@@ -26,50 +22,51 @@ pub fn full_pipeline_test(source: &str) -> Result<String, String> {
     let result = interpreter.eval_program(&ast)
         .map_err(|e| format!("Runtime error: {:?}", e))?;
     
-    Ok(format!("{}", result))
+    Ok(format!("{:?}", result))
 }
 
 /// Create test tokens from source
-pub fn tokenize_source(source: &str) -> Vec<Token> {
+pub fn tokenize_source(source: &str) -> Result<Vec<Token>, String> {
     let lexer = Lexer::new(source);
-    lexer.tokenize().unwrap().into_iter().map(|t| t.token).collect()
+    let tokens = lexer.tokenize().map_err(|e| format!("Tokenize error: {:?}", e))?;
+    Ok(tokens.into_iter().map(|t| t.token).collect())
 }
 
 /// Create test AST from source
 pub fn parse_source(source: &str) -> Result<Program, String> {
-    let tokens = tokenize_source(source);
-    let mut parser = Parser::new(tokens).map_err(|e| format!("{:?}", e))?;
+    let lexer = Lexer::new(source);
+    let mut parser = Parser::new(lexer).map_err(|e| format!("{:?}", e))?;
     parser.parse_program().map_err(|e| format!("{:?}", e))
 }
 
 /// Helper to create test expressions
 pub fn make_int_literal(value: i64) -> Expression {
-    Expression::Literal(Literal::Int(value))
+    Expression::IntLiteral(value, Span::new(0, 0, 0, 0))
 }
 
 pub fn make_float_literal(value: f64) -> Expression {
-    Expression::Literal(Literal::Float(value))
+    Expression::FloatLiteral(value, Span::new(0, 0, 0, 0))
 }
 
 pub fn make_string_literal(value: &str) -> Expression {
-    Expression::Literal(Literal::String(value.to_string()))
+    Expression::StringLiteral(value.to_string(), Span::new(0, 0, 0, 0))
 }
 
 pub fn make_bool_literal(value: bool) -> Expression {
-    Expression::Literal(Literal::Bool(value))
+    Expression::BoolLiteral(value, Span::new(0, 0, 0, 0))
 }
 
 pub fn make_identifier(name: &str) -> Expression {
-    Expression::Identifier(name.to_string())
+    Expression::Identifier(name.to_string(), Span::new(0, 0, 0, 0))
 }
 
 pub fn make_binary_op(left: Expression, op: BinaryOperator, right: Expression) -> Expression {
-    Expression::BinaryOp(BinaryOpExpression {
+    Expression::BinaryOp {
         left: Box::new(left),
         operator: op,
         right: Box::new(right),
         span: Span::new(0, 0, 0, 0),
-    })
+    }
 }
 
 /// Test data generators

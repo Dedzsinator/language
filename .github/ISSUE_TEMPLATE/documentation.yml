@@ -1,0 +1,72 @@
+---
+name: Documentation
+about: Report missing, incorrect, or unclear documentation
+title: '[DOCS] '
+labels: ['documentation', 'good-first-issue']
+assignees: ''
+
+---
+
+## Documentation Issue
+Describe what documentation is missing, incorrect, or unclear.
+
+## Location
+Where is the documentation issue located?
+- [ ] README.md
+- [ ] API documentation (rustdoc)
+- [ ] Code comments
+- [ ] Examples
+- [ ] Language specification
+- [ ] Getting started guide
+- [ ] Other: ___________
+
+**Specific Location**: [File path, function name, section, etc.]
+
+## Issue Type
+- [ ] Missing documentation
+- [ ] Incorrect/outdated information
+- [ ] Unclear or confusing explanation
+- [ ] Missing examples
+- [ ] Broken links
+- [ ] Formatting issues
+- [ ] Typos or grammar errors
+
+## Current State
+What does the current documentation say (or not say)?
+
+```
+Current text or "No documentation exists"
+```
+
+## Suggested Improvement
+What should the documentation say instead?
+
+```
+Proposed improvement or new content
+```
+
+## Additional Context
+- **Audience**: Who would benefit from this documentation? (beginners, advanced users, contributors)
+- **Use Case**: What specific task or concept needs better documentation?
+- **Related Documentation**: Are there related sections that should be updated too?
+
+## Examples Needed
+If examples would help, describe what kind:
+- [ ] Code examples
+- [ ] Usage scenarios
+- [ ] Step-by-step tutorials
+- [ ] API usage patterns
+- [ ] Common pitfalls and solutions
+
+## References
+Any external resources or standards that should be referenced:
+- Similar documentation in other projects
+- Language specifications
+- Academic papers
+- Industry standards
+
+## Checklist
+- [ ] I have checked that this documentation issue doesn't already exist
+- [ ] I have provided specific location information
+- [ ] I have suggested concrete improvements where possible
+- [ ] I have considered what audience would benefit from this documentation

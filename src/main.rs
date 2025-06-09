@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod debug_tests;
 pub mod ecs;
 pub mod eval;
 pub mod gpu;
@@ -9,7 +10,8 @@ pub mod parser;
 pub mod physics;
 pub mod runtime;
 pub mod stdlib;
-pub mod types;
+pub mod tests;
+pub mod types; // Add debug tests module
 
 use clap::{Arg, Command};
 use rustyline::error::ReadlineError;
