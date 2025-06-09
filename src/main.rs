@@ -1,9 +1,11 @@
 pub mod ast;
 pub mod eval;
 pub mod gpu;
+pub mod gui;
 pub mod ir;
 pub mod lexer;
 pub mod parser;
+pub mod physics;
 pub mod runtime;
 pub mod stdlib;
 pub mod types;
@@ -42,9 +44,23 @@ fn main() {
                 .help("Only parse the file, don't execute")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("gui")
+                .long("gui")
+                .short('g')
+                .help("Launch physics visualization GUI")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
-    if matches.get_flag("repl") || matches.get_one::<String>("file").is_none() {
+    if matches.get_flag("gui") {
+        println!("Launching physics visualization GUI...");
+        if let Err(e) = crate::gui::launch_physics_gui() {
+            eprintln!("Failed to launch GUI: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    } else if matches.get_flag("repl") || matches.get_one::<String>("file").is_none() {
         run_repl();
     } else if let Some(filename) = matches.get_one::<String>("file") {
         let parse_only = matches.get_flag("parse-only");
@@ -236,5 +252,6 @@ fn format_result(value: &crate::eval::Value) -> String {
         }
         crate::eval::Value::Function { .. } => "<function>".to_string(),
         crate::eval::Value::BuiltinFunction { name, .. } => format!("<builtin: {}>", name),
+        crate::eval::Value::PhysicsWorldHandle(_) => "<physics_world>".to_string(),
     }
 }

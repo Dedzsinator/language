@@ -373,3 +373,257 @@ impl Type {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::{Span, Type};
+
+    fn create_test_span() -> Span {
+        Span::new(0, 10, 1, 5)
+    }
+
+    #[test]
+    fn test_type_mismatch_error() {
+        let error = TypeError::TypeMismatch {
+            expected: "Int".to_string(),
+            found: "String".to_string(),
+            line: 1,
+            column: 5,
+        };
+        
+        assert!(error.to_string().contains("Type mismatch"));
+        assert!(error.to_string().contains("expected Int"));
+        assert!(error.to_string().contains("found String"));
+    }
+
+    #[test]
+    fn test_unknown_identifier_error() {
+        let error = TypeError::UnknownIdentifier {
+            name: "undefined_var".to_string(),
+            line: 2,
+            column: 10,
+        };
+        
+        assert!(error.to_string().contains("Unknown identifier"));
+        assert!(error.to_string().contains("undefined_var"));
+    }
+
+    #[test]
+    fn test_field_not_found_error() {
+        let error = TypeError::FieldNotFound {
+            field: "x".to_string(),
+            type_name: "Point".to_string(),
+            line: 3,
+            column: 15,
+        };
+        
+        assert!(error.to_string().contains("Field x not found"));
+        assert!(error.to_string().contains("type Point"));
+    }
+
+    #[test]
+    fn test_struct_registry() {
+        let mut registry = StructRegistry::new();
+        
+        let test_struct = StructDef {
+            name: "Point".to_string(),
+            fields: vec![
+                StructField {
+                    name: "x".to_string(),
+                    type_annotation: Type::Float,
+                    optional: false,
+                    default_value: None,
+                    span: create_test_span(),
+                },
+                StructField {
+                    name: "y".to_string(),
+                    type_annotation: Type::Float,
+                    optional: true,
+                    default_value: None,
+                    span: create_test_span(),
+                }
+            ],
+            span: create_test_span(),
+        };
+        
+        registry.register(test_struct);
+        
+        assert!(registry.get("Point").is_some());
+        assert!(registry.get("NonExistent").is_none());
+        assert!(registry.has_field("Point", "x"));
+        assert!(registry.has_field("Point", "y"));
+        assert!(!registry.has_field("Point", "z"));
+        assert_eq!(registry.get_field_type("Point", "x"), Some(&Type::Float));
+        assert!(!registry.is_field_optional("Point", "x"));
+        assert!(registry.is_field_optional("Point", "y"));
+    }
+
+    #[test]
+    fn test_typeclass_registry() {
+        let mut registry = TypeclassRegistry::new();
+        
+        let test_typeclass = TypeclassDef {
+            name: "Addable".to_string(),
+            type_param: "T".to_string(),
+            methods: vec![
+                TypeclassMethod {
+                    name: "add".to_string(),
+                    type_signature: Type::Function(
+                        vec![Type::TypeVar("T".to_string()), Type::TypeVar("T".to_string())],
+                        Box::new(Type::TypeVar("T".to_string()))
+                    ),
+                    span: create_test_span(),
+                }
+            ],
+            span: create_test_span(),
+        };
+        
+        registry.register_typeclass(test_typeclass);
+        assert!(registry.get_typeclass("Addable").is_some());
+        assert!(registry.get_typeclass("NonExistent").is_none());
+    }
+
+    #[test]
+    fn test_type_context_new() {
+        let context = TypeContext::new();
+        assert_eq!(context.next_type_var, 0);
+        // Check that built-ins are registered
+        assert!(context.typeclasses.get_typeclass("Addable").is_some());
+    }
+
+    #[test]
+    fn test_type_context_fresh_type_var() {
+        let mut context = TypeContext::new();
+        
+        let var1 = context.fresh_type_var();
+        let var2 = context.fresh_type_var();
+        
+        assert_ne!(var1, var2);
+        
+        if let Type::TypeVar(name1) = var1 {
+            if let Type::TypeVar(name2) = var2 {
+                assert_ne!(name1, name2);
+                assert!(name1.starts_with("T"));
+                assert!(name2.starts_with("T"));
+            } else {
+                panic!("Expected TypeVar");
+            }
+        } else {
+            panic!("Expected TypeVar");
+        }
+    }
+
+    #[test]
+    fn test_type_display() {
+        assert_eq!(Type::Int.to_string(), "Int");
+        assert_eq!(Type::Float.to_string(), "Float");
+        assert_eq!(Type::Bool.to_string(), "Bool");
+        assert_eq!(Type::String.to_string(), "String");
+        assert_eq!(Type::Unit.to_string(), "Unit");
+        
+        let array_type = Type::Array(Box::new(Type::Int));
+        assert_eq!(array_type.to_string(), "[Int]");
+        
+        let matrix_type = Type::Matrix(Box::new(Type::Float), Some(3), Some(3));
+        assert_eq!(matrix_type.to_string(), "Matrix<Float, 3, 3>");
+        
+        let func_type = Type::Function(vec![Type::Int, Type::Float], Box::new(Type::Bool));
+        assert_eq!(func_type.to_string(), "(Int, Float) -> Bool");
+        
+        let option_type = Type::Option(Box::new(Type::String));
+        assert_eq!(option_type.to_string(), "Option<String>");
+    }
+
+    #[test]
+    fn test_inferred_type_creation() {
+        let inferred = InferredType {
+            ty: Type::Int,
+            constraints: vec![],
+        };
+        
+        assert_eq!(inferred.ty, Type::Int);
+        assert!(inferred.constraints.is_empty());
+    }
+
+    #[test]
+    fn test_type_result_alias() {
+        let success: TypeResult<Type> = Ok(Type::Int);
+        let failure: TypeResult<Type> = Err(TypeError::UnknownIdentifier {
+            name: "test".to_string(),
+            line: 1,
+            column: 1,
+        });
+        
+        assert!(success.is_ok());
+        assert!(failure.is_err());
+    }
+
+    #[test]
+    fn test_error_equality() {
+        let error1 = TypeError::TypeMismatch {
+            expected: "Int".to_string(),
+            found: "String".to_string(),
+            line: 1,
+            column: 1,
+        };
+        
+        let error2 = TypeError::TypeMismatch {
+            expected: "Int".to_string(),
+            found: "String".to_string(),
+            line: 1,
+            column: 1,
+        };
+        
+        let error3 = TypeError::TypeMismatch {
+            expected: "Float".to_string(),
+            found: "String".to_string(),
+            line: 1,
+            column: 1,
+        };
+        
+        assert_eq!(error1, error2);
+        assert_ne!(error1, error3);
+    }
+
+    #[test]
+    fn test_all_error_variants() {
+        let errors = vec![
+            TypeError::TypeMismatch {
+                expected: "Int".to_string(),
+                found: "String".to_string(),
+                line: 1,
+                column: 1,
+            },
+            TypeError::UnknownIdentifier {
+                name: "x".to_string(),
+                line: 1,
+                column: 1,
+            },
+            TypeError::UnknownType {
+                name: "CustomType".to_string(),
+                line: 1,
+                column: 1,
+            },
+            TypeError::FieldNotFound {
+                field: "x".to_string(),
+                type_name: "Point".to_string(),
+                line: 1,
+                column: 1,
+            },
+            TypeError::NotCallable {
+                type_name: "Int".to_string(),
+                line: 1,
+                column: 1,
+            },
+            TypeError::WrongArgumentCount {
+                expected: 2,
+                found: 1,
+                line: 1,
+                column: 1,
+            },
+        ];
+        
+        assert_eq!(errors.len(), 6);
+    }
+}

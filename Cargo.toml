@@ -12,6 +12,13 @@ clap = { version = "4.4", features = ["derive"] }
 rustyline = "13.0"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
+rand = { version = "0.8", features = ["std"] }
+rand_pcg = "0.3"
+
+# GUI and Graphics
+eframe = "0.24"
+egui = "0.24"
+egui_plot = "0.24"
 
 # Optional dependencies (disabled for now due to linker issues)
 # nom = "7.1"

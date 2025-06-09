@@ -1,0 +1,20 @@
+# Test physics engine integration with matrix language
+
+# Create a physics world
+let world = create_physics_world();
+
+# Add some rigid bodies
+let sphere1 = add_rigid_body(world, "sphere", 1.0, 2.0, [0.0, 5.0, 0.0]);
+let box1 = add_rigid_body(world, "box", [2.0, 1.0, 1.0], 1.5, [3.0, 8.0, 0.0]);
+
+# Set gravity
+set_gravity(world, [0.0, -9.81, 0.0]);
+
+# Run simulation steps
+for i in 0:10 {
+    physics_step(world);
+    let state = get_physics_state(world);
+    print("Step ", i, ": Physics state updated");
+}
+
+print("Physics simulation completed successfully!");

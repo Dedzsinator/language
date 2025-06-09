@@ -469,3 +469,398 @@ impl Expression {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn create_test_span() -> Span {
+        Span::new(0, 10, 1, 1)
+    }
+
+    #[test]
+    fn test_span_creation() {
+        let span = Span::new(5, 15, 2, 3);
+        assert_eq!(span.start, 5);
+        assert_eq!(span.end, 15);
+        assert_eq!(span.line, 2);
+        assert_eq!(span.column, 3);
+    }
+
+    #[test]
+    fn test_program_creation() {
+        let span = create_test_span();
+        let program = Program {
+            items: vec![],
+            span: span.clone(),
+        };
+        assert_eq!(program.items.len(), 0);
+        assert_eq!(program.span(), &span);
+    }
+
+    #[test]
+    fn test_struct_def_creation() {
+        let span = create_test_span();
+        let field_span = create_test_span();
+
+        let field = StructField {
+            name: "x".to_string(),
+            type_annotation: Type::Int,
+            optional: false,
+            default_value: None,
+            span: field_span,
+        };
+
+        let struct_def = StructDef {
+            name: "Point".to_string(),
+            fields: vec![field],
+            span: span.clone(),
+        };
+
+        assert_eq!(struct_def.name, "Point");
+        assert_eq!(struct_def.fields.len(), 1);
+        assert_eq!(struct_def.fields[0].name, "x");
+        assert_eq!(struct_def.span(), &span);
+    }
+
+    #[test]
+    fn test_function_def_creation() {
+        let span = create_test_span();
+        let param_span = create_test_span();
+        let expr_span = create_test_span();
+
+        let param = Parameter {
+            name: "x".to_string(),
+            type_annotation: Type::Int,
+            span: param_span,
+        };
+
+        let body = Expression::IntLiteral(42, expr_span);
+
+        let func_def = FunctionDef {
+            name: "test_func".to_string(),
+            params: vec![param],
+            return_type: Some(Type::Int),
+            body,
+            attributes: vec![],
+            span: span.clone(),
+        };
+
+        assert_eq!(func_def.name, "test_func");
+        assert_eq!(func_def.params.len(), 1);
+        assert_eq!(func_def.return_type, Some(Type::Int));
+        assert_eq!(func_def.span(), &span);
+    }
+
+    #[test]
+    fn test_expression_span_methods() {
+        let span = create_test_span();
+
+        // Test various expression types
+        let int_expr = Expression::IntLiteral(42, span.clone());
+        assert_eq!(int_expr.span(), &span);
+
+        let float_expr = Expression::FloatLiteral(3.14, span.clone());
+        assert_eq!(float_expr.span(), &span);
+
+        let bool_expr = Expression::BoolLiteral(true, span.clone());
+        assert_eq!(bool_expr.span(), &span);
+
+        let string_expr = Expression::StringLiteral("test".to_string(), span.clone());
+        assert_eq!(string_expr.span(), &span);
+
+        let ident_expr = Expression::Identifier("x".to_string(), span.clone());
+        assert_eq!(ident_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_binary_op_expression() {
+        let span = create_test_span();
+        let left = Box::new(Expression::IntLiteral(1, span.clone()));
+        let right = Box::new(Expression::IntLiteral(2, span.clone()));
+
+        let binary_expr = Expression::BinaryOp {
+            left,
+            operator: BinaryOperator::Add,
+            right,
+            span: span.clone(),
+        };
+
+        assert_eq!(binary_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_function_call_expression() {
+        let span = create_test_span();
+        let function = Box::new(Expression::Identifier("func".to_string(), span.clone()));
+        let args = vec![Expression::IntLiteral(1, span.clone())];
+
+        let call_expr = Expression::FunctionCall {
+            function,
+            args,
+            span: span.clone(),
+        };
+
+        assert_eq!(call_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_struct_creation_expression() {
+        let span = create_test_span();
+        let mut fields = HashMap::new();
+        fields.insert("x".to_string(), Expression::IntLiteral(1, span.clone()));
+
+        let struct_expr = Expression::StructCreation {
+            name: "Point".to_string(),
+            fields,
+            span: span.clone(),
+        };
+
+        assert_eq!(struct_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_array_literal_expression() {
+        let span = create_test_span();
+        let elements = vec![
+            Expression::IntLiteral(1, span.clone()),
+            Expression::IntLiteral(2, span.clone()),
+        ];
+
+        let array_expr = Expression::ArrayLiteral(elements, span.clone());
+        assert_eq!(array_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_matrix_literal_expression() {
+        let span = create_test_span();
+        let rows = vec![
+            vec![
+                Expression::IntLiteral(1, span.clone()),
+                Expression::IntLiteral(2, span.clone()),
+            ],
+            vec![
+                Expression::IntLiteral(3, span.clone()),
+                Expression::IntLiteral(4, span.clone()),
+            ],
+        ];
+
+        let matrix_expr = Expression::MatrixLiteral(rows, span.clone());
+        assert_eq!(matrix_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let span = create_test_span();
+        let condition = Box::new(Expression::BoolLiteral(true, span.clone()));
+        let then_branch = Box::new(Expression::IntLiteral(1, span.clone()));
+        let else_branch = Some(Box::new(Expression::IntLiteral(2, span.clone())));
+
+        let if_expr = Expression::IfExpression {
+            condition,
+            then_branch,
+            else_branch,
+            span: span.clone(),
+        };
+
+        assert_eq!(if_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_match_expression() {
+        let span = create_test_span();
+        let expression = Box::new(Expression::IntLiteral(1, span.clone()));
+        let pattern = Pattern::IntLiteral(1, span.clone());
+        let arm = MatchArm {
+            pattern,
+            guard: None,
+            body: Expression::IntLiteral(42, span.clone()),
+            span: span.clone(),
+        };
+
+        let match_expr = Expression::Match {
+            expression,
+            arms: vec![arm],
+            span: span.clone(),
+        };
+
+        assert_eq!(match_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_patterns() {
+        let span = create_test_span();
+
+        let wildcard = Pattern::Wildcard(span.clone());
+        let ident = Pattern::Identifier("x".to_string(), span.clone());
+        let int_pat = Pattern::IntLiteral(42, span.clone());
+        let float_pat = Pattern::FloatLiteral(3.14, span.clone());
+        let bool_pat = Pattern::BoolLiteral(true, span.clone());
+        let string_pat = Pattern::StringLiteral("test".to_string(), span.clone());
+
+        // Just ensure they can be created without panicking
+        assert!(matches!(wildcard, Pattern::Wildcard(_)));
+        assert!(matches!(ident, Pattern::Identifier(_, _)));
+        assert!(matches!(int_pat, Pattern::IntLiteral(42, _)));
+        assert!(matches!(float_pat, Pattern::FloatLiteral(_, _)));
+        assert!(matches!(bool_pat, Pattern::BoolLiteral(true, _)));
+        assert!(matches!(string_pat, Pattern::StringLiteral(_, _)));
+    }
+
+    #[test]
+    fn test_type_variants() {
+        // Test all type variants can be created
+        let types = vec![
+            Type::Int,
+            Type::Float,
+            Type::Bool,
+            Type::String,
+            Type::Unit,
+            Type::Struct("TestStruct".to_string()),
+            Type::Array(Box::new(Type::Int)),
+            Type::Matrix(Box::new(Type::Float), Some(3), Some(3)),
+            Type::Function(vec![Type::Int], Box::new(Type::String)),
+            Type::TypeVar("T".to_string()),
+            Type::TypeApp("Option".to_string(), vec![Type::Int]),
+            Type::Option(Box::new(Type::String)),
+            Type::Spanned(Box::new(Type::Int), create_test_span()),
+        ];
+
+        // Ensure all types can be created and are different
+        assert_eq!(types.len(), 13);
+    }
+
+    #[test]
+    fn test_binary_operators() {
+        let operators = vec![
+            BinaryOperator::Add,
+            BinaryOperator::Sub,
+            BinaryOperator::Mul,
+            BinaryOperator::Div,
+            BinaryOperator::Mod,
+            BinaryOperator::Pow,
+            BinaryOperator::Eq,
+            BinaryOperator::Ne,
+            BinaryOperator::Lt,
+            BinaryOperator::Le,
+            BinaryOperator::Gt,
+            BinaryOperator::Ge,
+            BinaryOperator::And,
+            BinaryOperator::Or,
+            BinaryOperator::MatMul,
+            BinaryOperator::DotProduct,
+            BinaryOperator::CrossProduct,
+            BinaryOperator::OptionalOr,
+        ];
+
+        assert_eq!(operators.len(), 18);
+    }
+
+    #[test]
+    fn test_unary_operators() {
+        let operators = vec![
+            UnaryOperator::Neg,
+            UnaryOperator::Not,
+            UnaryOperator::Transpose,
+        ];
+
+        assert_eq!(operators.len(), 3);
+    }
+
+    #[test]
+    fn test_let_binding() {
+        let span = create_test_span();
+        let value = Expression::IntLiteral(42, span.clone());
+
+        let let_binding = LetBinding {
+            name: "x".to_string(),
+            type_annotation: Some(Type::Int),
+            value,
+            span: span.clone(),
+        };
+
+        assert_eq!(let_binding.name, "x");
+        assert_eq!(let_binding.type_annotation, Some(Type::Int));
+        assert_eq!(let_binding.span(), &span);
+    }
+
+    #[test]
+    fn test_import() {
+        let span = create_test_span();
+
+        let import = Import {
+            module_path: "std::io".to_string(),
+            items: Some(vec!["print".to_string(), "println".to_string()]),
+            span: span.clone(),
+        };
+
+        assert_eq!(import.module_path, "std::io");
+        assert_eq!(import.items.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_item_span_delegation() {
+        let span = create_test_span();
+
+        let struct_def = StructDef {
+            name: "Test".to_string(),
+            fields: vec![],
+            span: span.clone(),
+        };
+
+        let item = Item::StructDef(struct_def);
+        assert_eq!(item.span(), &span);
+    }
+
+    #[test]
+    fn test_parallel_expression() {
+        let span = create_test_span();
+        let expressions = vec![
+            Expression::IntLiteral(1, span.clone()),
+            Expression::IntLiteral(2, span.clone()),
+        ];
+
+        let parallel_expr = Expression::Parallel {
+            expressions,
+            span: span.clone(),
+        };
+
+        assert_eq!(parallel_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_async_expressions() {
+        let span = create_test_span();
+        let inner_expr = Box::new(Expression::IntLiteral(42, span.clone()));
+
+        let spawn_expr = Expression::Spawn {
+            expression: inner_expr.clone(),
+            span: span.clone(),
+        };
+
+        let wait_expr = Expression::Wait {
+            expression: inner_expr,
+            span: span.clone(),
+        };
+
+        assert_eq!(spawn_expr.span(), &span);
+        assert_eq!(wait_expr.span(), &span);
+    }
+
+    #[test]
+    fn test_range_expression() {
+        let span = create_test_span();
+        let start = Box::new(Expression::IntLiteral(1, span.clone()));
+        let end = Box::new(Expression::IntLiteral(10, span.clone()));
+
+        let range_expr = Expression::Range {
+            start,
+            end,
+            inclusive: false,
+            span: span.clone(),
+        };
+
+        assert_eq!(range_expr.span(), &span);
+    }
+}

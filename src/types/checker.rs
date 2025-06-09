@@ -1165,9 +1165,17 @@ mod tests {
     use crate::parser::*;
     
     fn parse_and_check(input: &str) -> TypeResult<InferredType> {
-        let tokens = Lexer::new(input).tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse_program().unwrap();
+        let mut lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer).map_err(|e| TypeError::UnknownType {
+            name: format!("Parse error: {:?}", e),
+            line: 0,
+            column: 0,
+        })?;
+        let ast = parser.parse_program().map_err(|e| TypeError::UnknownType {
+            name: format!("Parse error: {:?}", e),
+            line: 0,
+            column: 0,
+        })?;
         
         let mut checker = TypeChecker::new();
         checker.check_program(&ast)
