@@ -1,28 +1,28 @@
-use eframe::egui;
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::physics::*;
-use crate::physics::math::*;
-use crate::physics::rigid_body::*;
+use crate::eval::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::eval::Interpreter;
+use crate::physics::math::*;
+use crate::physics::rigid_body::*;
+use crate::physics::*;
+use eframe::egui;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-mod scene_manager;
-mod object_hierarchy;
+mod console;
 mod inspector;
+mod object_hierarchy;
+mod project_browser;
+mod scene_manager;
 mod scripting_panel;
 mod viewport;
-mod project_browser;
-mod console;
 
-pub use scene_manager::*;
-pub use object_hierarchy::*;
+pub use console::*;
 pub use inspector::*;
+pub use object_hierarchy::*;
+pub use project_browser::*;
+pub use scene_manager::*;
 pub use scripting_panel::*;
 pub use viewport::*;
-pub use project_browser::*;
-pub use console::*;
 
 /// 3D transformation data
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -61,14 +61,39 @@ pub enum GameObjectType {
 /// Component types that can be attached to game objects
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Component {
-    Mesh { mesh_type: String },
-    Renderer { material: String, color: [f32; 4] },
-    RigidBody { shape: Shape, mass: f64 },
-    SoftBodyComponent { particles: usize, stiffness: f64 },
-    Script { script_path: String, code: String },
-    Light { light_type: String, intensity: f32, color: [f32; 3] },
-    Camera { fov: f32, near: f32, far: f32 },
-    Collider { shape: Shape, is_trigger: bool },
+    Mesh {
+        mesh_type: String,
+    },
+    Renderer {
+        material: String,
+        color: [f32; 4],
+    },
+    RigidBody {
+        shape: Shape,
+        mass: f64,
+    },
+    SoftBodyComponent {
+        particles: usize,
+        stiffness: f64,
+    },
+    Script {
+        script_path: String,
+        code: String,
+    },
+    Light {
+        light_type: String,
+        intensity: f32,
+        color: [f32; 3],
+    },
+    Camera {
+        fov: f32,
+        near: f32,
+        far: f32,
+    },
+    Collider {
+        shape: Shape,
+        is_trigger: bool,
+    },
 }
 
 /// Game object in the scene
@@ -159,7 +184,7 @@ impl Scene {
                     parent.children.retain(|&child_id| child_id != id);
                 }
             }
-            
+
             // Remove all children
             for child_id in object.children {
                 self.remove_object(child_id);
@@ -176,12 +201,12 @@ impl Scene {
                 }
             }
         }
-        
+
         // Update child's parent
         if let Some(child) = self.objects.get_mut(&child_id) {
             child.parent = parent_id;
         }
-        
+
         // Add to new parent
         if let Some(new_parent_id) = parent_id {
             if let Some(new_parent) = self.objects.get_mut(&new_parent_id) {
@@ -212,7 +237,7 @@ pub enum DragPayload {
 pub struct UnityStyleEditor {
     // Core systems
     scene_manager: SceneManager,
-    
+
     // UI panels
     object_hierarchy: ObjectHierarchy,
     inspector: Inspector,
@@ -220,26 +245,26 @@ pub struct UnityStyleEditor {
     viewport: Viewport,
     project_browser: ProjectBrowser,
     console: Console,
-    
+
     // Selection and interaction
     selected_object: Option<u32>,
     view_mode: ViewMode,
-    
+
     // Physics simulation
     physics_world: PhysicsWorld,
     is_simulating: bool,
-    
+
     // UI state
     show_hierarchy: bool,
     show_inspector: bool,
     show_scripting: bool,
     show_project_browser: bool,
     show_console: bool,
-    
+
     // Context menu
     context_menu_open: bool,
     context_menu_position: egui::Pos2,
-    
+
     // Drag and drop
     drag_payload: Option<DragPayload>,
 }
@@ -274,21 +299,21 @@ impl eframe::App for UnityStyleEditor {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Request continuous repaints for smooth animation
         ctx.request_repaint();
-        
+
         // Update physics simulation
         if self.is_simulating {
             self.physics_world.step();
         }
-        
+
         // Create menu bar
         self.create_menu_bar(ctx);
-        
+
         // Create main layout with panels
         self.create_main_layout(ctx);
-        
+
         // Handle context menus
         self.handle_context_menus(ctx);
-        
+
         // Handle drag and drop
         self.handle_drag_drop(ctx);
     }
@@ -302,7 +327,8 @@ impl UnityStyleEditor {
                 // File menu
                 ui.menu_button("File", |ui| {
                     if ui.button("New Scene").clicked() {
-                        self.scene_manager.create_new_scene("New Scene".to_string(), false);
+                        self.scene_manager
+                            .create_new_scene("New Scene".to_string(), false);
                         ui.close_menu();
                     }
                     if ui.button("Open Scene").clicked() {
@@ -318,7 +344,7 @@ impl UnityStyleEditor {
                         std::process::exit(0);
                     }
                 });
-                
+
                 // Edit menu
                 ui.menu_button("Edit", |ui| {
                     if ui.button("Undo").clicked() {
@@ -330,7 +356,7 @@ impl UnityStyleEditor {
                         ui.close_menu();
                     }
                 });
-                
+
                 // GameObject menu
                 ui.menu_button("GameObject", |ui| {
                     if ui.button("Create Empty").clicked() {
@@ -354,7 +380,7 @@ impl UnityStyleEditor {
                         }
                     });
                 });
-                
+
                 // Window menu
                 ui.menu_button("Window", |ui| {
                     ui.checkbox(&mut self.show_hierarchy, "Hierarchy");
@@ -363,10 +389,17 @@ impl UnityStyleEditor {
                     ui.checkbox(&mut self.show_project_browser, "Project");
                     ui.checkbox(&mut self.show_console, "Console");
                 });
-                
+
                 // Simulation controls
                 ui.separator();
-                if ui.button(if self.is_simulating { "⏸ Pause" } else { "▶ Play" }).clicked() {
+                if ui
+                    .button(if self.is_simulating {
+                        "⏸ Pause"
+                    } else {
+                        "▶ Play"
+                    })
+                    .clicked()
+                {
                     self.is_simulating = !self.is_simulating;
                 }
                 if ui.button("⏹ Stop").clicked() {
@@ -375,34 +408,35 @@ impl UnityStyleEditor {
             });
         });
     }
-    
+
     /// Create the main layout with all panels
     fn create_main_layout(&mut self, ctx: &egui::Context) {
         // Show panels that handle their own layout
         if self.show_hierarchy {
             if let Some(scene) = self.scene_manager.current_scene_mut() {
-                self.object_hierarchy.show(ctx, scene, &mut self.selected_object);
+                self.object_hierarchy
+                    .show(ctx, scene, &mut self.selected_object);
             }
         }
-        
+
         if self.show_project_browser {
             self.project_browser.show(ctx);
         }
-        
+
         if self.show_inspector {
             if let Some(scene) = self.scene_manager.current_scene_mut() {
                 self.inspector.show(ctx, scene, self.selected_object);
             }
         }
-        
+
         if self.show_console {
             self.console.show(ctx);
         }
-        
+
         if self.show_scripting {
             self.scripting_panel.show(ctx);
         }
-        
+
         // Central viewport
         egui::CentralPanel::default().show(ctx, |_ui| {
             if let Some(scene) = self.scene_manager.current_scene() {
@@ -410,7 +444,7 @@ impl UnityStyleEditor {
             }
         });
     }
-    
+
     /// Handle context menus
     fn handle_context_menus(&mut self, ctx: &egui::Context) {
         if self.context_menu_open {
@@ -440,7 +474,7 @@ impl UnityStyleEditor {
                 });
         }
     }
-    
+
     /// Handle drag and drop operations
     fn handle_drag_drop(&mut self, _ctx: &egui::Context) {
         // TODO: Implement drag and drop logic
@@ -458,7 +492,7 @@ pub fn launch_unity_editor() -> Result<(), eframe::Error> {
             .with_min_inner_size([800.0, 600.0]),
         ..Default::default()
     };
-    
+
     eframe::run_native(
         "Matrix Language - Unity Style Editor",
         options,

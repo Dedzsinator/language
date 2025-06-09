@@ -42,14 +42,14 @@ impl ScriptingPanel {
             new_script_name: String::new(),
             show_templates: false,
         };
-        
+
         // Create a default script
         panel.create_new_script("Main".to_string(), get_default_script_template());
         panel.active_script = Some("Main".to_string());
-        
+
         panel
     }
-    
+
     pub fn show(&mut self, ctx: &egui::Context) {
         egui::Window::new("Script Editor")
             .default_width(800.0)
@@ -64,84 +64,84 @@ impl ScriptingPanel {
                 self.show_status_bar(ui);
             });
     }
-    
+
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             if ui.button("📄 New").clicked() {
                 self.show_new_script_dialog(ui);
             }
-            
+
             if ui.button("📁 Open").clicked() {
                 // TODO: Open file dialog
                 println!("Open file dialog");
             }
-            
+
             if ui.button("💾 Save").clicked() {
                 self.save_active_script();
             }
-            
+
             if ui.button("💾 Save All").clicked() {
                 self.save_all_scripts();
             }
-            
+
             ui.separator();
-            
+
             if ui.button("▶ Run").clicked() {
                 self.run_active_script();
             }
-            
+
             if ui.button("🐛 Debug").clicked() {
                 self.debug_active_script();
             }
-            
+
             ui.separator();
-            
+
             if ui.button("📖 Templates").clicked() {
                 self.show_templates = !self.show_templates;
             }
-            
+
             ui.separator();
-            
+
             // Search functionality
             ui.label("Search:");
             ui.text_edit_singleline(&mut String::new()); // TODO: Implement search
         });
     }
-    
+
     fn show_script_tabs(&mut self, ui: &mut egui::Ui) {
         egui::ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
                 let script_names: Vec<String> = self.scripts.keys().cloned().collect();
                 let mut script_to_close = None;
-                
+
                 for script_name in script_names {
                     let is_active = self.active_script.as_ref() == Some(&script_name);
                     let is_dirty = self.scripts.get(&script_name).map(|s| s.is_dirty).unwrap_or(false);
-                    
+
                     let tab_text = if is_dirty {
                         format!("● {}", script_name)
                     } else {
                         script_name.clone()
                     };
-                    
+
                     ui.group(|ui| {
                         ui.horizontal(|ui| {
                             if ui.selectable_label(is_active, &tab_text).clicked() {
                                 self.active_script = Some(script_name.clone());
                             }
-                            
+
                             if ui.small_button("✕").clicked() {
                                 script_to_close = Some(script_name.clone());
                             }
                         });
                     });
                 }
-                
+
                 // Close script if requested
                 if let Some(script_name) = script_to_close {
                     self.close_script(script_name);
                 }
-                
+
                 // Add new script button
                 if ui.button("➕").clicked() {
                     self.show_new_script_dialog(ui);
@@ -149,7 +149,7 @@ impl ScriptingPanel {
             });
         });
     }
-    
+
     fn show_active_script_editor(&mut self, ui: &mut egui::Ui) {
         if let Some(active_name) = self.active_script.clone() {
             if let Some(script) = self.scripts.get_mut(&active_name) {
@@ -157,7 +157,7 @@ impl ScriptingPanel {
                     // Code editor
                     columns[0].vertical(|ui| {
                         ui.heading(&format!("Editing: {}", script.name));
-                        
+
                         // Line numbers and code editor
                         egui::ScrollArea::both()
                             .auto_shrink([false; 2])
@@ -171,9 +171,9 @@ impl ScriptingPanel {
                                             ui.label(format!("{:3}", i));
                                         }
                                     });
-                                    
+
                                     ui.separator();
-                                    
+
                                     // Code editor
                                     let response = ui.add(
                                         egui::TextEdit::multiline(&mut script.code)
@@ -181,7 +181,7 @@ impl ScriptingPanel {
                                             .desired_width(f32::INFINITY)
                                             .desired_rows(25)
                                     );
-                                    
+
                                     if response.changed() {
                                         script.is_dirty = true;
                                         // TODO: Fix borrow checker issue
@@ -190,11 +190,11 @@ impl ScriptingPanel {
                                 });
                             });
                     });
-                    
+
                     // Right panel - syntax highlighting, errors, etc.
                     columns[1].vertical(|ui| {
                         ui.heading("Script Info");
-                        
+
                         // File info
                         ui.group(|ui| {
                             ui.label("File Information");
@@ -203,9 +203,9 @@ impl ScriptingPanel {
                             ui.label(format!("Characters: {}", script.code.len()));
                             ui.checkbox(&mut script.auto_save, "Auto Save");
                         });
-                        
+
                         ui.separator();
-                        
+
                         // Syntax errors
                         ui.group(|ui| {
                             ui.label("Syntax Errors");
@@ -229,9 +229,9 @@ impl ScriptingPanel {
                                     });
                             }
                         });
-                        
+
                         ui.separator();
-                        
+
                         // Code templates
                         if self.show_templates {
                             ui.group(|ui| {
@@ -253,9 +253,9 @@ impl ScriptingPanel {
                                 }
                             });
                         }
-                        
+
                         ui.separator();
-                        
+
                         // Script actions
                         ui.group(|ui| {
                             ui.label("Actions");
@@ -277,38 +277,38 @@ impl ScriptingPanel {
             ui.label("No script selected. Create a new script or open an existing one.");
         }
     }
-    
+
     fn show_status_bar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             if let Some(active_name) = &self.active_script {
                 if let Some(script) = self.scripts.get(active_name) {
-                    ui.label(format!("Lines: {} | Characters: {}", 
-                        script.code.lines().count(), 
+                    ui.label(format!("Lines: {} | Characters: {}",
+                        script.code.lines().count(),
                         script.code.len()));
-                    
+
                     if script.is_dirty {
                         ui.label("● Modified");
                     } else {
                         ui.label("Saved");
                     }
-                    
+
                     ui.separator();
-                    
+
                     ui.label(format!("Errors: {}", script.syntax_errors.len()));
                 }
             }
-            
+
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.label("Matrix Language v1.0");
             });
         });
     }
-    
+
     fn show_new_script_dialog(&mut self, ui: &mut egui::Ui) {
         egui::Window::new("New Script").show(ui.ctx(), |ui| {
             ui.label("Script Name:");
             ui.text_edit_singleline(&mut self.new_script_name);
-            
+
             ui.horizontal(|ui| {
                 if ui.button("Create").clicked() && !self.new_script_name.is_empty() {
                     self.create_new_script(self.new_script_name.clone(), get_default_script_template());
@@ -321,7 +321,7 @@ impl ScriptingPanel {
             });
         });
     }
-    
+
     fn create_new_script(&mut self, name: String, template: String) {
         let script = ScriptEditor {
             name: name.clone(),
@@ -332,24 +332,24 @@ impl ScriptingPanel {
             syntax_errors: Vec::new(),
             auto_save: false,
         };
-        
+
         self.scripts.insert(name, script);
     }
-    
+
     fn close_script(&mut self, name: String) {
         if let Some(script) = self.scripts.get(&name) {
             if script.is_dirty {
                 // TODO: Show save dialog
             }
         }
-        
+
         self.scripts.remove(&name);
-        
+
         if self.active_script.as_ref() == Some(&name) {
             self.active_script = self.scripts.keys().next().cloned();
         }
     }
-    
+
     fn save_active_script(&mut self) {
         if let Some(active_name) = &self.active_script {
             if let Some(script) = self.scripts.get_mut(active_name) {
@@ -361,7 +361,7 @@ impl ScriptingPanel {
             }
         }
     }
-    
+
     fn save_all_scripts(&mut self) {
         for script in self.scripts.values_mut() {
             if script.is_dirty {
@@ -372,12 +372,12 @@ impl ScriptingPanel {
             }
         }
     }
-    
+
     fn run_active_script(&mut self) {
         if let Some(active_name) = &self.active_script {
             if let Some(script) = self.scripts.get(active_name) {
                 println!("Running script: {}", script.name);
-                
+
                 // Parse and execute the script
                 let lexer = Lexer::new(&script.code);
                 match Parser::new(lexer) {
@@ -398,16 +398,16 @@ impl ScriptingPanel {
             }
         }
     }
-    
+
     fn debug_active_script(&mut self) {
         // TODO: Implement debugging functionality
         println!("Debug mode not yet implemented");
     }
-    
+
     fn check_syntax(&mut self, script_name: &str) {
         if let Some(script) = self.scripts.get_mut(script_name) {
             script.syntax_errors.clear();
-            
+
             let lexer = Lexer::new(&script.code);
             match Parser::new(lexer) {
                 Ok(mut parser) => {
@@ -431,12 +431,12 @@ impl ScriptingPanel {
             }
         }
     }
-    
+
     fn format_code(&mut self, script_name: &str) {
         // TODO: Implement code formatting
         println!("Code formatting not yet implemented");
     }
-    
+
     fn generate_documentation(&mut self, script_name: &str) {
         // TODO: Implement documentation generation
         println!("Documentation generation not yet implemented");

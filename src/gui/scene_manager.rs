@@ -108,7 +108,7 @@ impl SceneManager {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     let current_scene = self.current_scene;
                     let mut scene_to_switch = None;
-                    
+
                     for (index, scene) in self.scenes.iter().enumerate() {
                         ui.horizontal(|ui| {
                             let is_current = index == current_scene;
@@ -136,7 +136,7 @@ impl SceneManager {
                             });
                         });
                     }
-                    
+
                     // Handle scene switch outside the iterator
                     if let Some(index) = scene_to_switch {
                         self.switch_scene(index);
@@ -159,7 +159,7 @@ impl SceneManager {
                                 }
                             })
                             .collect();
-                        
+
                         for (index, path) in indices_to_save {
                             let _ = self.save_scene(index, &path);
                         }

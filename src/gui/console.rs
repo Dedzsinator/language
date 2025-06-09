@@ -72,7 +72,11 @@ impl Console {
 
         // Add some initial messages
         console.log(LogLevel::Info, "Matrix Language Console", "System");
-        console.log(LogLevel::Info, "Type 'help' for available commands", "System");
+        console.log(
+            LogLevel::Info,
+            "Type 'help' for available commands",
+            "System",
+        );
 
         console
     }
@@ -123,8 +127,16 @@ impl Console {
             ui.separator();
 
             // Statistics
-            let error_count = self.log_entries.iter().filter(|e| e.level == LogLevel::Error).count();
-            let warning_count = self.log_entries.iter().filter(|e| e.level == LogLevel::Warning).count();
+            let error_count = self
+                .log_entries
+                .iter()
+                .filter(|e| e.level == LogLevel::Error)
+                .count();
+            let warning_count = self
+                .log_entries
+                .iter()
+                .filter(|e| e.level == LogLevel::Warning)
+                .count();
 
             if error_count > 0 {
                 ui.colored_label(egui::Color32::RED, format!("❌ {}", error_count));
@@ -175,7 +187,7 @@ impl Console {
             let response = ui.add(
                 egui::TextEdit::singleline(&mut self.current_command)
                     .desired_width(f32::INFINITY)
-                    .hint_text("Enter command...")
+                    .hint_text("Enter command..."),
             );
 
             // Handle command input
@@ -231,17 +243,37 @@ impl Console {
                 self.log(LogLevel::Info, "Available commands:", "System");
                 self.log(LogLevel::Info, "  help - Show this help message", "System");
                 self.log(LogLevel::Info, "  clear - Clear the console", "System");
-                self.log(LogLevel::Info, "  echo <message> - Echo a message", "System");
-                self.log(LogLevel::Info, "  run <script> - Run a Matrix Language script", "System");
+                self.log(
+                    LogLevel::Info,
+                    "  echo <message> - Echo a message",
+                    "System",
+                );
+                self.log(
+                    LogLevel::Info,
+                    "  run <script> - Run a Matrix Language script",
+                    "System",
+                );
                 self.log(LogLevel::Info, "  scene <name> - Switch to scene", "System");
-                self.log(LogLevel::Info, "  spawn <object> - Spawn an object", "System");
-                self.log(LogLevel::Info, "  debug <on|off> - Toggle debug mode", "System");
-                self.log(LogLevel::Info, "  fps - Show performance information", "System");
-            },
+                self.log(
+                    LogLevel::Info,
+                    "  spawn <object> - Spawn an object",
+                    "System",
+                );
+                self.log(
+                    LogLevel::Info,
+                    "  debug <on|off> - Toggle debug mode",
+                    "System",
+                );
+                self.log(
+                    LogLevel::Info,
+                    "  fps - Show performance information",
+                    "System",
+                );
+            }
 
             "clear" => {
                 self.log_entries.clear();
-            },
+            }
 
             "echo" => {
                 if parts.len() > 1 {
@@ -250,38 +282,50 @@ impl Console {
                 } else {
                     self.log(LogLevel::Warning, "echo requires a message", "System");
                 }
-            },
+            }
 
             "run" => {
                 if parts.len() > 1 {
                     let script_name = parts[1];
-                    self.log(LogLevel::Info, &format!("Running script: {}", script_name), "System");
+                    self.log(
+                        LogLevel::Info,
+                        &format!("Running script: {}", script_name),
+                        "System",
+                    );
                     // TODO: Actually run the script
                     self.log(LogLevel::Info, "Script execution completed", "System");
                 } else {
                     self.log(LogLevel::Warning, "run requires a script name", "System");
                 }
-            },
+            }
 
             "scene" => {
                 if parts.len() > 1 {
                     let scene_name = parts[1];
-                    self.log(LogLevel::Info, &format!("Switching to scene: {}", scene_name), "System");
+                    self.log(
+                        LogLevel::Info,
+                        &format!("Switching to scene: {}", scene_name),
+                        "System",
+                    );
                     // TODO: Actually switch scene
                 } else {
                     self.log(LogLevel::Warning, "scene requires a scene name", "System");
                 }
-            },
+            }
 
             "spawn" => {
                 if parts.len() > 1 {
                     let object_type = parts[1];
-                    self.log(LogLevel::Info, &format!("Spawning object: {}", object_type), "System");
+                    self.log(
+                        LogLevel::Info,
+                        &format!("Spawning object: {}", object_type),
+                        "System",
+                    );
                     // TODO: Actually spawn object
                 } else {
                     self.log(LogLevel::Warning, "spawn requires an object type", "System");
                 }
-            },
+            }
 
             "debug" => {
                 if parts.len() > 1 {
@@ -289,11 +333,11 @@ impl Console {
                         "on" | "true" | "1" => {
                             self.log(LogLevel::Info, "Debug mode enabled", "System");
                             // TODO: Enable debug mode
-                        },
+                        }
                         "off" | "false" | "0" => {
                             self.log(LogLevel::Info, "Debug mode disabled", "System");
                             // TODO: Disable debug mode
-                        },
+                        }
                         _ => {
                             self.log(LogLevel::Warning, "debug requires 'on' or 'off'", "System");
                         }
@@ -301,50 +345,76 @@ impl Console {
                 } else {
                     self.log(LogLevel::Warning, "debug requires 'on' or 'off'", "System");
                 }
-            },
+            }
 
             "fps" => {
                 self.log(LogLevel::Info, "Performance Information:", "System");
                 self.log(LogLevel::Info, "  FPS: 60", "System"); // TODO: Get actual FPS
                 self.log(LogLevel::Info, "  Frame Time: 16.7ms", "System");
                 self.log(LogLevel::Info, "  Memory Usage: 128MB", "System");
-            },
+            }
 
             _ => {
                 // Try to execute as Matrix Language code
                 if command.contains("=") || command.contains("let") {
-                    self.log(LogLevel::Info, "Executing Matrix Language code...", "Interpreter");
+                    self.log(
+                        LogLevel::Info,
+                        "Executing Matrix Language code...",
+                        "Interpreter",
+                    );
 
                     // TODO: Execute with Matrix Language interpreter
                     let lexer = Lexer::new(command);
                     match Parser::new(lexer) {
-                        Ok(mut parser) => {
-                            match parser.parse_expression() {
-                                Ok(ast) => {
-                                    self.log(LogLevel::Debug, &format!("AST: {:?}", ast), "Parser");
+                        Ok(mut parser) => match parser.parse_expression() {
+                            Ok(ast) => {
+                                self.log(LogLevel::Debug, &format!("AST: {:?}", ast), "Parser");
 
-                                    let mut interpreter = Interpreter::new();
-                                    match interpreter.eval_expression(&ast) {
-                                        Ok(result) => {
-                                            self.log(LogLevel::Info, &format!("Result: {:?}", result), "Interpreter");
-                                        },
-                                        Err(e) => {
-                                            self.log(LogLevel::Error, &format!("Runtime error: {:?}", e), "Interpreter");
-                                        }
+                                let mut interpreter = Interpreter::new();
+                                match interpreter.eval_expression(&ast) {
+                                    Ok(result) => {
+                                        self.log(
+                                            LogLevel::Info,
+                                            &format!("Result: {:?}", result),
+                                            "Interpreter",
+                                        );
                                     }
-                                },
-                                Err(e) => {
-                                    self.log(LogLevel::Error, &format!("Parse error: {:?}", e), "Parser");
+                                    Err(e) => {
+                                        self.log(
+                                            LogLevel::Error,
+                                            &format!("Runtime error: {:?}", e),
+                                            "Interpreter",
+                                        );
+                                    }
                                 }
+                            }
+                            Err(e) => {
+                                self.log(
+                                    LogLevel::Error,
+                                    &format!("Parse error: {:?}", e),
+                                    "Parser",
+                                );
                             }
                         },
                         Err(e) => {
-                            self.log(LogLevel::Error, &format!("Parser creation error: {:?}", e), "Parser");
+                            self.log(
+                                LogLevel::Error,
+                                &format!("Parser creation error: {:?}", e),
+                                "Parser",
+                            );
                         }
                     }
                 } else {
-                    self.log(LogLevel::Warning, &format!("Unknown command: {}", parts[0]), "System");
-                    self.log(LogLevel::Info, "Type 'help' for available commands", "System");
+                    self.log(
+                        LogLevel::Warning,
+                        &format!("Unknown command: {}", parts[0]),
+                        "System",
+                    );
+                    self.log(
+                        LogLevel::Info,
+                        "Type 'help' for available commands",
+                        "System",
+                    );
                 }
             }
         }
@@ -358,7 +428,7 @@ impl Console {
         match self.history_index {
             None => {
                 self.history_index = Some(self.command_history.len() - 1);
-            },
+            }
             Some(index) => {
                 if index > 0 {
                     self.history_index = Some(index - 1);
@@ -417,7 +487,8 @@ impl Console {
 }
 
 fn format_timestamp(timestamp: std::time::SystemTime) -> String {
-    let duration = timestamp.duration_since(std::time::UNIX_EPOCH)
+    let duration = timestamp
+        .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
     let secs = duration.as_secs();
     let millis = duration.subsec_millis();

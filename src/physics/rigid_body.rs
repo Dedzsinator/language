@@ -39,13 +39,13 @@ impl Shape {
                 // Approximate as cylinder + hemisphere caps
                 let cylinder_mass = mass * height / (height + 4.0 * radius / 3.0);
                 let sphere_mass = mass - cylinder_mass;
-                
+
                 let cyl_inertia_y = 0.5 * cylinder_mass * radius * radius;
                 let cyl_inertia_xz = cylinder_mass * (3.0 * radius * radius + height * height) / 12.0;
-                
+
                 let sphere_inertia = 0.4 * sphere_mass * radius * radius;
                 let sphere_offset = (height / 2.0 + radius * 0.375).powi(2);
-                
+
                 Mat3::from_diagonal(
                     cyl_inertia_xz + sphere_inertia + sphere_mass * sphere_offset,
                     cyl_inertia_y + sphere_inertia,
@@ -62,14 +62,14 @@ impl Shape {
                 if vertices.is_empty() {
                     return Mat3::identity();
                 }
-                
+
                 let mut min = vertices[0];
                 let mut max = vertices[0];
                 for &vertex in vertices {
                     min = Vec3::new(min.x.min(vertex.x), min.y.min(vertex.y), min.z.min(vertex.z));
                     max = Vec3::new(max.x.max(vertex.x), max.y.max(vertex.y), max.z.max(vertex.z));
                 }
-                
+
                 let size = max - min;
                 Shape::Box { size }.inertia_tensor(mass)
             },
@@ -100,18 +100,18 @@ impl Shape {
                     Vec3::new(-half_size.x,  half_size.y,  half_size.z),
                     Vec3::new( half_size.x,  half_size.y,  half_size.z),
                 ];
-                
+
                 let transformed_corners: Vec<Vec3> = corners.iter()
                     .map(|&corner| transform.transform_point(corner))
                     .collect();
-                
+
                 let mut min = transformed_corners[0];
                 let mut max = transformed_corners[0];
                 for &corner in &transformed_corners[1..] {
                     min = Vec3::new(min.x.min(corner.x), min.y.min(corner.y), min.z.min(corner.z));
                     max = Vec3::new(max.x.max(corner.x), max.y.max(corner.y), max.z.max(corner.z));
                 }
-                
+
                 AABB::new(min, max)
             },
             Shape::Capsule { radius, height } => {
@@ -128,36 +128,36 @@ impl Shape {
                 if vertices.is_empty() {
                     return AABB::from_point(transform.position, 0.0);
                 }
-                
+
                 let transformed_vertices: Vec<Vec3> = vertices.iter()
                     .map(|&vertex| transform.transform_point(vertex))
                     .collect();
-                
+
                 let mut min = transformed_vertices[0];
                 let mut max = transformed_vertices[0];
                 for &vertex in &transformed_vertices[1..] {
                     min = Vec3::new(min.x.min(vertex.x), min.y.min(vertex.y), min.z.min(vertex.z));
                     max = Vec3::new(max.x.max(vertex.x), max.y.max(vertex.y), max.z.max(vertex.z));
                 }
-                
+
                 AABB::new(min, max)
             },
             Shape::TriangleMesh { vertices, .. } => {
                 if vertices.is_empty() {
                     return AABB::from_point(transform.position, 0.0);
                 }
-                
+
                 let transformed_vertices: Vec<Vec3> = vertices.iter()
                     .map(|&vertex| transform.transform_point(vertex))
                     .collect();
-                
+
                 let mut min = transformed_vertices[0];
                 let mut max = transformed_vertices[0];
                 for &vertex in &transformed_vertices[1..] {
                     min = Vec3::new(min.x.min(vertex.x), min.y.min(vertex.y), min.z.min(vertex.z));
                     max = Vec3::new(max.x.max(vertex.x), max.y.max(vertex.y), max.z.max(vertex.z));
                 }
-                
+
                 AABB::new(min, max)
             },
         }
@@ -170,18 +170,18 @@ pub struct RigidBody {
     // Transform
     pub position: Vec3,
     pub rotation: Quat,
-    
+
     // Previous transform for Verlet integration
     pub prev_position: Vec3,
     pub prev_rotation: Quat,
-    
+
     // Linear motion
     pub velocity: Vec3,
     pub acceleration: Vec3,
     pub force: Vec3,
     pub mass: f64,
     pub inv_mass: f64,
-    
+
     // Angular motion
     pub angular_velocity: Vec3,
     pub angular_acceleration: Vec3,
@@ -189,25 +189,25 @@ pub struct RigidBody {
     pub inertia_tensor: Mat3,
     pub inv_inertia_tensor: Mat3,
     pub world_inv_inertia_tensor: Mat3,
-    
+
     // Material properties
     pub restitution: f64,
     pub friction: f64,
     pub density: f64,
-    
+
     // Collision shape
     pub shape: Shape,
-    
+
     // State flags
     pub is_static: bool,
     pub is_kinematic: bool,
     pub is_sleeping: bool,
     pub gravity_scale: f64,
-    
+
     // Linear and angular damping
     pub linear_damping: f64,
     pub angular_damping: f64,
-    
+
     // For constraint solving
     pub constraint_force: Vec3,
     pub constraint_torque: Vec3,
@@ -222,7 +222,7 @@ impl RigidBody {
         } else {
             Mat3::zero()
         };
-        
+
         Self {
             position,
             rotation: Quat::identity(),
@@ -326,7 +326,7 @@ impl RigidBody {
 
         // Integrate linear motion
         self.acceleration = self.force * self.inv_mass;
-        
+
         // Semi-implicit Euler for stability
         self.velocity += self.acceleration * dt;
         self.velocity *= 1.0 - self.linear_damping * dt; // Linear damping
@@ -335,10 +335,10 @@ impl RigidBody {
         // Integrate angular motion
         self.update_world_inertia();
         self.angular_acceleration = self.world_inv_inertia_tensor.transform_vector(self.torque);
-        
+
         self.angular_velocity += self.angular_acceleration * dt;
         self.angular_velocity *= 1.0 - self.angular_damping * dt; // Angular damping
-        
+
         // Integrate rotation using quaternion
         if self.angular_velocity.magnitude_squared() > 0.0 {
             let angular_speed = self.angular_velocity.magnitude();
@@ -361,7 +361,7 @@ impl RigidBody {
 
         // Update velocity from position change (for constraint solving)
         self.velocity = (self.position - self.prev_position) / dt;
-        
+
         // Update angular velocity from rotation change
         if self.prev_rotation != self.rotation {
             let delta_rotation = self.rotation * self.prev_rotation.conjugate();
@@ -394,7 +394,7 @@ impl RigidBody {
     /// Convert to language value for visualization
     pub fn to_value(&self, id: usize) -> RuntimeResult<Value> {
         let mut fields = HashMap::new();
-        
+
         fields.insert("id".to_string(), Value::Int(id as i64));
         fields.insert("position".to_string(), self.position.to_value()?);
         fields.insert("rotation".to_string(), Value::Array(vec![
@@ -407,7 +407,7 @@ impl RigidBody {
         fields.insert("angular_velocity".to_string(), self.angular_velocity.to_value()?);
         fields.insert("mass".to_string(), Value::Float(self.mass));
         fields.insert("is_static".to_string(), Value::Bool(self.is_static));
-        
+
         // Shape info
         let shape_data = match &self.shape {
             Shape::Sphere { radius } => {
@@ -425,7 +425,7 @@ impl RigidBody {
             _ => Value::String("complex_shape".to_string()),
         };
         fields.insert("shape".to_string(), shape_data);
-        
+
         Ok(Value::Struct {
             name: "RigidBody".to_string(),
             fields,
@@ -465,7 +465,7 @@ fn sphere_sphere_collision(body1: &RigidBody, body2: &RigidBody, r1: f64, r2: f6
     let diff = body2.position - body1.position;
     let distance_squared = diff.magnitude_squared();
     let radius_sum = r1 + r2;
-    
+
     if distance_squared < radius_sum * radius_sum {
         let distance = distance_squared.sqrt();
         let normal = if distance > f64::EPSILON {
@@ -473,10 +473,10 @@ fn sphere_sphere_collision(body1: &RigidBody, body2: &RigidBody, r1: f64, r2: f6
         } else {
             Vec3::up() // Arbitrary direction for coincident spheres
         };
-        
+
         let penetration = radius_sum - distance;
         let contact_point = body1.position + normal * r1;
-        
+
         Some(Constraint::Contact {
             body_a: ConstraintBody::RigidBody(0), // Would need proper indices
             body_b: ConstraintBody::RigidBody(1),
@@ -498,19 +498,19 @@ fn sphere_box_collision(sphere_body: &RigidBody, box_body: &RigidBody, radius: f
     let box_transform = box_body.transform();
     let box_inv_transform = box_transform.inverse();
     let local_sphere_center = box_inv_transform.transform_point(sphere_body.position);
-    
+
     let half_size = box_size * 0.5;
-    
+
     // Find closest point on box to sphere center
     let closest_point = Vec3::new(
         local_sphere_center.x.clamp(-half_size.x, half_size.x),
         local_sphere_center.y.clamp(-half_size.y, half_size.y),
         local_sphere_center.z.clamp(-half_size.z, half_size.z),
     );
-    
+
     let diff = local_sphere_center - closest_point;
     let distance_squared = diff.magnitude_squared();
-    
+
     if distance_squared < radius * radius {
         let distance = distance_squared.sqrt();
         let normal = if distance > f64::EPSILON {
@@ -522,12 +522,12 @@ fn sphere_box_collision(sphere_body: &RigidBody, box_body: &RigidBody, radius: f
                 half_size.y - local_sphere_center.y.abs(),
                 half_size.z - local_sphere_center.z.abs(),
             ];
-            
+
             let min_axis = penetrations.iter()
                 .enumerate()
                 .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
                 .unwrap().0;
-            
+
             let mut normal_local = Vec3::zero();
             match min_axis {
                 0 => normal_local.x = if local_sphere_center.x > 0.0 { 1.0 } else { -1.0 },
@@ -535,13 +535,13 @@ fn sphere_box_collision(sphere_body: &RigidBody, box_body: &RigidBody, radius: f
                 2 => normal_local.z = if local_sphere_center.z > 0.0 { 1.0 } else { -1.0 },
                 _ => unreachable!(),
             }
-            
+
             box_transform.transform_vector(normal_local)
         };
-        
+
         let penetration = radius - distance;
         let world_closest_point = box_transform.transform_point(closest_point);
-        
+
         Some(Constraint::Contact {
             body_a: ConstraintBody::RigidBody(0), // Would need proper indices
             body_b: ConstraintBody::RigidBody(1),
@@ -561,20 +561,20 @@ fn sphere_box_collision(sphere_body: &RigidBody, box_body: &RigidBody, radius: f
 fn box_box_collision(body1: &RigidBody, body2: &RigidBody, size1: Vec3, size2: Vec3) -> Option<Constraint> {
     // Simplified SAT (Separating Axis Theorem) implementation
     // In a full implementation, would test all 15 potential separating axes
-    
+
     let transform1 = body1.transform();
     let transform2 = body2.transform();
-    
+
     // For simplicity, assume axis-aligned boxes
     let aabb1 = AABB::from_center_size(transform1.position, size1);
     let aabb2 = AABB::from_center_size(transform2.position, size2);
-    
+
     if aabb1.intersects(aabb2) {
         // Find minimum penetration axis
         let overlap_x = (aabb1.max.x - aabb2.min.x).min(aabb2.max.x - aabb1.min.x);
         let overlap_y = (aabb1.max.y - aabb2.min.y).min(aabb2.max.y - aabb1.min.y);
         let overlap_z = (aabb1.max.z - aabb2.min.z).min(aabb2.max.z - aabb1.min.z);
-        
+
         let min_overlap = overlap_x.min(overlap_y).min(overlap_z);
         let normal = if min_overlap == overlap_x {
             Vec3::new(if body2.position.x > body1.position.x { 1.0 } else { -1.0 }, 0.0, 0.0)
@@ -583,9 +583,9 @@ fn box_box_collision(body1: &RigidBody, body2: &RigidBody, size1: Vec3, size2: V
         } else {
             Vec3::new(0.0, 0.0, if body2.position.z > body1.position.z { 1.0 } else { -1.0 })
         };
-        
+
         let contact_point = (body1.position + body2.position) * 0.5;
-        
+
         Some(Constraint::Contact {
             body_a: ConstraintBody::RigidBody(0),
             body_b: ConstraintBody::RigidBody(1),
@@ -610,7 +610,7 @@ pub fn collide_with_particle(body: &RigidBody, particle: &super::soft_body::Part
             let diff = particle.position - body.position;
             let distance_squared = diff.magnitude_squared();
             let radius_sum = radius + particle.radius;
-            
+
             if distance_squared < radius_sum * radius_sum {
                 let distance = distance_squared.sqrt();
                 let normal = if distance > f64::EPSILON {
@@ -618,9 +618,9 @@ pub fn collide_with_particle(body: &RigidBody, particle: &super::soft_body::Part
                 } else {
                     Vec3::up()
                 };
-                
+
                 let penetration = radius_sum - distance;
-                
+
                 Some(Constraint::Contact {
                     body_a: ConstraintBody::RigidBody(0),
                     body_b: ConstraintBody::SoftBodyParticle(0, 0), // Would need proper indices
@@ -648,7 +648,7 @@ mod tests {
     fn test_rigid_body_creation() {
         let shape = Shape::Sphere { radius: 1.0 };
         let body = RigidBody::new(shape, 1.0, Vec3::zero());
-        
+
         assert_eq!(body.mass, 1.0);
         assert_eq!(body.inv_mass, 1.0);
         assert_eq!(body.position, Vec3::zero());
@@ -659,7 +659,7 @@ mod tests {
     fn test_static_body() {
         let shape = Shape::Box { size: Vec3::one() };
         let body = RigidBody::new(shape, 0.0, Vec3::zero());
-        
+
         assert_eq!(body.mass, 0.0);
         assert_eq!(body.inv_mass, 0.0);
         assert!(body.is_static);
@@ -669,7 +669,7 @@ mod tests {
     fn test_force_application() {
         let mut body = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::zero());
         body.apply_force(Vec3::new(10.0, 0.0, 0.0));
-        
+
         assert_eq!(body.force, Vec3::new(10.0, 0.0, 0.0));
     }
 
@@ -677,7 +677,7 @@ mod tests {
     fn test_impulse_application() {
         let mut body = RigidBody::new(Shape::Sphere { radius: 1.0 }, 2.0, Vec3::zero());
         body.apply_impulse(Vec3::new(4.0, 0.0, 0.0));
-        
+
         assert_eq!(body.velocity, Vec3::new(2.0, 0.0, 0.0));
     }
 
@@ -685,10 +685,10 @@ mod tests {
     fn test_sphere_collision() {
         let body1 = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::new(-0.5, 0.0, 0.0));
         let body2 = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::new(0.5, 0.0, 0.0));
-        
+
         let contact = collide(&body1, &body2);
         assert!(contact.is_some());
-        
+
         let contact = contact.unwrap();
         if let Constraint::Contact { penetration_depth, contact_normal, .. } = contact {
             assert!(penetration_depth > 0.0);
@@ -702,7 +702,7 @@ mod tests {
     fn test_no_collision_when_separated() {
         let body1 = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::new(-3.0, 0.0, 0.0));
         let body2 = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::new(3.0, 0.0, 0.0));
-        
+
         let contact = collide(&body1, &body2);
         assert!(contact.is_none());
     }
@@ -712,7 +712,7 @@ mod tests {
         let shape = Shape::Sphere { radius: 2.0 };
         let inertia = shape.inertia_tensor(10.0);
         let expected = 0.4 * 10.0 * 4.0; // 0.4 * mass * radius^2
-        
+
         assert!((inertia.data[0][0] - expected).abs() < f64::EPSILON);
         assert!((inertia.data[1][1] - expected).abs() < f64::EPSILON);
         assert!((inertia.data[2][2] - expected).abs() < f64::EPSILON);
@@ -723,10 +723,10 @@ mod tests {
         let mut body = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::zero());
         body.velocity = Vec3::new(1.0, 0.0, 0.0);
         body.angular_velocity = Vec3::new(0.0, 0.0, 1.0);
-        
+
         let point = Vec3::new(0.0, 1.0, 0.0);
         let velocity = body.velocity_at_point(point);
-        
+
         // Should be linear + angular velocity cross product
         assert_eq!(velocity, Vec3::new(2.0, 0.0, 0.0));
     }
@@ -735,12 +735,12 @@ mod tests {
     fn test_integration() {
         let mut body = RigidBody::new(Shape::Sphere { radius: 1.0 }, 1.0, Vec3::zero());
         body.apply_force(Vec3::new(10.0, 0.0, 0.0));
-        
+
         let dt = 1.0 / 60.0;
         let gravity = Vec3::new(0.0, -9.81, 0.0);
-        
+
         body.integrate_forces(dt, gravity);
-        
+
         assert!(body.velocity.x > 0.0);
         assert!(body.velocity.y < 0.0);
         assert!(body.position.x > 0.0);

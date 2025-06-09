@@ -131,9 +131,13 @@ impl ProjectBrowser {
 
     fn show_file_node(&mut self, ui: &mut egui::Ui, node: &mut FileNode, depth: usize) {
         // Apply filter
-        if !self.file_filter.is_empty() &&
-           !node.name.to_lowercase().contains(&self.file_filter.to_lowercase()) &&
-           !node.children.iter().any(|child| self.matches_filter(child)) {
+        if !self.file_filter.is_empty()
+            && !node
+                .name
+                .to_lowercase()
+                .contains(&self.file_filter.to_lowercase())
+            && !node.children.iter().any(|child| self.matches_filter(child))
+        {
             return;
         }
 
@@ -181,7 +185,7 @@ impl ProjectBrowser {
                     // Drag and drop for files
                     if !node.is_directory && response.hovered() {
                         // TODO: Implement drag and drop properly
-                // response.dnd_set_drag_payload(DragPayload::File(node.path.clone()));
+                        // response.dnd_set_drag_payload(DragPayload::File(node.path.clone()));
                     }
 
                     // Context menu
@@ -224,7 +228,7 @@ impl ProjectBrowser {
                             }
                         });
                     }
-                }
+                },
             );
         });
 
@@ -241,7 +245,11 @@ impl ProjectBrowser {
             return true;
         }
 
-        if node.name.to_lowercase().contains(&self.file_filter.to_lowercase()) {
+        if node
+            .name
+            .to_lowercase()
+            .contains(&self.file_filter.to_lowercase())
+        {
             return true;
         }
 
@@ -261,9 +269,9 @@ impl ProjectBrowser {
             .unwrap_or("");
 
         match extension.to_lowercase().as_str() {
-            "matrix" | "mtx" => "📜", // Script files
-            "scene" => "🎬", // Scene files
-            "prefab" => "🧩", // Prefab files
+            "matrix" | "mtx" => "📜",   // Script files
+            "scene" => "🎬",            // Scene files
+            "prefab" => "🧩",           // Prefab files
             "material" | "mat" => "🎨", // Material files
             "texture" | "tex" | "png" | "jpg" | "jpeg" | "bmp" | "tga" => "🖼️", // Texture files
             "model" | "obj" | "fbx" | "blend" | "3ds" => "🎯", // 3D model files
@@ -272,7 +280,7 @@ impl ProjectBrowser {
             "config" | "cfg" | "ini" | "json" | "toml" | "yaml" | "yml" => "⚙️", // Config files
             "txt" | "md" | "readme" => "📄", // Text files
             "rs" | "c" | "cpp" | "h" | "hpp" | "py" | "js" | "ts" => "💻", // Source code
-            _ => "📄", // Default file icon
+            _ => "📄",                  // Default file icon
         }
     }
 
@@ -347,17 +355,15 @@ impl ProjectBrowser {
                 name: "Materials".to_string(),
                 path: "Assets/Materials".to_string(),
                 is_directory: true,
-                children: vec![
-                    FileNode {
-                        name: "Default.material".to_string(),
-                        path: "Assets/Materials/Default.material".to_string(),
-                        is_directory: false,
-                        children: vec![],
-                        expanded: false,
-                        size: Some(512),
-                        modified: Some(std::time::SystemTime::now()),
-                    },
-                ],
+                children: vec![FileNode {
+                    name: "Default.material".to_string(),
+                    path: "Assets/Materials/Default.material".to_string(),
+                    is_directory: false,
+                    children: vec![],
+                    expanded: false,
+                    size: Some(512),
+                    modified: Some(std::time::SystemTime::now()),
+                }],
                 expanded: false,
                 size: None,
                 modified: Some(std::time::SystemTime::now()),

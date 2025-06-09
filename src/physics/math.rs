@@ -258,7 +258,7 @@ impl Quat {
 
     pub fn slerp(self, other: Self, t: f64) -> Self {
         let dot = self.w * other.w + self.x * other.x + self.y * other.y + self.z * other.z;
-        
+
         let (other, dot) = if dot < 0.0 {
             (Self::new(-other.w, -other.x, -other.y, -other.z), -dot)
         } else {
@@ -467,7 +467,7 @@ impl Transform {
         let inv_rotation = self.rotation.conjugate();
         let inv_scale = Vec3::new(1.0 / self.scale.x, 1.0 / self.scale.y, 1.0 / self.scale.z);
         let inv_position = inv_rotation.rotate_vector(-self.position);
-        
+
         Self::new(
             Vec3::new(inv_position.x * inv_scale.x, inv_position.y * inv_scale.y, inv_position.z * inv_scale.z),
             inv_rotation,
@@ -545,10 +545,10 @@ mod tests {
         assert_eq!(a + b, Vec3::new(5.0, 7.0, 9.0));
         assert_eq!(a - b, Vec3::new(-3.0, -3.0, -3.0));
         assert_eq!(a * 2.0, Vec3::new(2.0, 4.0, 6.0));
-        
+
         assert_eq!(a.dot(b), 32.0);
         assert_eq!(a.cross(b), Vec3::new(-3.0, 6.0, -3.0));
-        
+
         let normalized = Vec3::new(1.0, 0.0, 0.0).normalized();
         assert!((normalized.magnitude() - 1.0).abs() < f64::EPSILON);
     }
@@ -558,7 +558,7 @@ mod tests {
         let q = Quat::from_axis_angle(Vec3::up(), std::f64::consts::PI / 2.0);
         let v = Vec3::new(1.0, 0.0, 0.0);
         let rotated = q.rotate_vector(v);
-        
+
         // Should rotate 90 degrees around Y axis
         assert!((rotated.x - 0.0).abs() < 1e-10);
         assert!((rotated.z - (-1.0)).abs() < 1e-10);
@@ -582,10 +582,10 @@ mod tests {
     fn test_aabb_operations() {
         let aabb1 = AABB::new(Vec3::zero(), Vec3::one());
         let aabb2 = AABB::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
-        
+
         assert!(aabb1.intersects(aabb2));
         assert!(aabb1.contains_point(Vec3::new(0.5, 0.5, 0.5)));
-        
+
         let center = aabb1.center();
         assert_eq!(center, Vec3::new(0.5, 0.5, 0.5));
     }
