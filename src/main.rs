@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod ecs;
 pub mod eval;
 pub mod gpu;
 pub mod gui;

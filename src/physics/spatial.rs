@@ -9,6 +9,7 @@ pub enum SpatialObject {
     SoftBodyParticle(usize, usize), // (soft_body_index, particle_index)
     FluidParticle(usize),
     Constraint(usize),
+    Entity(usize), // ECS entity index
 }
 
 /// Spatial hash grid for efficient neighbor queries
@@ -46,9 +47,9 @@ impl SpatialHash {
     fn get_overlapping_cells(&self, aabb: AABB) -> Vec<(i32, i32, i32)> {
         let min_cell = self.get_cell(aabb.min);
         let max_cell = self.get_cell(aabb.max);
-        
+
         let mut cells = Vec::new();
-        
+
         for x in min_cell.0..=max_cell.0 {
             for y in min_cell.1..=max_cell.1 {
                 for z in min_cell.2..=max_cell.2 {
@@ -56,14 +57,14 @@ impl SpatialHash {
                 }
             }
         }
-        
+
         cells
     }
 
     /// Insert an object into the spatial hash
     pub fn insert(&mut self, object: SpatialObject, aabb: AABB) {
         let cells = self.get_overlapping_cells(aabb);
-        
+
         for cell in cells {
             self.grid
                 .entry(cell)
@@ -77,7 +78,7 @@ impl SpatialHash {
         let cells = self.get_overlapping_cells(query_aabb);
         let mut results = Vec::new();
         let mut seen = std::collections::HashSet::new();
-        
+
         for cell in cells {
             if let Some(objects) = self.grid.get(&cell) {
                 for (object, aabb) in objects {
@@ -89,7 +90,7 @@ impl SpatialHash {
                 }
             }
         }
-        
+
         results
     }
 
@@ -98,13 +99,13 @@ impl SpatialHash {
         let aabb = AABB::from_point(center, radius);
         let candidates = self.query(aabb);
         let mut results = Vec::new();
-        
+
         for object in candidates {
             // For sphere queries, we need to check actual distance
             // This is a simplified version - in practice you'd store object positions
             results.push(object);
         }
-        
+
         results
     }
 
@@ -118,7 +119,7 @@ impl SpatialHash {
         } else {
             0.0
         };
-        
+
         SpatialHashStats {
             total_cells,
             total_objects,
@@ -133,20 +134,22 @@ impl SpatialHash {
         if objects.is_empty() {
             return;
         }
-        
+
         // Calculate optimal cell size based on average object size
-        let avg_size = objects.iter()
+        let avg_size = objects
+            .iter()
             .map(|(_, aabb)| (aabb.max - aabb.min).magnitude())
-            .sum::<f64>() / objects.len() as f64;
-        
+            .sum::<f64>()
+            / objects.len() as f64;
+
         let optimal_cell_size = avg_size * 2.0; // Heuristic: 2x average object size
-        
+
         if (optimal_cell_size - self.cell_size).abs() > self.cell_size * 0.5 {
             // Significant change, rebuild with new cell size
             self.cell_size = optimal_cell_size;
             self.inv_cell_size = 1.0 / optimal_cell_size;
             self.clear();
-            
+
             for (object, aabb) in objects {
                 self.insert(*object, *aabb);
             }
@@ -156,14 +159,14 @@ impl SpatialHash {
     /// Get potential collision pairs from objects in the same cells
     pub fn get_potential_pairs(&self) -> Vec<(SpatialObject, SpatialObject)> {
         let mut pairs = Vec::new();
-        
+
         for objects in self.grid.values() {
             // Check all pairs within each cell
             for i in 0..objects.len() {
                 for j in i + 1..objects.len() {
                     let (obj_a, aabb_a) = objects[i];
                     let (obj_b, aabb_b) = objects[j];
-                    
+
                     // Basic AABB intersection test
                     if aabb_a.intersects(aabb_b) {
                         // Ensure consistent ordering for pairs
@@ -177,11 +180,11 @@ impl SpatialHash {
                 }
             }
         }
-        
+
         // Remove duplicates (objects can be in multiple cells)
         pairs.sort_unstable();
         pairs.dedup();
-        
+
         pairs
     }
 }
@@ -205,12 +208,12 @@ pub struct HierarchicalSpatialHash {
 impl HierarchicalSpatialHash {
     pub fn new(base_cell_size: f64, num_levels: usize) -> Self {
         let mut levels = Vec::new();
-        
+
         for i in 0..num_levels {
             let cell_size = base_cell_size * (2.0_f64).powi(i as i32);
             levels.push(SpatialHash::new(cell_size));
         }
-        
+
         Self {
             levels,
             base_cell_size,
@@ -227,7 +230,7 @@ impl HierarchicalSpatialHash {
     /// Insert object into appropriate levels based on size
     pub fn insert(&mut self, object: SpatialObject, aabb: AABB) {
         let object_size = (aabb.max - aabb.min).magnitude();
-        
+
         // Insert into levels where cell size is appropriate for object size
         for level in &mut self.levels {
             if level.cell_size >= object_size * 0.5 && level.cell_size <= object_size * 4.0 {
@@ -239,11 +242,11 @@ impl HierarchicalSpatialHash {
     /// Query using the most appropriate level
     pub fn query(&self, query_aabb: AABB) -> Vec<SpatialObject> {
         let query_size = (query_aabb.max - query_aabb.min).magnitude();
-        
+
         // Find the best level for this query size
         let mut best_level = 0;
         let mut best_ratio = f64::MAX;
-        
+
         for (i, level) in self.levels.iter().enumerate() {
             let ratio = (level.cell_size / query_size - 1.0).abs();
             if ratio < best_ratio {
@@ -251,7 +254,7 @@ impl HierarchicalSpatialHash {
                 best_level = i;
             }
         }
-        
+
         self.levels[best_level].query(query_aabb)
     }
 }
@@ -275,34 +278,34 @@ impl BroadPhase {
     pub fn update(&mut self, objects: &[(SpatialObject, AABB)]) {
         self.spatial_hash.clear();
         self.collision_pairs.clear();
-        
+
         // Insert all objects
         for (object, aabb) in objects {
             self.spatial_hash.insert(*object, *aabb);
         }
-        
+
         // Find potential collision pairs
         self.find_collision_pairs(objects);
     }
 
     fn find_collision_pairs(&mut self, objects: &[(SpatialObject, AABB)]) {
         let mut checked_pairs = std::collections::HashSet::new();
-        
+
         for (object_a, aabb_a) in objects {
             let candidates = self.spatial_hash.query(*aabb_a);
-            
+
             for object_b in candidates {
                 if object_a == &object_b {
                     continue;
                 }
-                
+
                 // Create a consistent pair ordering to avoid duplicates
                 let pair = if object_a < &object_b {
                     (*object_a, object_b)
                 } else {
                     (object_b, *object_a)
                 };
-                
+
                 if !checked_pairs.contains(&pair) {
                     self.collision_pairs.push(pair);
                     checked_pairs.insert(pair);
@@ -323,14 +326,19 @@ impl BroadPhase {
     }
 
     /// Ray casting through the spatial hash
-    pub fn raycast(&self, ray_origin: Vec3, ray_direction: Vec3, max_distance: f64) -> Vec<SpatialObject> {
+    pub fn raycast(
+        &self,
+        ray_origin: Vec3,
+        ray_direction: Vec3,
+        max_distance: f64,
+    ) -> Vec<SpatialObject> {
         let ray_end = ray_origin + ray_direction.normalized() * max_distance;
-        
+
         // Create AABB that encompasses the ray
         let min = ray_origin.min_component_wise(ray_end);
         let max = ray_origin.max_component_wise(ray_end);
         let ray_aabb = AABB::new(min, max);
-        
+
         self.spatial_hash.query(ray_aabb)
     }
 }
@@ -339,7 +347,7 @@ impl BroadPhase {
 #[derive(Debug, Clone)]
 pub struct SweepAndPrune {
     pub objects: Vec<(SpatialObject, f64, f64)>, // (object, min, max)
-    pub axis: usize, // 0=x, 1=y, 2=z
+    pub axis: usize,                             // 0=x, 1=y, 2=z
 }
 
 impl SweepAndPrune {
@@ -353,7 +361,7 @@ impl SweepAndPrune {
     /// Update with new object positions
     pub fn update(&mut self, objects: &[(SpatialObject, AABB)]) {
         self.objects.clear();
-        
+
         for (object, aabb) in objects {
             let (min, max) = match self.axis {
                 0 => (aabb.min.x, aabb.max.x),
@@ -361,10 +369,10 @@ impl SweepAndPrune {
                 2 => (aabb.min.z, aabb.max.z),
                 _ => (aabb.min.x, aabb.max.x),
             };
-            
+
             self.objects.push((*object, min, max));
         }
-        
+
         // Sort by minimum value along the axis
         self.objects.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
     }
@@ -372,22 +380,22 @@ impl SweepAndPrune {
     /// Find overlapping pairs along this axis
     pub fn find_overlaps(&self) -> Vec<(SpatialObject, SpatialObject)> {
         let mut pairs = Vec::new();
-        
+
         for i in 0..self.objects.len() {
             let (obj_a, min_a, max_a) = self.objects[i];
-            
+
             for j in (i + 1)..self.objects.len() {
                 let (obj_b, min_b, _max_b) = self.objects[j];
-                
+
                 // If min_b > max_a, no more overlaps for obj_a
                 if min_b > max_a {
                     break;
                 }
-                
+
                 pairs.push((obj_a, obj_b));
             }
         }
-        
+
         pairs
     }
 }
@@ -399,7 +407,7 @@ mod tests {
     #[test]
     fn test_spatial_hash_creation() {
         let spatial_hash = SpatialHash::new(1.0);
-        
+
         assert_eq!(spatial_hash.cell_size, 1.0);
         assert_eq!(spatial_hash.inv_cell_size, 1.0);
         assert!(spatial_hash.grid.is_empty());
@@ -408,29 +416,32 @@ mod tests {
     #[test]
     fn test_get_cell() {
         let spatial_hash = SpatialHash::new(1.0);
-        
+
         assert_eq!(spatial_hash.get_cell(Vec3::new(0.5, 0.5, 0.5)), (0, 0, 0));
         assert_eq!(spatial_hash.get_cell(Vec3::new(1.5, 1.5, 1.5)), (1, 1, 1));
-        assert_eq!(spatial_hash.get_cell(Vec3::new(-0.5, -0.5, -0.5)), (-1, -1, -1));
+        assert_eq!(
+            spatial_hash.get_cell(Vec3::new(-0.5, -0.5, -0.5)),
+            (-1, -1, -1)
+        );
     }
 
     #[test]
     fn test_insert_and_query() {
         let mut spatial_hash = SpatialHash::new(1.0);
-        
+
         let obj1 = SpatialObject::RigidBody(0);
         let aabb1 = AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.5, 0.5, 0.5));
-        
+
         let obj2 = SpatialObject::RigidBody(1);
         let aabb2 = AABB::new(Vec3::new(1.0, 1.0, 1.0), Vec3::new(1.5, 1.5, 1.5));
-        
+
         spatial_hash.insert(obj1, aabb1);
         spatial_hash.insert(obj2, aabb2);
-        
+
         // Query overlapping with obj1
         let query_aabb = AABB::new(Vec3::new(-0.1, -0.1, -0.1), Vec3::new(0.6, 0.6, 0.6));
         let results = spatial_hash.query(query_aabb);
-        
+
         assert!(results.contains(&obj1));
         assert!(!results.contains(&obj2));
     }
@@ -438,10 +449,10 @@ mod tests {
     #[test]
     fn test_overlapping_cells() {
         let spatial_hash = SpatialHash::new(1.0);
-        
+
         let aabb = AABB::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5));
         let cells = spatial_hash.get_overlapping_cells(aabb);
-        
+
         // Should overlap 8 cells (2x2x2)
         assert_eq!(cells.len(), 8);
         assert!(cells.contains(&(0, 0, 0)));
@@ -451,13 +462,13 @@ mod tests {
     #[test]
     fn test_spatial_hash_clear() {
         let mut spatial_hash = SpatialHash::new(1.0);
-        
+
         let obj = SpatialObject::RigidBody(0);
         let aabb = AABB::new(Vec3::zero(), Vec3::new(1.0, 1.0, 1.0));
-        
+
         spatial_hash.insert(obj, aabb);
         assert!(!spatial_hash.grid.is_empty());
-        
+
         spatial_hash.clear();
         assert!(spatial_hash.grid.is_empty());
     }
@@ -465,16 +476,16 @@ mod tests {
     #[test]
     fn test_spatial_hash_stats() {
         let mut spatial_hash = SpatialHash::new(1.0);
-        
+
         for i in 0..10 {
             let obj = SpatialObject::RigidBody(i);
             let aabb = AABB::new(
                 Vec3::new(i as f64, i as f64, i as f64),
-                Vec3::new(i as f64 + 0.5, i as f64 + 0.5, i as f64 + 0.5)
+                Vec3::new(i as f64 + 0.5, i as f64 + 0.5, i as f64 + 0.5),
             );
             spatial_hash.insert(obj, aabb);
         }
-        
+
         let stats = spatial_hash.stats();
         assert!(stats.total_cells > 0);
         assert!(stats.total_objects > 0);
@@ -484,49 +495,66 @@ mod tests {
     #[test]
     fn test_hierarchical_spatial_hash() {
         let mut hspatial = HierarchicalSpatialHash::new(1.0, 3);
-        
+
         let obj = SpatialObject::RigidBody(0);
         let aabb = AABB::new(Vec3::zero(), Vec3::new(2.0, 2.0, 2.0));
-        
+
         hspatial.insert(obj, aabb);
-        
+
         let query_aabb = AABB::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5));
         let results = hspatial.query(query_aabb);
-        
+
         assert!(results.contains(&obj));
     }
 
     #[test]
     fn test_broad_phase() {
         let mut broad_phase = BroadPhase::new(1.0);
-        
+
         let objects = vec![
-            (SpatialObject::RigidBody(0), AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0))),
-            (SpatialObject::RigidBody(1), AABB::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5))),
-            (SpatialObject::RigidBody(2), AABB::new(Vec3::new(5.0, 5.0, 5.0), Vec3::new(6.0, 6.0, 6.0))),
+            (
+                SpatialObject::RigidBody(0),
+                AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0)),
+            ),
+            (
+                SpatialObject::RigidBody(1),
+                AABB::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.5, 1.5, 1.5)),
+            ),
+            (
+                SpatialObject::RigidBody(2),
+                AABB::new(Vec3::new(5.0, 5.0, 5.0), Vec3::new(6.0, 6.0, 6.0)),
+            ),
         ];
-        
+
         broad_phase.update(&objects);
-        
+
         let pairs = broad_phase.get_collision_pairs();
-        
+
         // Should find overlap between objects 0 and 1
         assert!(pairs.len() > 0);
-        assert!(pairs.contains(&(SpatialObject::RigidBody(0), SpatialObject::RigidBody(1))) ||
-                pairs.contains(&(SpatialObject::RigidBody(1), SpatialObject::RigidBody(0))));
+        assert!(
+            pairs.contains(&(SpatialObject::RigidBody(0), SpatialObject::RigidBody(1)))
+                || pairs.contains(&(SpatialObject::RigidBody(1), SpatialObject::RigidBody(0)))
+        );
     }
 
     #[test]
     fn test_query_point() {
         let mut broad_phase = BroadPhase::new(1.0);
-        
+
         let objects = vec![
-            (SpatialObject::RigidBody(0), AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0))),
-            (SpatialObject::RigidBody(1), AABB::new(Vec3::new(5.0, 5.0, 5.0), Vec3::new(6.0, 6.0, 6.0))),
+            (
+                SpatialObject::RigidBody(0),
+                AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0)),
+            ),
+            (
+                SpatialObject::RigidBody(1),
+                AABB::new(Vec3::new(5.0, 5.0, 5.0), Vec3::new(6.0, 6.0, 6.0)),
+            ),
         ];
-        
+
         broad_phase.update(&objects);
-        
+
         let results = broad_phase.query_point(Vec3::new(0.5, 0.5, 0.5), 1.0);
         assert!(results.contains(&SpatialObject::RigidBody(0)));
         assert!(!results.contains(&SpatialObject::RigidBody(1)));
@@ -535,17 +563,26 @@ mod tests {
     #[test]
     fn test_sweep_and_prune() {
         let mut sap = SweepAndPrune::new(0); // X-axis
-        
+
         let objects = vec![
-            (SpatialObject::RigidBody(0), AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 1.0))),
-            (SpatialObject::RigidBody(1), AABB::new(Vec3::new(1.0, 0.0, 0.0), Vec3::new(3.0, 1.0, 1.0))),
-            (SpatialObject::RigidBody(2), AABB::new(Vec3::new(5.0, 0.0, 0.0), Vec3::new(6.0, 1.0, 1.0))),
+            (
+                SpatialObject::RigidBody(0),
+                AABB::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 1.0)),
+            ),
+            (
+                SpatialObject::RigidBody(1),
+                AABB::new(Vec3::new(1.0, 0.0, 0.0), Vec3::new(3.0, 1.0, 1.0)),
+            ),
+            (
+                SpatialObject::RigidBody(2),
+                AABB::new(Vec3::new(5.0, 0.0, 0.0), Vec3::new(6.0, 1.0, 1.0)),
+            ),
         ];
-        
+
         sap.update(&objects);
-        
+
         let overlaps = sap.find_overlaps();
-        
+
         // Should find overlap between objects 0 and 1 along X-axis
         assert!(overlaps.len() > 0);
         assert!(overlaps.contains(&(SpatialObject::RigidBody(0), SpatialObject::RigidBody(1))));
@@ -555,20 +592,26 @@ mod tests {
     #[test]
     fn test_raycast() {
         let mut broad_phase = BroadPhase::new(1.0);
-        
+
         let objects = vec![
-            (SpatialObject::RigidBody(0), AABB::new(Vec3::new(5.0, -1.0, -1.0), Vec3::new(6.0, 1.0, 1.0))),
-            (SpatialObject::RigidBody(1), AABB::new(Vec3::new(10.0, 10.0, 10.0), Vec3::new(11.0, 11.0, 11.0))),
+            (
+                SpatialObject::RigidBody(0),
+                AABB::new(Vec3::new(5.0, -1.0, -1.0), Vec3::new(6.0, 1.0, 1.0)),
+            ),
+            (
+                SpatialObject::RigidBody(1),
+                AABB::new(Vec3::new(10.0, 10.0, 10.0), Vec3::new(11.0, 11.0, 11.0)),
+            ),
         ];
-        
+
         broad_phase.update(&objects);
-        
+
         let ray_origin = Vec3::new(0.0, 0.0, 0.0);
         let ray_direction = Vec3::new(1.0, 0.0, 0.0);
         let max_distance = 10.0;
-        
+
         let results = broad_phase.raycast(ray_origin, ray_direction, max_distance);
-        
+
         // Should hit object 0, but not object 1
         assert!(results.contains(&SpatialObject::RigidBody(0)));
     }

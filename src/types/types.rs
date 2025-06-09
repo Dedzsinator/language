@@ -11,21 +11,21 @@ pub enum TypeError {
         line: usize,
         column: usize,
     },
-    
+
     #[error("Unknown identifier: {name} at line {line}, column {column}")]
     UnknownIdentifier {
         name: String,
         line: usize,
         column: usize,
     },
-    
+
     #[error("Unknown type: {name} at line {line}, column {column}")]
     UnknownType {
         name: String,
         line: usize,
         column: usize,
     },
-    
+
     #[error("Field {field} not found in type {type_name} at line {line}, column {column}")]
     FieldNotFound {
         field: String,
@@ -33,14 +33,14 @@ pub enum TypeError {
         line: usize,
         column: usize,
     },
-    
+
     #[error("Cannot call non-function type {type_name} at line {line}, column {column}")]
     NotCallable {
         type_name: String,
         line: usize,
         column: usize,
     },
-    
+
     #[error("Wrong number of arguments: expected {expected}, found {found} at line {line}, column {column}")]
     WrongArgumentCount {
         expected: usize,
@@ -48,7 +48,7 @@ pub enum TypeError {
         line: usize,
         column: usize,
     },
-    
+
     #[error("Typeclass {typeclass} not implemented for type {type_name} at line {line}, column {column}")]
     TypeclassNotImplemented {
         typeclass: String,
@@ -85,22 +85,22 @@ impl TypeEnv {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn with_parent(parent: TypeEnv) -> Self {
         Self {
             bindings: HashMap::new(),
             parent: Some(Box::new(parent)),
         }
     }
-    
+
     pub fn bind(&mut self, name: String, ty: InferredType) {
         self.bindings.insert(name, ty);
     }
-    
+
     pub fn lookup(&self, name: &str) -> Option<&InferredType> {
-        self.bindings.get(name).or_else(|| {
-            self.parent.as_ref().and_then(|p| p.lookup(name))
-        })
+        self.bindings
+            .get(name)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.lookup(name)))
     }
 }
 
@@ -114,27 +114,27 @@ impl StructRegistry {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn register(&mut self, struct_def: StructDef) {
         self.structs.insert(struct_def.name.clone(), struct_def);
     }
-    
+
     pub fn get(&self, name: &str) -> Option<&StructDef> {
         self.structs.get(name)
     }
-    
+
     pub fn has_field(&self, struct_name: &str, field_name: &str) -> bool {
         self.get(struct_name)
             .map(|s| s.fields.iter().any(|f| f.name == field_name))
             .unwrap_or(false)
     }
-    
+
     pub fn get_field_type(&self, struct_name: &str, field_name: &str) -> Option<&Type> {
         self.get(struct_name)
             .and_then(|s| s.fields.iter().find(|f| f.name == field_name))
             .map(|f| &f.type_annotation)
     }
-    
+
     pub fn is_field_optional(&self, struct_name: &str, field_name: &str) -> bool {
         self.get(struct_name)
             .and_then(|s| s.fields.iter().find(|f| f.name == field_name))
@@ -154,28 +154,33 @@ impl TypeclassRegistry {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn register_typeclass(&mut self, typeclass_def: TypeclassDef) {
-        self.typeclasses.insert(typeclass_def.name.clone(), typeclass_def);
+        self.typeclasses
+            .insert(typeclass_def.name.clone(), typeclass_def);
     }
-    
+
     pub fn register_instance(&mut self, instance_def: InstanceDef) {
-        let key = (instance_def.typeclass_name.clone(), instance_def.type_name.clone());
+        let key = (
+            instance_def.typeclass_name.clone(),
+            instance_def.type_name.clone(),
+        );
         self.instances.insert(key, instance_def);
     }
-    
+
     pub fn get_typeclass(&self, name: &str) -> Option<&TypeclassDef> {
         self.typeclasses.get(name)
     }
-    
+
     pub fn get_instance(&self, typeclass: &str, type_name: &str) -> Option<&InstanceDef> {
-        self.instances.get(&(typeclass.to_string(), type_name.to_string()))
+        self.instances
+            .get(&(typeclass.to_string(), type_name.to_string()))
     }
-    
+
     pub fn has_instance(&self, typeclass: &str, type_name: &str) -> bool {
         self.get_instance(typeclass, type_name).is_some()
     }
-    
+
     pub fn get_method_type(&self, typeclass: &str, method: &str) -> Option<&Type> {
         self.get_typeclass(typeclass)
             .and_then(|tc| tc.methods.iter().find(|m| m.name == method))
@@ -200,15 +205,15 @@ impl TypeContext {
             typeclasses: TypeclassRegistry::new(),
             next_type_var: 0,
         };
-        
+
         // Register built-in types and typeclasses
         ctx.register_builtins();
         ctx
     }
-    
+
     fn register_builtins(&mut self) {
         // Register built-in typeclasses
-        
+
         // Addable typeclass
         let addable = TypeclassDef {
             name: "Addable".to_string(),
@@ -216,7 +221,10 @@ impl TypeContext {
             methods: vec![TypeclassMethod {
                 name: "+".to_string(),
                 type_signature: Type::Function(
-                    vec![Type::TypeVar("T".to_string()), Type::TypeVar("T".to_string())],
+                    vec![
+                        Type::TypeVar("T".to_string()),
+                        Type::TypeVar("T".to_string()),
+                    ],
                     Box::new(Type::TypeVar("T".to_string())),
                 ),
                 span: Span::new(0, 0, 0, 0),
@@ -224,7 +232,7 @@ impl TypeContext {
             span: Span::new(0, 0, 0, 0),
         };
         self.typeclasses.register_typeclass(addable);
-        
+
         // Register instances for built-in types
         let int_addable = InstanceDef {
             typeclass_name: "Addable".to_string(),
@@ -243,13 +251,16 @@ impl TypeContext {
                         span: Span::new(0, 0, 0, 0),
                     },
                 ],
-                body: Expression::Identifier("__builtin_add_int".to_string(), Span::new(0, 0, 0, 0)),
+                body: Expression::Identifier(
+                    "__builtin_add_int".to_string(),
+                    Span::new(0, 0, 0, 0),
+                ),
                 span: Span::new(0, 0, 0, 0),
             }],
             span: Span::new(0, 0, 0, 0),
         };
         self.typeclasses.register_instance(int_addable);
-        
+
         let float_addable = InstanceDef {
             typeclass_name: "Addable".to_string(),
             type_name: "Float".to_string(),
@@ -267,25 +278,28 @@ impl TypeContext {
                         span: Span::new(0, 0, 0, 0),
                     },
                 ],
-                body: Expression::Identifier("__builtin_add_float".to_string(), Span::new(0, 0, 0, 0)),
+                body: Expression::Identifier(
+                    "__builtin_add_float".to_string(),
+                    Span::new(0, 0, 0, 0),
+                ),
                 span: Span::new(0, 0, 0, 0),
             }],
             span: Span::new(0, 0, 0, 0),
         };
         self.typeclasses.register_instance(float_addable);
     }
-    
+
     pub fn fresh_type_var(&mut self) -> Type {
         let var = format!("T{}", self.next_type_var);
         self.next_type_var += 1;
         Type::TypeVar(var)
     }
-    
+
     pub fn push_scope(&mut self) {
         let new_env = TypeEnv::with_parent(std::mem::take(&mut self.env));
         self.env = new_env;
     }
-    
+
     pub fn pop_scope(&mut self) {
         if let Some(parent) = self.env.parent.take() {
             self.env = *parent;
@@ -297,15 +311,18 @@ impl TypeContext {
 impl Type {
     pub fn substitute(&self, substitutions: &HashMap<String, Type>) -> Type {
         match self {
-            Type::TypeVar(name) => {
-                substitutions.get(name).cloned().unwrap_or_else(|| self.clone())
-            }
+            Type::TypeVar(name) => substitutions
+                .get(name)
+                .cloned()
+                .unwrap_or_else(|| self.clone()),
             Type::Array(element_type) => {
                 Type::Array(Box::new(element_type.substitute(substitutions)))
             }
-            Type::Matrix(element_type, rows, cols) => {
-                Type::Matrix(Box::new(element_type.substitute(substitutions)), *rows, *cols)
-            }
+            Type::Matrix(element_type, rows, cols) => Type::Matrix(
+                Box::new(element_type.substitute(substitutions)),
+                *rows,
+                *cols,
+            ),
             Type::Function(params, return_type) => {
                 let new_params = params.iter().map(|p| p.substitute(substitutions)).collect();
                 let new_return = Box::new(return_type.substitute(substitutions));
@@ -315,31 +332,42 @@ impl Type {
                 let new_args = args.iter().map(|a| a.substitute(substitutions)).collect();
                 Type::TypeApp(name.clone(), new_args)
             }
-            Type::Option(inner) => {
-                Type::Option(Box::new(inner.substitute(substitutions)))
-            }
+            Type::Option(inner) => Type::Option(Box::new(inner.substitute(substitutions))),
             Type::Spanned(inner, span) => {
                 Type::Spanned(Box::new(inner.substitute(substitutions)), span.clone())
             }
+            Type::Field(inner) => Type::Field(Box::new(inner.substitute(substitutions))),
+            Type::GPU(inner) => Type::GPU(Box::new(inner.substitute(substitutions))),
+            Type::SIMD(inner, lanes) => {
+                Type::SIMD(Box::new(inner.substitute(substitutions)), *lanes)
+            }
+            Type::Future(inner) => Type::Future(Box::new(inner.substitute(substitutions))),
+            Type::Stream(inner) => Type::Stream(Box::new(inner.substitute(substitutions))),
             _ => self.clone(),
         }
     }
-    
+
     pub fn occurs_check(&self, var_name: &str) -> bool {
         match self {
             Type::TypeVar(name) => name == var_name,
             Type::Array(element_type) => element_type.occurs_check(var_name),
             Type::Matrix(element_type, _, _) => element_type.occurs_check(var_name),
             Type::Function(params, return_type) => {
-                params.iter().any(|p| p.occurs_check(var_name)) || return_type.occurs_check(var_name)
+                params.iter().any(|p| p.occurs_check(var_name))
+                    || return_type.occurs_check(var_name)
             }
             Type::TypeApp(_, args) => args.iter().any(|a| a.occurs_check(var_name)),
             Type::Option(inner) => inner.occurs_check(var_name),
             Type::Spanned(inner, _) => inner.occurs_check(var_name),
+            Type::Field(inner) => inner.occurs_check(var_name),
+            Type::GPU(inner) => inner.occurs_check(var_name),
+            Type::SIMD(inner, _) => inner.occurs_check(var_name),
+            Type::Future(inner) => inner.occurs_check(var_name),
+            Type::Stream(inner) => inner.occurs_check(var_name),
             _ => false,
         }
     }
-    
+
     pub fn to_string(&self) -> String {
         match self {
             Type::Int => "Int".to_string(),
@@ -349,12 +377,10 @@ impl Type {
             Type::Unit => "Unit".to_string(),
             Type::Struct(name) => name.clone(),
             Type::Array(element_type) => format!("[{}]", element_type.to_string()),
-            Type::Matrix(element_type, rows, cols) => {
-                match (rows, cols) {
-                    (Some(r), Some(c)) => format!("Matrix<{}, {}, {}>", element_type.to_string(), r, c),
-                    _ => format!("Matrix<{}>", element_type.to_string()),
-                }
-            }
+            Type::Matrix(element_type, rows, cols) => match (rows, cols) {
+                (Some(r), Some(c)) => format!("Matrix<{}, {}, {}>", element_type.to_string(), r, c),
+                _ => format!("Matrix<{}>", element_type.to_string()),
+            },
             Type::Function(params, return_type) => {
                 let param_strs: Vec<String> = params.iter().map(|p| p.to_string()).collect();
                 format!("({}) -> {}", param_strs.join(", "), return_type.to_string())
@@ -370,6 +396,34 @@ impl Type {
             }
             Type::Option(inner) => format!("Option<{}>", inner.to_string()),
             Type::Spanned(inner, _) => inner.to_string(),
+            // Physics-specific types
+            Type::Vector3 => "Vector3".to_string(),
+            Type::Vector2 => "Vector2".to_string(),
+            Type::Quaternion => "Quaternion".to_string(),
+            Type::Transform => "Transform".to_string(),
+            Type::RigidBody => "RigidBody".to_string(),
+            Type::SoftBody => "SoftBody".to_string(),
+            Type::FluidSystem => "FluidSystem".to_string(),
+            Type::Particle => "Particle".to_string(),
+            Type::Field(inner) => format!("Field<{}>", inner.to_string()),
+            Type::ForceField => "ForceField".to_string(),
+            Type::Material => "Material".to_string(),
+            Type::Constraint => "Constraint".to_string(),
+            Type::PhysicsWorld => "PhysicsWorld".to_string(),
+            Type::Tensor(dimensions) => format!(
+                "Tensor<{}>",
+                dimensions
+                    .iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            // GPU and SIMD types
+            Type::GPU(inner) => format!("GPU<{}>", inner.to_string()),
+            Type::SIMD(inner, lanes) => format!("SIMD<{}, {}>", inner.to_string(), lanes),
+            // Async types
+            Type::Future(inner) => format!("Future<{}>", inner.to_string()),
+            Type::Stream(inner) => format!("Stream<{}>", inner.to_string()),
         }
     }
 }
@@ -391,7 +445,7 @@ mod tests {
             line: 1,
             column: 5,
         };
-        
+
         assert!(error.to_string().contains("Type mismatch"));
         assert!(error.to_string().contains("expected Int"));
         assert!(error.to_string().contains("found String"));
@@ -404,7 +458,7 @@ mod tests {
             line: 2,
             column: 10,
         };
-        
+
         assert!(error.to_string().contains("Unknown identifier"));
         assert!(error.to_string().contains("undefined_var"));
     }
@@ -417,7 +471,7 @@ mod tests {
             line: 3,
             column: 15,
         };
-        
+
         assert!(error.to_string().contains("Field x not found"));
         assert!(error.to_string().contains("type Point"));
     }
@@ -425,7 +479,7 @@ mod tests {
     #[test]
     fn test_struct_registry() {
         let mut registry = StructRegistry::new();
-        
+
         let test_struct = StructDef {
             name: "Point".to_string(),
             fields: vec![
@@ -442,13 +496,13 @@ mod tests {
                     optional: true,
                     default_value: None,
                     span: create_test_span(),
-                }
+                },
             ],
             span: create_test_span(),
         };
-        
+
         registry.register(test_struct);
-        
+
         assert!(registry.get("Point").is_some());
         assert!(registry.get("NonExistent").is_none());
         assert!(registry.has_field("Point", "x"));
@@ -462,23 +516,24 @@ mod tests {
     #[test]
     fn test_typeclass_registry() {
         let mut registry = TypeclassRegistry::new();
-        
+
         let test_typeclass = TypeclassDef {
             name: "Addable".to_string(),
             type_param: "T".to_string(),
-            methods: vec![
-                TypeclassMethod {
-                    name: "add".to_string(),
-                    type_signature: Type::Function(
-                        vec![Type::TypeVar("T".to_string()), Type::TypeVar("T".to_string())],
-                        Box::new(Type::TypeVar("T".to_string()))
-                    ),
-                    span: create_test_span(),
-                }
-            ],
+            methods: vec![TypeclassMethod {
+                name: "add".to_string(),
+                type_signature: Type::Function(
+                    vec![
+                        Type::TypeVar("T".to_string()),
+                        Type::TypeVar("T".to_string()),
+                    ],
+                    Box::new(Type::TypeVar("T".to_string())),
+                ),
+                span: create_test_span(),
+            }],
             span: create_test_span(),
         };
-        
+
         registry.register_typeclass(test_typeclass);
         assert!(registry.get_typeclass("Addable").is_some());
         assert!(registry.get_typeclass("NonExistent").is_none());
@@ -495,12 +550,12 @@ mod tests {
     #[test]
     fn test_type_context_fresh_type_var() {
         let mut context = TypeContext::new();
-        
+
         let var1 = context.fresh_type_var();
         let var2 = context.fresh_type_var();
-        
+
         assert_ne!(var1, var2);
-        
+
         if let Type::TypeVar(name1) = var1 {
             if let Type::TypeVar(name2) = var2 {
                 assert_ne!(name1, name2);
@@ -521,16 +576,16 @@ mod tests {
         assert_eq!(Type::Bool.to_string(), "Bool");
         assert_eq!(Type::String.to_string(), "String");
         assert_eq!(Type::Unit.to_string(), "Unit");
-        
+
         let array_type = Type::Array(Box::new(Type::Int));
         assert_eq!(array_type.to_string(), "[Int]");
-        
+
         let matrix_type = Type::Matrix(Box::new(Type::Float), Some(3), Some(3));
         assert_eq!(matrix_type.to_string(), "Matrix<Float, 3, 3>");
-        
+
         let func_type = Type::Function(vec![Type::Int, Type::Float], Box::new(Type::Bool));
         assert_eq!(func_type.to_string(), "(Int, Float) -> Bool");
-        
+
         let option_type = Type::Option(Box::new(Type::String));
         assert_eq!(option_type.to_string(), "Option<String>");
     }
@@ -541,7 +596,7 @@ mod tests {
             ty: Type::Int,
             constraints: vec![],
         };
-        
+
         assert_eq!(inferred.ty, Type::Int);
         assert!(inferred.constraints.is_empty());
     }
@@ -554,7 +609,7 @@ mod tests {
             line: 1,
             column: 1,
         });
-        
+
         assert!(success.is_ok());
         assert!(failure.is_err());
     }
@@ -567,21 +622,21 @@ mod tests {
             line: 1,
             column: 1,
         };
-        
+
         let error2 = TypeError::TypeMismatch {
             expected: "Int".to_string(),
             found: "String".to_string(),
             line: 1,
             column: 1,
         };
-        
+
         let error3 = TypeError::TypeMismatch {
             expected: "Float".to_string(),
             found: "String".to_string(),
             line: 1,
             column: 1,
         };
-        
+
         assert_eq!(error1, error2);
         assert_ne!(error1, error3);
     }
@@ -623,7 +678,7 @@ mod tests {
                 column: 1,
             },
         ];
-        
+
         assert_eq!(errors.len(), 6);
     }
 }

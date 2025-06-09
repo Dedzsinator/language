@@ -160,6 +160,26 @@ pub enum Type {
     /// Optional type
     Option(Box<Type>),
 
+    /// Physics-specific types
+    Vector2,
+    Vector3,
+    Quaternion,
+    Transform,
+    RigidBody,
+    SoftBody,
+    FluidSystem,
+    Particle,
+    Field(Box<Type>),
+    ForceField,
+    Material,
+    Constraint,
+    PhysicsWorld,
+    Tensor(Vec<usize>), // dimensions
+    GPU(Box<Type>),
+    SIMD(Box<Type>, usize), // type, lanes
+    Future(Box<Type>),
+    Stream(Box<Type>),
+
     /// Span information
     Spanned(Box<Type>, Span),
 }
