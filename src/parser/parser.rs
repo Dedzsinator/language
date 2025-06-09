@@ -546,7 +546,7 @@ impl<'input> Parser<'input> {
     }
 
     // Expression parsing with precedence climbing
-    fn parse_expression(&mut self) -> ParseResult<Expression> {
+    pub fn parse_expression(&mut self) -> ParseResult<Expression> {
         self.parse_assignment()
     }
 
@@ -772,7 +772,7 @@ impl<'input> Parser<'input> {
         loop {
             match &self.current_token.token {
                 Token::LeftParen => {
-                    // Function call
+                    // Always try function call first
                     self.advance();
                     let mut args = Vec::new();
 
@@ -872,6 +872,18 @@ impl<'input> Parser<'input> {
                         ),
                     };
                 }
+                Token::LeftBrace => {
+                    // Struct creation with brace syntax: Vector2 { x: 1, y: 2 }
+                    if let Expression::Identifier(name, start_span) = expr {
+                        expr = self.parse_struct_creation(name, start_span)?;
+                    } else {
+                        return Err(ParseError::unexpected_token(
+                            "identifier",
+                            "complex expression",
+                            expr.span(),
+                        ));
+                    }
+                }
                 _ => break,
             }
         }
@@ -913,13 +925,7 @@ impl<'input> Parser<'input> {
                 let name = name.clone();
                 let span = self.current_token.span.clone();
                 self.advance();
-
-                // Check for struct creation
-                if self.check(&Token::LeftParen) || self.check(&Token::LeftBrace) {
-                    self.parse_struct_creation(name, span)
-                } else {
-                    Ok(Expression::Identifier(name, span))
-                }
+                Ok(Expression::Identifier(name, span))
             }
             Token::LeftParen => {
                 self.advance();

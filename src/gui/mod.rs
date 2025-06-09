@@ -14,7 +14,7 @@ pub struct PhysicsVisualizationApp {
     time_step: f64,
     time: f64,
     trace_points: Vec<(f64, f64)>, // For plotting trajectories
-    selected_object: Option<usize>,
+    _selected_object: Option<usize>,
     show_vectors: bool,
     show_constraints: bool,
     gravity: [f64; 3],
@@ -28,7 +28,7 @@ impl Default for PhysicsVisualizationApp {
             time_step: 0.016, // ~60 FPS
             time: 0.0,
             trace_points: Vec::new(),
-            selected_object: None,
+            _selected_object: None,
             show_vectors: true,
             show_constraints: true,
             gravity: [0.0, -9.81, 0.0],

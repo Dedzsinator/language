@@ -110,11 +110,15 @@ fn run_repl() {
     // Load history if it exists
     let _ = rl.load_history("matrix_lang_history.txt");
 
+    // Create persistent interpreter and type checker for REPL session
+    let mut interpreter = Interpreter::new();
+    let mut type_checker = TypeChecker::new();
+
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                rl.add_history_entry(line.as_str());
+                let _ = rl.add_history_entry(line.as_str());
 
                 let trimmed = line.trim();
 
@@ -138,7 +142,7 @@ fn run_repl() {
                     _ => {}
                 }
 
-                match execute_source(&line, false) {
+                match execute_repl_line(&line, &mut interpreter, &mut type_checker) {
                     Ok(_) => {}
                     Err(err) => {
                         eprintln!("Error: {}", err);
@@ -164,10 +168,71 @@ fn run_repl() {
     let _ = rl.save_history("matrix_lang_history.txt");
 }
 
+fn execute_repl_line(
+    source: &str,
+    interpreter: &mut Interpreter,
+    type_checker: &mut TypeChecker,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Try to parse as a standalone expression first
+    let lexer = Lexer::new(source);
+    let mut parser =
+        Parser::new(lexer).map_err(|e| format!("Parser initialization error: {}", e))?;
+
+    // Try parsing as expression first, fallback to program if it fails
+    let expr_result = parser.parse_expression();
+
+    let result = if let Ok(expr) = expr_result {
+        // Standalone expression - evaluate directly
+        match interpreter.eval_expression(&expr) {
+            Ok(value) => {
+                // Only print result if it's not Unit (empty)
+                match value {
+                    crate::eval::Value::Unit => Ok(()),
+                    _ => {
+                        println!("{}", format_result(&value));
+                        Ok(())
+                    }
+                }
+            }
+            Err(e) => Err(format!("Runtime error: {}", e)),
+        }
+    } else {
+        // Try parsing as a full program (for let bindings, function definitions, etc.)
+        let lexer = Lexer::new(source);
+        let mut parser =
+            Parser::new(lexer).map_err(|e| format!("Parser initialization error: {}", e))?;
+
+        let ast = parser
+            .parse_program()
+            .map_err(|e| format!("Parse error: {}", e))?;
+
+        // Type checking
+        type_checker
+            .check_program(&ast)
+            .map_err(|e| format!("Type error: {}", e))?;
+
+        // Evaluation/Interpretation
+        let result = interpreter
+            .eval_program(&ast)
+            .map_err(|e| format!("Runtime error: {}", e))?;
+
+        // Only print result if it's not Unit (empty)
+        match result {
+            crate::eval::Value::Unit => Ok(()),
+            _ => {
+                println!("{}", format_result(&result));
+                Ok(())
+            }
+        }
+    };
+
+    result.map_err(|e| e.into())
+}
+
 fn execute_source(source: &str, parse_only: bool) -> Result<(), Box<dyn std::error::Error>> {
     // Tokenize
     let lexer = Lexer::new(source);
-    let tokens = lexer
+    let _tokens = lexer
         .tokenize()
         .map_err(|e| format!("Lexical error: {}", e))?;
 

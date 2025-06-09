@@ -1,6 +1,6 @@
 // High-performance 3D math for physics simulation
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, Neg};
-use crate::eval::interpreter::{Value, RuntimeResult, RuntimeError};
+use crate::eval::interpreter::{Value, RuntimeResult};
 
 /// 3D Vector with SIMD-optimized operations
 #[derive(Debug, Clone, Copy, PartialEq)]

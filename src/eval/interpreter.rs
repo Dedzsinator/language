@@ -318,6 +318,16 @@ impl Interpreter {
     }
 
     fn register_builtins(&mut self) {
+        // Mathematical constants
+        self.environment
+            .define("pi".to_string(), Value::Float(std::f64::consts::PI));
+
+        self.environment
+            .define("e".to_string(), Value::Float(std::f64::consts::E));
+
+        self.environment
+            .define("tau".to_string(), Value::Float(std::f64::consts::TAU));
+
         // Built-in functions
         self.environment.define(
             "print".to_string(),
@@ -359,6 +369,52 @@ impl Interpreter {
                     Value::Float(f) => Ok(Value::Float(f.abs())),
                     _ => Err(RuntimeError::TypeError {
                         message: format!("Cannot get absolute value of {}", args[0].type_name()),
+                    }),
+                },
+            },
+        );
+
+        // Mathematical functions
+        self.environment.define(
+            "sin".to_string(),
+            Value::BuiltinFunction {
+                name: "sin".to_string(),
+                arity: 1,
+                func: |args| match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.sin())),
+                    Value::Int(i) => Ok(Value::Float((*i as f64).sin())),
+                    _ => Err(RuntimeError::TypeError {
+                        message: format!("Cannot compute sin of {}", args[0].type_name()),
+                    }),
+                },
+            },
+        );
+
+        self.environment.define(
+            "cos".to_string(),
+            Value::BuiltinFunction {
+                name: "cos".to_string(),
+                arity: 1,
+                func: |args| match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.cos())),
+                    Value::Int(i) => Ok(Value::Float((*i as f64).cos())),
+                    _ => Err(RuntimeError::TypeError {
+                        message: format!("Cannot compute cos of {}", args[0].type_name()),
+                    }),
+                },
+            },
+        );
+
+        self.environment.define(
+            "sqrt".to_string(),
+            Value::BuiltinFunction {
+                name: "sqrt".to_string(),
+                arity: 1,
+                func: |args| match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.sqrt())),
+                    Value::Int(i) => Ok(Value::Float((*i as f64).sqrt())),
+                    _ => Err(RuntimeError::TypeError {
+                        message: format!("Cannot compute sqrt of {}", args[0].type_name()),
                     }),
                 },
             },
@@ -547,7 +603,7 @@ impl Interpreter {
                             }
                         };
 
-                        let stiffness = match &args[2] {
+                        let _stiffness = match &args[2] {
                             Value::Float(f) => *f,
                             Value::Int(i) => *i as f64,
                             _ => {
@@ -1096,50 +1152,6 @@ impl Interpreter {
         }
     }
 
-    fn eval_array_access(
-        &mut self,
-        array: &Expression,
-        index: &Expression,
-    ) -> RuntimeResult<Value> {
-        let array_value = self.eval_expression(array)?;
-        let index_value = self.eval_expression(index)?;
-
-        let index = match index_value {
-            Value::Int(i) => i as usize,
-            _ => {
-                return Err(RuntimeError::TypeError {
-                    message: "Array index must be integer".to_string(),
-                })
-            }
-        };
-
-        match array_value {
-            Value::Array(arr) => {
-                if index >= arr.len() {
-                    Err(RuntimeError::IndexOutOfBounds {
-                        index,
-                        length: arr.len(),
-                    })
-                } else {
-                    Ok(arr[index].clone())
-                }
-            }
-            Value::Matrix(mat) => {
-                if index >= mat.len() {
-                    Err(RuntimeError::IndexOutOfBounds {
-                        index,
-                        length: mat.len(),
-                    })
-                } else {
-                    Ok(Value::Array(mat[index].clone()))
-                }
-            }
-            _ => Err(RuntimeError::TypeError {
-                message: format!("Cannot index {}", array_value.type_name()),
-            }),
-        }
-    }
-
     fn eval_array_literal(&mut self, elements: &[Expression]) -> RuntimeResult<Value> {
         let values: Result<Vec<_>, _> = elements.iter().map(|e| self.eval_expression(e)).collect();
         Ok(Value::Array(values?))
@@ -1174,6 +1186,7 @@ impl Interpreter {
         }
     }
 
+    #[allow(dead_code)]
     fn match_pattern(&mut self, pattern: &Pattern, value: &Value) -> RuntimeResult<bool> {
         match pattern {
             Pattern::Wildcard(_) => Ok(true),

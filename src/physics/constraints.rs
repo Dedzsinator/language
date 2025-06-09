@@ -64,7 +64,7 @@ pub enum Constraint {
 }
 
 /// Reference to a body in the constraint system
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConstraintBody {
     RigidBody(usize),
     SoftBodyParticle(usize, usize), // (soft_body_index, particle_index)
@@ -104,7 +104,7 @@ impl ConstraintSolver {
     pub fn solve(&mut self, rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt: f64) {
         let dt2 = dt * dt;
         
-        for iteration in 0..self.iterations {
+        for _iteration in 0..self.iterations {
             let mut max_error: f64 = 0.0;
             
             // Clone constraints to avoid borrowing conflicts
@@ -158,7 +158,7 @@ impl ConstraintSolver {
     }
 
     fn solve_distance_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody, 
-                                rest_length: f64, stiffness: f64, damping: f64, lambda: &mut f64,
+                                rest_length: f64, stiffness: f64, _damping: f64, lambda: &mut f64,
                                 rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
         let (pos_a, mass_a) = self.get_position_and_mass(body_a, rigid_bodies, soft_bodies);
         let (pos_b, mass_b) = self.get_position_and_mass(body_b, rigid_bodies, soft_bodies);
@@ -202,7 +202,7 @@ impl ConstraintSolver {
     }
 
     fn solve_hinge_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                             anchor_a: Vec3, anchor_b: Vec3, axis_a: Vec3, axis_b: Vec3,
+                             anchor_a: Vec3, anchor_b: Vec3, _axis_a: Vec3, _axis_b: Vec3,
                              stiffness: f64, lambda: &mut Vec3, rigid_bodies: &mut [RigidBody], 
                              soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
         // For simplicity, implementing as a fixed joint with angular constraint
@@ -285,10 +285,10 @@ impl ConstraintSolver {
     }
 
     fn solve_contact_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                               contact_point: Vec3, contact_normal: Vec3, penetration_depth: f64,
-                               friction: f64, restitution: f64, lambda_normal: &mut f64, 
-                               lambda_tangent: &mut Vec3, rigid_bodies: &mut [RigidBody], 
-                               soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+                               _contact_point: Vec3, contact_normal: Vec3, penetration_depth: f64,
+                               _friction: f64, _restitution: f64, lambda_normal: &mut f64, 
+                               _lambda_tangent: &mut Vec3, rigid_bodies: &mut [RigidBody], 
+                               soft_bodies: &mut [SoftBody], _dt2: f64) -> f64 {
         if penetration_depth <= 0.0 {
             return 0.0;
         }
@@ -332,7 +332,7 @@ impl ConstraintSolver {
 
     fn solve_spring_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
                               anchor_a: Vec3, anchor_b: Vec3, rest_length: f64,
-                              spring_constant: f64, damping_constant: f64, lambda: &mut f64,
+                              spring_constant: f64, _damping_constant: f64, lambda: &mut f64,
                               rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
         let world_anchor_a = self.get_world_point(body_a, anchor_a, rigid_bodies, soft_bodies);
         let world_anchor_b = self.get_world_point(body_b, anchor_b, rigid_bodies, soft_bodies);
@@ -379,9 +379,9 @@ impl ConstraintSolver {
         constraint_value.abs()
     }
 
-    fn solve_angular_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                               rest_angle: f64, axis: Vec3, stiffness: f64, lambda: &mut f64,
-                               rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_angular_constraint(&self, _body_a: ConstraintBody, _body_b: ConstraintBody,
+                               _rest_angle: f64, _axis: Vec3, _stiffness: f64, _lambda: &mut f64,
+                               _rigid_bodies: &mut [RigidBody], _soft_bodies: &mut [SoftBody], _dt2: f64) -> f64 {
         // Angular constraints are more complex and require proper orientation handling
         // For now, implementing a simplified version
         
@@ -587,13 +587,7 @@ impl XPBDSolver {
         // Implementation would go here  
     }
     
-    fn solve_contact_constraint(&self, _constraint: &mut Constraint, _rigid_bodies: &mut [RigidBody], _soft_bodies: &mut [SoftBody], _dt2: f64) {
-        // Implementation would go here
-    }
-    
-    fn solve_distance_constraint(&self, _constraint: &mut Constraint, _rigid_bodies: &mut [RigidBody], _soft_bodies: &mut [SoftBody], _dt2: f64) {
-        // Implementation would go here  
-    }
+
 }
 
 #[cfg(test)]

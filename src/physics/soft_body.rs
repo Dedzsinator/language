@@ -1,7 +1,6 @@
 // Soft Body Physics - Position-Based Dynamics (PBD) Implementation
 use super::constraints;
 use super::math::*;
-use std::collections::HashMap;
 
 /// Particle in a soft body system
 #[derive(Debug, Clone)]
@@ -119,7 +118,7 @@ impl SoftConstraint {
         b: usize,
         rest_length: f64,
         stiffness: f64,
-        dt: f64,
+        _dt: f64,
     ) {
         let pos_a = particles[a].position;
         let pos_b = particles[b].position;
@@ -158,7 +157,7 @@ impl SoftConstraint {
         indices: [usize; 4],
         rest_angle: f64,
         stiffness: f64,
-        dt: f64,
+        _dt: f64,
     ) {
         // Implement dihedral angle constraint for cloth bending
         let [p1, p2, p3, p4] = indices;
@@ -169,7 +168,7 @@ impl SoftConstraint {
         let pos4 = particles[p4].position;
 
         // Calculate dihedral angle
-        let e = pos3 - pos2; // Shared edge
+        let _e = pos3 - pos2; // Shared edge
         let n1 = (pos1 - pos2).cross(pos3 - pos2).normalized(); // Normal of triangle 1
         let n2 = (pos4 - pos2).cross(pos3 - pos2).normalized(); // Normal of triangle 2
 
@@ -198,7 +197,7 @@ impl SoftConstraint {
         indices: &[usize],
         rest_volume: f64,
         stiffness: f64,
-        dt: f64,
+        _dt: f64,
     ) {
         if indices.len() < 4 {
             return;
@@ -262,7 +261,7 @@ impl SoftConstraint {
         indices: [usize; 3],
         rest_area: f64,
         stiffness: f64,
-        dt: f64,
+        _dt: f64,
     ) {
         let [p1, p2, p3] = indices;
 
@@ -406,7 +405,7 @@ impl SoftBody {
     }
 
     /// Create a soft body sphere
-    pub fn create_sphere(center: Vec3, radius: f64, resolution: usize, mass: f64) -> Self {
+    pub fn create_sphere(center: Vec3, radius: f64, _resolution: usize, mass: f64) -> Self {
         let mut particles = Vec::new();
         let mut constraints = Vec::new();
 
@@ -736,7 +735,7 @@ mod tests {
 
     #[test]
     fn test_particle_collision() {
-        let mut particle1 = Particle::new(Vec3::new(0.0, 0.0, 0.0), 1.0, 0.1);
+        let particle1 = Particle::new(Vec3::new(0.0, 0.0, 0.0), 1.0, 0.1);
         let mut particle2 = Particle::new(Vec3::new(0.5, 0.0, 0.0), 1.0, 0.1);
 
         // Initially, they should not collide
@@ -751,14 +750,12 @@ mod tests {
 
         // Check collision properties
         let collision = collision.unwrap();
-        assert_eq!(
-            collision.body_a,
-            constraints::ConstraintBody::SoftBodyParticle(0, 0)
-        );
-        assert_eq!(
-            collision.body_b,
-            constraints::ConstraintBody::SoftBodyParticle(1, 0)
-        );
-        assert!((collision.penetration_depth - 0.2).abs() < 1e-6);
+        if let constraints::Constraint::Contact { body_a, body_b, penetration_depth, .. } = collision {
+            assert_eq!(body_a, constraints::ConstraintBody::SoftBodyParticle(0, 0));
+            assert_eq!(body_b, constraints::ConstraintBody::SoftBodyParticle(1, 0));
+            assert!((penetration_depth - 0.2).abs() < 1e-6);
+        } else {
+            panic!("Expected Contact constraint");
+        }
     }
 }

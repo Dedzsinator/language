@@ -1,0 +1,4 @@
+print(PI)
+print(E)
+print(PI * 2)
+exit

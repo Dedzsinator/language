@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn test_basic_tokens() {
         let input = "struct Vector2 { x: Float, y: Float }";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         
         let tokens: Vec<_> = lexer.tokenize().unwrap();
         
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn test_numbers() {
         let input = "42 3.14 1.5e-10";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         
         let tokens: Vec<_> = lexer.tokenize().unwrap();
         
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_operators() {
         let input = "+ - * / % ^ ?? => -> == != <= >=";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         
         let tokens: Vec<_> = lexer.tokenize().unwrap();
         
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_string_literals() {
         let input = r#""hello world" "escaped \"quote\"" "multi\nline""#;
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         
         let tokens: Vec<_> = lexer.tokenize().unwrap();
         
@@ -220,7 +220,7 @@ mod tests {
                block comment */
             let y = 3.14
         "#;
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         
         let tokens: Vec<_> = lexer.tokenize().unwrap();
         

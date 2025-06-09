@@ -1,7 +1,7 @@
 // Modern Rigid Body Physics using impulse-based dynamics
 use super::math::{Vec3, Quat, Mat3, Transform, AABB};
 use super::constraints::{Constraint, ConstraintBody};
-use crate::eval::interpreter::{Value, RuntimeResult, RuntimeError};
+use crate::eval::interpreter::{Value, RuntimeResult};
 use std::collections::HashMap;
 
 /// Rigid body shapes for collision detection
@@ -689,8 +689,12 @@ mod tests {
         assert!(contact.is_some());
         
         let contact = contact.unwrap();
-        assert!(contact.penetration > 0.0);
-        assert!((contact.normal - Vec3::new(1.0, 0.0, 0.0)).magnitude() < f64::EPSILON);
+        if let Constraint::Contact { penetration_depth, contact_normal, .. } = contact {
+            assert!(penetration_depth > 0.0);
+            assert!((contact_normal - Vec3::new(1.0, 0.0, 0.0)).magnitude() < f64::EPSILON);
+        } else {
+            panic!("Expected Contact constraint");
+        }
     }
 
     #[test]

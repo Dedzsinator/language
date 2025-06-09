@@ -502,7 +502,7 @@ mod tests {
     #[test]
     fn test_complex_expression() {
         let input = "fn add(a: Int, b: Int) -> Int = a + b";
-        let mut lexer = Token::lexer(input);
+        let lexer = Token::lexer(input);
 
         let tokens: Vec<Token> = lexer.collect::<Result<Vec<_>, _>>().unwrap();
 

@@ -1,6 +1,5 @@
 // Probability Sampling - Advanced Monte Carlo and Statistical Methods
 use super::math::*;
-use std::collections::HashMap;
 use rand::{Rng, SeedableRng};
 use rand::distributions::{Distribution, Uniform};
 use rand_pcg::Pcg64;
@@ -106,7 +105,7 @@ impl AdvancedRng {
 
     pub fn multivariate_normal(&mut self, mean: &[f64], covariance: &[Vec<f64>]) -> Vec<f64> {
         let n = mean.len();
-        let mut z: Vec<f64> = (0..n).map(|_| self.normal(0.0, 1.0)).collect();
+        let z: Vec<f64> = (0..n).map(|_| self.normal(0.0, 1.0)).collect();
         
         // Cholesky decomposition of covariance matrix
         let chol = cholesky_decomposition(covariance);
@@ -313,7 +312,7 @@ impl MonteCarloIntegrator {
             // Sample within this stratum
             for _ in 0..samples_per_stratum {
                 let point: Vec<f64> = stratum_coords.iter().enumerate()
-                    .map(|(d, &coord)| {
+                    .map(|(_d, &coord)| {
                         let stratum_min = coord as f64 / strata_per_dim as f64;
                         let stratum_max = (coord + 1) as f64 / strata_per_dim as f64;
                         rng.uniform(stratum_min, stratum_max)

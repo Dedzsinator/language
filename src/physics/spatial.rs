@@ -382,7 +382,7 @@ impl SweepAndPrune {
         let mut pairs = Vec::new();
 
         for i in 0..self.objects.len() {
-            let (obj_a, min_a, max_a) = self.objects[i];
+            let (obj_a, _min_a, max_a) = self.objects[i];
 
             for j in (i + 1)..self.objects.len() {
                 let (obj_b, min_b, _max_b) = self.objects[j];

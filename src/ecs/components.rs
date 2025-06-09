@@ -3,7 +3,6 @@ use bevy_ecs::prelude::*;
 use crate::physics::math::*;
 use crate::physics::constraints::Constraint;
 use crate::physics::rigid_body::Shape;
-use std::collections::HashMap;
 
 /// PhysicsTransform component - position, rotation, scale
 #[derive(Component, Debug, Clone)]

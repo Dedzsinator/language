@@ -1,7 +1,6 @@
 // Fluid Simulation - Position-Based Fluids (PBF) and SPH Implementation
 use super::math::*;
 use super::spatial::*;
-use std::collections::HashMap;
 
 /// Fluid particle for SPH/PBF simulation
 #[derive(Debug, Clone)]
@@ -110,7 +109,7 @@ impl SPHKernel {
         }
 
         let h9 = h * h * h * h * h * h * h * h * h;
-        let r_over_h = r / h;
+        let _r_over_h = r / h;
 
         if r <= h / 2.0 {
             32.0 / (std::f64::consts::PI * h9)

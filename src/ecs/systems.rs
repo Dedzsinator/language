@@ -4,7 +4,6 @@ use crate::physics::math::*;
 use crate::physics::spatial::SpatialObject;
 use super::components::*;
 use super::resources::*;
-use rayon::prelude::*;
 
 /// Spatial indexing system - updates spatial hash for collision detection
 pub fn spatial_indexing_system(
@@ -180,7 +179,7 @@ pub fn fluid_system(
             
             let nearby_objects = spatial_index.spatial_hash.query(particle_aabb);
             for obj in nearby_objects {
-                if let SpatialObject::Entity(entity_index) = obj {
+                if let SpatialObject::Entity(_entity_index) = obj {
                     // Find particles within smoothing radius
                     for j in 0..fluid.particles.len() {
                         if i != j {
@@ -252,17 +251,17 @@ pub fn fluid_system(
 
 /// Constraint solving system
 pub fn constraint_solving_system(
-    config: Res<PhysicsConfig>,
+    _config: Res<PhysicsConfig>,
     time: Res<Time>,
     mut constraints_query: Query<&mut ConstraintComponent>,
-    mut rigid_bodies: Query<(&mut PhysicsTransform, &mut VelocityComponent, &RigidBodyComponent)>,
+    _rigid_bodies: Query<(&mut PhysicsTransform, &mut VelocityComponent, &RigidBodyComponent)>,
 ) {
     if time.paused {
         return;
     }
 
     for mut constraint_comp in constraints_query.iter_mut() {
-        for constraint in &mut constraint_comp.constraints {
+        for _constraint in &mut constraint_comp.constraints {
             // TODO: Implement constraint solving using XPBD
             // This would solve position and velocity constraints between entities
         }
@@ -271,7 +270,7 @@ pub fn constraint_solving_system(
 
 /// Collision detection system
 pub fn collision_detection_system(
-    spatial_index: Res<SpatialIndex>,
+    _spatial_index: Res<SpatialIndex>,
     mut events: ResMut<PhysicsEvents>,
     query: Query<(Entity, &PhysicsTransform, &ColliderComponent)>,
 ) {

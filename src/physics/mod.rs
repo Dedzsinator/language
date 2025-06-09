@@ -9,8 +9,7 @@ pub mod sampling;
 pub mod soft_body;
 pub mod spatial;
 
-use crate::ast::*;
-use crate::eval::interpreter::{RuntimeError, RuntimeResult, Value};
+use crate::eval::interpreter::{RuntimeResult, Value};
 use std::collections::HashMap;
 
 /// Core physics world that manages all simulations
@@ -283,7 +282,7 @@ pub fn register_physics_functions(env: &mut crate::eval::interpreter::Environmen
             name: "create_physics_world".to_string(),
             arity: 0,
             func: |_args| {
-                let world = PhysicsWorld::new();
+                let _world = PhysicsWorld::new();
                 // Store as opaque value - in real implementation would use a registry
                 Ok(Value::String("physics_world_handle".to_string()))
             },
@@ -296,7 +295,7 @@ pub fn register_physics_functions(env: &mut crate::eval::interpreter::Environmen
         Value::BuiltinFunction {
             name: "add_rigid_body".to_string(),
             arity: 4, // world, shape, mass, position
-            func: |args| {
+            func: |_args| {
                 // Implementation would extract world handle and add rigid body
                 Ok(Value::Int(0)) // Return body ID
             },

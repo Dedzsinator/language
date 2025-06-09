@@ -1,5 +1,4 @@
 // Differential Equation Solvers - Advanced numerical integration methods
-use super::math::*;
 use std::collections::HashMap;
 
 /// State vector for differential equations
@@ -112,7 +111,7 @@ impl ODESolver {
             }
 
             // Take integration step
-            let (new_y, new_h, error) = match self.method {
+            let (new_y, _new_h, error) = match self.method {
                 IntegrationMethod::Euler => {
                     let new_y = self.euler_step(&y, t, h, func);
                     (new_y, h, 0.0)
