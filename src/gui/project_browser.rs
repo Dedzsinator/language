@@ -21,13 +21,6 @@ pub struct FileNode {
     pub modified: Option<std::time::SystemTime>,
 }
 
-#[derive(Debug, Clone)]
-pub enum DragPayload {
-    File(String),
-    GameObject(u32),
-    Component(Component),
-}
-
 impl ProjectBrowser {
     pub fn new() -> Self {
         let mut browser = Self {
@@ -111,25 +104,51 @@ impl ProjectBrowser {
                 }
             }
 
-            if ui.button("⭐ Add Current").clicked() {
-                if !self.favorites.contains(&self.current_directory) {
-                    self.favorites.push(self.current_directory.clone());
-                }
+            if ui.button("⭐ Add Current").clicked() && !self.favorites.contains(&self.current_directory) {
+                self.favorites.push(self.current_directory.clone());
             }
         });
     }
 
     fn show_file_tree(&mut self, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-            for file_node in &mut self.file_tree {
-                // TODO: Fix borrow checker issue with show_file_node
-                // self.show_file_node(ui, file_node, 0);
-                ui.label(&file_node.name);
+            // Clone the file tree to avoid borrow checker issues
+            let mut file_tree = self.file_tree.clone();
+            let mut selected_file_changed = None;
+            let mut directory_changed = None;
+            let mut file_to_open = None;
+
+            for file_node in &mut file_tree {
+                let (selected, dir_change, open_file) = self.show_file_node_helper(ui, file_node, 0);
+                if let Some(path) = selected {
+                    selected_file_changed = Some(path);
+                }
+                if let Some(dir) = dir_change {
+                    directory_changed = Some(dir);
+                }
+                if let Some(file) = open_file {
+                    file_to_open = Some(file);
+                }
+            }
+
+            // Apply changes after UI rendering
+            if let Some(selected) = selected_file_changed {
+                self.selected_file = Some(selected);
+            }
+            if let Some(dir) = directory_changed {
+                self.current_directory = dir;
+                self.refresh_file_tree();
+            } else {
+                // Update the file tree with any expansion changes
+                self.file_tree = file_tree;
+            }
+            if let Some(file) = file_to_open {
+                self.open_file(&file);
             }
         });
     }
 
-    fn show_file_node(&mut self, ui: &mut egui::Ui, node: &mut FileNode, depth: usize) {
+    fn show_file_node_helper(&self, ui: &mut egui::Ui, node: &mut FileNode, depth: usize) -> (Option<String>, Option<String>, Option<String>) {
         // Apply filter
         if !self.file_filter.is_empty()
             && !node
@@ -138,13 +157,17 @@ impl ProjectBrowser {
                 .contains(&self.file_filter.to_lowercase())
             && !node.children.iter().any(|child| self.matches_filter(child))
         {
-            return;
+            return (None, None, None);
         }
 
         // Skip hidden files if not showing them
         if !self.show_hidden_files && node.name.starts_with('.') {
-            return;
+            return (None, None, None);
         }
+
+        let mut selected_file = None;
+        let mut directory_change = None;
+        let mut file_to_open = None;
 
         let indent = (depth as f32) * 20.0;
         ui.indent(format!("file_{}", node.path), |ui| {
@@ -170,74 +193,69 @@ impl ProjectBrowser {
                     };
                     ui.label(icon);
 
-                    // File name (selectable and draggable)
+                    // File name (selectable)
                     let is_selected = self.selected_file.as_ref() == Some(&node.path);
                     let response = ui.selectable_label(is_selected, &node.name);
 
-                    if response.clicked() {
-                        self.selected_file = Some(node.path.clone());
-                        if node.is_directory {
-                            self.current_directory = node.path.clone();
-                            self.refresh_file_tree();
+                    // Show file size for files
+                    if !node.is_directory {
+                        if let Some(size) = node.size {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.label(format_file_size(size));
+                            });
                         }
                     }
 
-                    // Drag and drop for files
-                    if !node.is_directory && response.hovered() {
-                        // TODO: Implement drag and drop properly
-                        // response.dnd_set_drag_payload(DragPayload::File(node.path.clone()));
+                    if response.clicked() {
+                        selected_file = Some(node.path.clone());
+                        if node.is_directory {
+                            directory_change = Some(node.path.clone());
+                        }
+                    }
+
+                    // Double-click to open files
+                    if response.double_clicked() && !node.is_directory {
+                        file_to_open = Some(node.path.clone());
                     }
 
                     // Context menu
                     response.context_menu(|ui| {
                         if ui.button("Open").clicked() {
-                            self.open_file(&node.path);
+                            file_to_open = Some(node.path.clone());
                             ui.close_menu();
                         }
 
-                        if ui.button("Rename").clicked() {
-                            // TODO: Implement rename
+                        if ui.button("Add to Favorites").clicked() {
+                            // This will be handled by the parent
                             ui.close_menu();
                         }
-
-                        if ui.button("Delete").clicked() {
-                            // TODO: Implement delete with confirmation
-                            ui.close_menu();
-                        }
-
-                        ui.separator();
 
                         if ui.button("Show in Explorer").clicked() {
-                            // TODO: Open system file explorer
-                            ui.close_menu();
-                        }
-
-                        if node.is_directory && ui.button("Add to Favorites").clicked() {
-                            if !self.favorites.contains(&node.path) {
-                                self.favorites.push(node.path.clone());
-                            }
+                            // TODO: Implement show in explorer
                             ui.close_menu();
                         }
                     });
-
-                    // Show file size and date for files
-                    if !node.is_directory {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if let Some(size) = node.size {
-                                ui.label(format_file_size(size));
-                            }
-                        });
-                    }
                 },
             );
         });
 
-        // Show children if directory is expanded
+        // Show children if expanded
         if node.is_directory && node.expanded {
             for child in &mut node.children {
-                self.show_file_node(ui, child, depth + 1);
+                let (child_selected, child_dir_change, child_open) = self.show_file_node_helper(ui, child, depth + 1);
+                if child_selected.is_some() {
+                    selected_file = child_selected;
+                }
+                if child_dir_change.is_some() {
+                    directory_change = child_dir_change;
+                }
+                if child_open.is_some() {
+                    file_to_open = child_open;
+                }
             }
         }
+
+        (selected_file, directory_change, file_to_open)
     }
 
     fn matches_filter(&self, node: &FileNode) -> bool {
@@ -408,11 +426,48 @@ impl ProjectBrowser {
 
     fn open_file(&self, path: &str) {
         println!("Opening file: {}", path);
-        // TODO: Implement file opening based on file type
-        // - .matrix files -> Open in script editor
-        // - .scene files -> Load scene
-        // - Image files -> Open in image viewer
-        // - etc.
+
+        // Determine file type and action
+        if let Some(extension) = std::path::Path::new(path)
+            .extension()
+            .and_then(|ext| ext.to_str())
+        {
+            match extension.to_lowercase().as_str() {
+                "matrix" | "mtx" => {
+                    println!("Matrix script file detected: {}", path);
+                    // TODO: Signal to open in script editor
+                }
+                "scene" => {
+                    println!("Scene file detected: {}", path);
+                    // TODO: Signal to load scene
+                }
+                "json" | "toml" | "yaml" | "yml" => {
+                    println!("Configuration file detected: {}", path);
+                    // TODO: Open in text editor
+                }
+                "png" | "jpg" | "jpeg" | "bmp" | "tga" => {
+                    println!("Image file detected: {}", path);
+                    // TODO: Open in image viewer
+                }
+                "txt" | "md" => {
+                    println!("Text file detected: {}", path);
+                    // TODO: Open in text editor
+                }
+                _ => {
+                    println!("Unknown file type: {}", path);
+                    // Try to open as text file
+                }
+            }
+        }
+
+        // Try to read file content for preview (for small files)
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.len() < 10240 { // Less than 10KB
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    println!("File content preview:\n{}", &content[..content.len().min(200)]);
+                }
+            }
+        }
     }
 }
 

@@ -360,6 +360,6 @@ mod tests {
         let pairs = world.spatial_hash.get_potential_pairs();
 
         // Should find collision pairs based on proximity
-        assert!(pairs.len() >= 0);
+        // Test passes if no panic occurs during pair detection
     }
 }

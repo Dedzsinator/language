@@ -1,17 +1,15 @@
 // Comprehensive test suite for Matrix Language
 // This module provides additional test coverage beyond the existing unit tests
 
-use crate::eval::Interpreter;
-use crate::lexer::Lexer;
-use crate::parser::Parser;
-use crate::physics::math::Vec3;
-use crate::physics::rigid_body::{RigidBody, Shape};
-use crate::physics::soft_body::{SoftBody, Particle};
-use crate::types::TypeChecker;
-
 #[cfg(test)]
 mod comprehensive_tests {
-    use super::*;
+    use crate::eval::Interpreter;
+    use crate::lexer::Lexer;
+    use crate::parser::Parser;
+    use crate::physics::math::Vec3;
+    use crate::physics::rigid_body::{RigidBody, Shape};
+    use crate::physics::soft_body::{Particle, SoftBody};
+    use crate::types::TypeChecker;
 
     // === INTEGRATION TESTS ===
 
@@ -41,7 +39,9 @@ mod comprehensive_tests {
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer).expect("Failed to create parser");
-        let ast = parser.parse_program().expect("Failed to parse function definition");
+        let ast = parser
+            .parse_program()
+            .expect("Failed to parse function definition");
 
         let mut interpreter = Interpreter::new();
         let _result = interpreter.eval_program(&ast);
@@ -59,7 +59,9 @@ mod comprehensive_tests {
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer).expect("Failed to create parser");
-        let ast = parser.parse_program().expect("Failed to parse struct definition");
+        let ast = parser
+            .parse_program()
+            .expect("Failed to parse struct definition");
 
         let mut interpreter = Interpreter::new();
         let _result = interpreter.eval_program(&ast);
@@ -74,7 +76,9 @@ mod comprehensive_tests {
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer).expect("Failed to create parser");
-        let ast = parser.parse_program().expect("Failed to parse array operations");
+        let ast = parser
+            .parse_program()
+            .expect("Failed to parse array operations");
 
         let mut interpreter = Interpreter::new();
         let result = interpreter.eval_program(&ast);
@@ -93,7 +97,9 @@ mod comprehensive_tests {
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer).expect("Failed to create parser");
-        let ast = parser.parse_program().expect("Failed to parse control flow");
+        let ast = parser
+            .parse_program()
+            .expect("Failed to parse control flow");
 
         let mut interpreter = Interpreter::new();
         let result = interpreter.eval_program(&ast);
@@ -110,7 +116,7 @@ mod comprehensive_tests {
     fn test_lexer_all_token_types() {
         let input = r#"
             struct Point { x: Int, y: Float }
-            func test() -> Bool { 
+            func test() -> Bool {
                 let a = [1, 2, 3];
                 let b = "hello";
                 let c = true;
@@ -121,7 +127,7 @@ mod comprehensive_tests {
 
         let lexer = Lexer::new(input);
         let tokens = lexer.tokenize().expect("Failed to tokenize");
-        
+
         // Should have many different token types
         assert!(tokens.len() > 30);
 
@@ -152,7 +158,11 @@ mod comprehensive_tests {
         for case in cases {
             let lexer = Lexer::new(case);
             let tokens = lexer.tokenize();
-            assert!(tokens.is_ok() && !tokens.as_ref().unwrap().is_empty(), "Failed to tokenize: {}", case);
+            assert!(
+                tokens.is_ok() && !tokens.as_ref().unwrap().is_empty(),
+                "Failed to tokenize: {}",
+                case
+            );
         }
     }
 
@@ -195,7 +205,7 @@ mod comprehensive_tests {
     #[test]
     fn test_parser_complex_function() {
         let input = r#"
-            let factorial = (n: Int) -> Int => 
+            let factorial = (n: Int) -> Int =>
                 if n <= 1 then 1 else n * factorial(n - 1)
         "#;
 
@@ -400,7 +410,7 @@ mod comprehensive_tests {
         let mut parser = Parser::new(lexer).expect("Failed to create parser");
         let result = parser.parse_expression();
         match result {
-            Ok(_) => {},  // Test passes
+            Ok(_) => {} // Test passes
             Err(e) => panic!("Failed to parse match expression: {}", e),
         }
     }

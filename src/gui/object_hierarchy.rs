@@ -16,7 +16,12 @@ impl ObjectHierarchy {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context, scene: &mut Scene, selected_object: &mut Option<u32>) {
+    pub fn show(
+        &mut self,
+        ctx: &egui::Context,
+        scene: &mut Scene,
+        selected_object: &mut Option<u32>,
+    ) {
         egui::SidePanel::left("hierarchy_panel")
             .default_width(250.0)
             .show(ctx, |ui| {
@@ -43,10 +48,12 @@ impl ObjectHierarchy {
                         if ui.button("Cube").clicked() {
                             let id = scene.add_object("Cube".to_string(), GameObjectType::Cube);
                             if let Some(obj) = scene.objects.get_mut(&id) {
-                                obj.components.push(Component::Mesh { mesh_type: "Cube".to_string() });
+                                obj.components.push(Component::Mesh {
+                                    mesh_type: "Cube".to_string(),
+                                });
                                 obj.components.push(Component::Renderer {
                                     material: "Default".to_string(),
-                                    color: [1.0, 1.0, 1.0, 1.0]
+                                    color: [1.0, 1.0, 1.0, 1.0],
                                 });
                             }
                             ui.close_menu();
@@ -54,21 +61,26 @@ impl ObjectHierarchy {
                         if ui.button("Sphere").clicked() {
                             let id = scene.add_object("Sphere".to_string(), GameObjectType::Sphere);
                             if let Some(obj) = scene.objects.get_mut(&id) {
-                                obj.components.push(Component::Mesh { mesh_type: "Sphere".to_string() });
+                                obj.components.push(Component::Mesh {
+                                    mesh_type: "Sphere".to_string(),
+                                });
                                 obj.components.push(Component::Renderer {
                                     material: "Default".to_string(),
-                                    color: [1.0, 1.0, 1.0, 1.0]
+                                    color: [1.0, 1.0, 1.0, 1.0],
                                 });
                             }
                             ui.close_menu();
                         }
                         if ui.button("Cylinder").clicked() {
-                            let id = scene.add_object("Cylinder".to_string(), GameObjectType::Cylinder);
+                            let id =
+                                scene.add_object("Cylinder".to_string(), GameObjectType::Cylinder);
                             if let Some(obj) = scene.objects.get_mut(&id) {
-                                obj.components.push(Component::Mesh { mesh_type: "Cylinder".to_string() });
+                                obj.components.push(Component::Mesh {
+                                    mesh_type: "Cylinder".to_string(),
+                                });
                                 obj.components.push(Component::Renderer {
                                     material: "Default".to_string(),
-                                    color: [1.0, 1.0, 1.0, 1.0]
+                                    color: [1.0, 1.0, 1.0, 1.0],
                                 });
                             }
                             ui.close_menu();
@@ -76,10 +88,12 @@ impl ObjectHierarchy {
                         if ui.button("Plane").clicked() {
                             let id = scene.add_object("Plane".to_string(), GameObjectType::Plane);
                             if let Some(obj) = scene.objects.get_mut(&id) {
-                                obj.components.push(Component::Mesh { mesh_type: "Plane".to_string() });
+                                obj.components.push(Component::Mesh {
+                                    mesh_type: "Plane".to_string(),
+                                });
                                 obj.components.push(Component::Renderer {
                                     material: "Default".to_string(),
-                                    color: [1.0, 1.0, 1.0, 1.0]
+                                    color: [1.0, 1.0, 1.0, 1.0],
                                 });
                             }
                             ui.close_menu();
@@ -88,56 +102,66 @@ impl ObjectHierarchy {
 
                     ui.menu_button("Physics", |ui| {
                         if ui.button("Rigid Body Sphere").clicked() {
-                            let id = scene.add_object("RigidBody".to_string(),
-                                GameObjectType::RigidBody(Shape::Sphere { radius: 1.0 }));
+                            let id = scene.add_object(
+                                "RigidBody".to_string(),
+                                GameObjectType::RigidBody(Shape::Sphere { radius: 1.0 }),
+                            );
                             if let Some(obj) = scene.objects.get_mut(&id) {
-                                obj.components.push(Component::Mesh { mesh_type: "Sphere".to_string() });
+                                obj.components.push(Component::Mesh {
+                                    mesh_type: "Sphere".to_string(),
+                                });
                                 obj.components.push(Component::Renderer {
                                     material: "Default".to_string(),
-                                    color: [0.8, 0.3, 0.3, 1.0]
+                                    color: [0.8, 0.3, 0.3, 1.0],
                                 });
                                 obj.components.push(Component::RigidBody {
                                     shape: Shape::Sphere { radius: 1.0 },
-                                    mass: 1.0
+                                    mass: 1.0,
                                 });
                             }
                             ui.close_menu();
                         }
                         if ui.button("Soft Body").clicked() {
-                            let id = scene.add_object("SoftBody".to_string(), GameObjectType::SoftBody);
+                            let id =
+                                scene.add_object("SoftBody".to_string(), GameObjectType::SoftBody);
                             if let Some(obj) = scene.objects.get_mut(&id) {
                                 obj.components.push(Component::SoftBodyComponent {
                                     particles: 100,
-                                    stiffness: 0.8
+                                    stiffness: 0.8,
                                 });
                             }
                             ui.close_menu();
                         }
                         if ui.button("Fluid Emitter").clicked() {
-                            let id = scene.add_object("FluidEmitter".to_string(), GameObjectType::FluidEmitter);
+                            let _id = scene.add_object(
+                                "FluidEmitter".to_string(),
+                                GameObjectType::FluidEmitter,
+                            );
                             ui.close_menu();
                         }
                     });
 
                     ui.menu_button("Lighting", |ui| {
                         if ui.button("Directional Light").clicked() {
-                            let id = scene.add_object("Directional Light".to_string(), GameObjectType::Light);
+                            let id = scene
+                                .add_object("Directional Light".to_string(), GameObjectType::Light);
                             if let Some(obj) = scene.objects.get_mut(&id) {
                                 obj.components.push(Component::Light {
                                     light_type: "Directional".to_string(),
                                     intensity: 1.0,
-                                    color: [1.0, 1.0, 1.0]
+                                    color: [1.0, 1.0, 1.0],
                                 });
                             }
                             ui.close_menu();
                         }
                         if ui.button("Point Light").clicked() {
-                            let id = scene.add_object("Point Light".to_string(), GameObjectType::Light);
+                            let id =
+                                scene.add_object("Point Light".to_string(), GameObjectType::Light);
                             if let Some(obj) = scene.objects.get_mut(&id) {
                                 obj.components.push(Component::Light {
                                     light_type: "Point".to_string(),
                                     intensity: 1.0,
-                                    color: [1.0, 1.0, 1.0]
+                                    color: [1.0, 1.0, 1.0],
                                 });
                             }
                             ui.close_menu();
@@ -150,7 +174,7 @@ impl ObjectHierarchy {
                             obj.components.push(Component::Camera {
                                 fov: 60.0,
                                 near: 0.1,
-                                far: 1000.0
+                                far: 1000.0,
                             });
                         }
                         ui.close_menu();
@@ -162,7 +186,9 @@ impl ObjectHierarchy {
                 // Object list
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     // Get root objects (objects with no parent)
-                    let root_objects: Vec<u32> = scene.objects.values()
+                    let root_objects: Vec<u32> = scene
+                        .objects
+                        .values()
                         .filter(|obj| obj.parent.is_none())
                         .map(|obj| obj.id)
                         .collect();
@@ -174,17 +200,38 @@ impl ObjectHierarchy {
             });
     }
 
-    fn show_object_tree(&mut self, ui: &mut egui::Ui, scene: &mut Scene, object_id: u32,
-                       selected_object: &mut Option<u32>, depth: usize) {
-        if let Some(object) = scene.objects.get(&object_id) {
+    fn show_object_tree(
+        &mut self,
+        ui: &mut egui::Ui,
+        scene: &mut Scene,
+        object_id: u32,
+        selected_object: &mut Option<u32>,
+        depth: usize,
+    ) {
+        // Get object properties first to avoid borrowing conflicts
+        let object_info = if let Some(object) = scene.objects.get(&object_id) {
+            Some((
+                object.name.clone(),
+                object.enabled,
+                object.visible,
+                object.children.clone(),
+            ))
+        } else {
+            None
+        };
+
+        if let Some((name, enabled, visible, children)) = object_info {
             // Filter check
-            if !self.filter_text.is_empty() &&
-               !object.name.to_lowercase().contains(&self.filter_text.to_lowercase()) {
+            if !self.filter_text.is_empty()
+                && !name
+                    .to_lowercase()
+                    .contains(&self.filter_text.to_lowercase())
+            {
                 return;
             }
 
             // Show inactive check
-            if !self.show_inactive && !object.enabled {
+            if !self.show_inactive && !enabled {
                 return;
             }
 
@@ -195,7 +242,7 @@ impl ObjectHierarchy {
                     egui::Layout::left_to_right(egui::Align::Center),
                     |ui| {
                         // Expand/collapse triangle for objects with children
-                        if !object.children.is_empty() {
+                        if !children.is_empty() {
                             let expanded = self.expanded_objects.contains(&object_id);
                             let triangle = if expanded { "▼" } else { "▶" };
                             if ui.small_button(triangle).clicked() {
@@ -210,51 +257,64 @@ impl ObjectHierarchy {
                         }
 
                         // Visibility toggle
-                        let mut visible = object.visible;
-                        if ui.checkbox(&mut visible, "").changed() {
+                        let mut current_visible = visible;
+                        if ui.checkbox(&mut current_visible, "").changed() {
                             if let Some(obj) = scene.objects.get_mut(&object_id) {
-                                obj.visible = visible;
+                                obj.visible = current_visible;
                             }
                         }
 
                         // Object name (selectable)
                         let is_selected = *selected_object == Some(object_id);
-                        let response = ui.selectable_label(is_selected, &object.name);
+                        let response = ui.selectable_label(is_selected, &name);
 
                         if response.clicked() {
                             *selected_object = Some(object_id);
                         }
 
-                        // Context menu - temporarily disabled to fix borrow checker
-                        // TODO: Fix borrow checker issues properly
-                        /*
+                        // Store actions to perform after UI rendering
+                        let mut duplicate_requested = false;
+                        let mut delete_requested = false;
+                        let mut add_child_requested = false;
+
                         response.context_menu(|ui| {
                             if ui.button("Duplicate").clicked() {
-                                self.duplicate_object(scene, object_id);
+                                duplicate_requested = true;
                                 ui.close_menu();
                             }
                             if ui.button("Delete").clicked() {
-                                scene.remove_object(object_id);
-                                if *selected_object == Some(object_id) {
-                                    *selected_object = None;
-                                }
+                                delete_requested = true;
                                 ui.close_menu();
                             }
                             ui.separator();
                             if ui.button("Add Child").clicked() {
-                                let child_id = scene.add_object("Child".to_string(), GameObjectType::Empty);
-                                scene.set_parent(child_id, Some(object_id));
+                                add_child_requested = true;
                                 ui.close_menu();
                             }
                         });
-                        */
-                    }
+
+                        // Handle actions after UI
+                        if duplicate_requested {
+                            self.duplicate_object(scene, object_id);
+                        }
+                        if delete_requested {
+                            scene.remove_object(object_id);
+                            if *selected_object == Some(object_id) {
+                                *selected_object = None;
+                            }
+                        }
+                        if add_child_requested {
+                            let child_id =
+                                scene.add_object("Child".to_string(), GameObjectType::Empty);
+                            scene.set_parent(child_id, Some(object_id));
+                        }
+                    },
                 );
             });
 
             // Show children if expanded
             if self.expanded_objects.contains(&object_id) {
-                for &child_id in &object.children.clone() {
+                for &child_id in &children {
                     self.show_object_tree(ui, scene, child_id, selected_object, depth + 1);
                 }
             }

@@ -20,6 +20,7 @@ rand_pcg = "0.3"
 eframe = "0.24"
 egui = "0.24"
 egui_plot = "0.24"
+egui_dock = "0.8"
 
 # ECS and Performance
 bevy_ecs = "0.12"

@@ -94,65 +94,165 @@ impl Inspector {
                 ui.columns(2, |columns| {
                     columns[0].label("Position");
                     columns[1].horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut transform.position.x).prefix("X: ").speed(0.1));
-                        ui.add(egui::DragValue::new(&mut transform.position.y).prefix("Y: ").speed(0.1));
-                        ui.add(egui::DragValue::new(&mut transform.position.z).prefix("Z: ").speed(0.1));
+                        ui.add(
+                            egui::DragValue::new(&mut transform.position.x)
+                                .prefix("X: ")
+                                .speed(0.1),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut transform.position.y)
+                                .prefix("Y: ")
+                                .speed(0.1),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut transform.position.z)
+                                .prefix("Z: ")
+                                .speed(0.1),
+                        );
                     });
                 });
 
                 ui.columns(2, |columns| {
                     columns[0].label("Rotation");
                     columns[1].horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut transform.rotation.x).prefix("X: ").speed(1.0).suffix("°"));
-                        ui.add(egui::DragValue::new(&mut transform.rotation.y).prefix("Y: ").speed(1.0).suffix("°"));
-                        ui.add(egui::DragValue::new(&mut transform.rotation.z).prefix("Z: ").speed(1.0).suffix("°"));
+                        ui.add(
+                            egui::DragValue::new(&mut transform.rotation.x)
+                                .prefix("X: ")
+                                .speed(1.0)
+                                .suffix("°"),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut transform.rotation.y)
+                                .prefix("Y: ")
+                                .speed(1.0)
+                                .suffix("°"),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut transform.rotation.z)
+                                .prefix("Z: ")
+                                .speed(1.0)
+                                .suffix("°"),
+                        );
                     });
                 });
 
                 ui.columns(2, |columns| {
                     columns[0].label("Scale");
                     columns[1].horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut transform.scale.x).prefix("X: ").speed(0.01).clamp_range(0.001..=100.0));
-                        ui.add(egui::DragValue::new(&mut transform.scale.y).prefix("Y: ").speed(0.01).clamp_range(0.001..=100.0));
-                        ui.add(egui::DragValue::new(&mut transform.scale.z).prefix("Z: ").speed(0.01).clamp_range(0.001..=100.0));
+                        ui.add(
+                            egui::DragValue::new(&mut transform.scale.x)
+                                .prefix("X: ")
+                                .speed(0.01)
+                                .clamp_range(0.001..=100.0),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut transform.scale.y)
+                                .prefix("Y: ")
+                                .speed(0.01)
+                                .clamp_range(0.001..=100.0),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut transform.scale.z)
+                                .prefix("Z: ")
+                                .speed(0.01)
+                                .clamp_range(0.001..=100.0),
+                        );
                     });
                 });
             });
     }
 
-    fn show_component(&mut self, ui: &mut egui::Ui, component: &mut Component, index: usize) -> bool {
+    fn show_component(
+        &mut self,
+        ui: &mut egui::Ui,
+        component: &mut Component,
+        index: usize,
+    ) -> bool {
         let mut should_remove = false;
 
         match component {
             Component::Mesh { mesh_type } => {
+                // Use temp_values for validation feedback
+                let validation_key = format!("mesh_validation_{}", index);
+
                 egui::CollapsingHeader::new("Mesh")
                     .default_open(true)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Mesh Type:");
+
                             egui::ComboBox::from_id_source(format!("mesh_type_{}", index))
                                 .selected_text(mesh_type.as_str())
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(mesh_type, "Cube".to_string(), "Cube");
-                                    ui.selectable_value(mesh_type, "Sphere".to_string(), "Sphere");
-                                    ui.selectable_value(mesh_type, "Cylinder".to_string(), "Cylinder");
-                                    ui.selectable_value(mesh_type, "Plane".to_string(), "Plane");
+                                    if ui.selectable_value(mesh_type, "Cube".to_string(), "Cube").clicked() {
+                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Cube".to_string());
+                                    }
+                                    if ui.selectable_value(mesh_type, "Sphere".to_string(), "Sphere").clicked() {
+                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Sphere".to_string());
+                                    }
+                                    if ui.selectable_value(mesh_type, "Cylinder".to_string(), "Cylinder").clicked() {
+                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Cylinder".to_string());
+                                    }
+                                    if ui.selectable_value(mesh_type, "Plane".to_string(), "Plane").clicked() {
+                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Plane".to_string());
+                                    }
                                 });
 
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
                         });
+
+                        // Show validation message if available
+                        if let Some(message) = self.temp_values.get(&validation_key) {
+                            ui.colored_label(egui::Color32::GREEN, message);
+                        }
                     });
-            },
+            }
 
             Component::Renderer { material, color } => {
+                let validation_key = format!("renderer_validation_{}", index);
+                let is_editing = self.editing_component == Some(index);
+
                 egui::CollapsingHeader::new("Renderer")
                     .default_open(true)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Material:");
-                            ui.text_edit_singleline(material);
+
+                            if is_editing {
+                                // Edit mode with validation
+                                let temp_key = format!("material_temp_{}", index);
+                                let current_material = self.temp_values.get(&temp_key)
+                                    .cloned()
+                                    .unwrap_or_else(|| material.clone());
+
+                                let mut temp_material = current_material.clone();
+                                if ui.text_edit_singleline(&mut temp_material).changed() {
+                                    self.temp_values.insert(temp_key.clone(), temp_material);
+                                }
+
+                                if ui.small_button("✓").clicked() {
+                                    if let Some(new_material) = self.temp_values.get(&temp_key) {
+                                        *material = new_material.clone();
+                                        self.temp_values.insert(validation_key.clone(), "Material updated successfully".to_string());
+                                    }
+                                    self.editing_component = None;
+                                    self.temp_values.remove(&temp_key);
+                                }
+                                if ui.small_button("✗").clicked() {
+                                    self.editing_component = None;
+                                    self.temp_values.remove(&temp_key);
+                                }
+                            } else {
+                                ui.text_edit_singleline(material);
+                                if ui.small_button("✏").clicked() {
+                                    self.editing_component = Some(index);
+                                    let temp_key = format!("material_temp_{}", index);
+                                    self.temp_values.insert(temp_key, material.clone());
+                                }
+                            }
+
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
@@ -160,10 +260,17 @@ impl Inspector {
 
                         ui.horizontal(|ui| {
                             ui.label("Color:");
-                            ui.color_edit_button_rgba_unmultiplied(color);
+                            if ui.color_edit_button_rgba_unmultiplied(color).changed() {
+                                self.temp_values.insert(validation_key.clone(), "Color updated".to_string());
+                            }
                         });
+
+                        // Show validation message if available
+                        if let Some(message) = self.temp_values.get(&validation_key) {
+                            ui.colored_label(egui::Color32::GREEN, message);
+                        }
                     });
-            },
+            }
 
             Component::RigidBody { shape, mass } => {
                 egui::CollapsingHeader::new("Rigid Body")
@@ -171,7 +278,11 @@ impl Inspector {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Mass:");
-                            ui.add(egui::DragValue::new(mass).speed(0.1).clamp_range(0.001..=1000.0));
+                            ui.add(
+                                egui::DragValue::new(mass)
+                                    .speed(0.1)
+                                    .clamp_range(0.001..=1000.0),
+                            );
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
@@ -182,42 +293,58 @@ impl Inspector {
                             Shape::Sphere { radius } => {
                                 ui.horizontal(|ui| {
                                     ui.label("Sphere Radius:");
-                                    ui.add(egui::DragValue::new(radius).speed(0.1).clamp_range(0.001..=100.0));
+                                    ui.add(
+                                        egui::DragValue::new(radius)
+                                            .speed(0.1)
+                                            .clamp_range(0.001..=100.0),
+                                    );
                                 });
-                            },
+                            }
                             Shape::Box { size } => {
                                 ui.horizontal(|ui| {
                                     ui.label("Box Size:");
-                                    ui.add(egui::DragValue::new(&mut size.x).prefix("X: ").speed(0.1));
-                                    ui.add(egui::DragValue::new(&mut size.y).prefix("Y: ").speed(0.1));
-                                    ui.add(egui::DragValue::new(&mut size.z).prefix("Z: ").speed(0.1));
+                                    ui.add(
+                                        egui::DragValue::new(&mut size.x).prefix("X: ").speed(0.1),
+                                    );
+                                    ui.add(
+                                        egui::DragValue::new(&mut size.y).prefix("Y: ").speed(0.1),
+                                    );
+                                    ui.add(
+                                        egui::DragValue::new(&mut size.z).prefix("Z: ").speed(0.1),
+                                    );
                                 });
-                            },
+                            }
                             Shape::Cylinder { radius, height } => {
                                 ui.horizontal(|ui| {
                                     ui.label("Cylinder:");
                                     ui.add(egui::DragValue::new(radius).prefix("R: ").speed(0.1));
                                     ui.add(egui::DragValue::new(height).prefix("H: ").speed(0.1));
                                 });
-                            },
+                            }
                             Shape::Capsule { radius, height } => {
                                 ui.horizontal(|ui| {
                                     ui.label("Capsule:");
                                     ui.add(egui::DragValue::new(radius).prefix("R: ").speed(0.1));
                                     ui.add(egui::DragValue::new(height).prefix("H: ").speed(0.1));
                                 });
-                            },
+                            }
                             Shape::ConvexHull { vertices: _ } => {
                                 ui.label("Convex Hull - Vertex editing not yet implemented");
-                            },
-                            Shape::TriangleMesh { vertices: _, indices: _ } => {
+                            }
+                            Shape::TriangleMesh {
+                                vertices: _,
+                                indices: _,
+                            } => {
                                 ui.label("Triangle Mesh - Mesh editing not yet implemented");
-                            },
+                            }
                         }
                     });
-            },
+            }
 
-            Component::SoftBodyComponent { particles, stiffness } => {
+            Component::SoftBodyComponent {
+                particles,
+                stiffness,
+            } => {
                 egui::CollapsingHeader::new("Soft Body")
                     .default_open(true)
                     .show(ui, |ui| {
@@ -234,7 +361,7 @@ impl Inspector {
                             ui.add(egui::Slider::new(stiffness, 0.0..=1.0));
                         });
                     });
-            },
+            }
 
             Component::Script { script_path, code } => {
                 egui::CollapsingHeader::new("Script")
@@ -252,17 +379,23 @@ impl Inspector {
                         });
 
                         ui.label("Code Preview:");
-                        ui.add(egui::TextEdit::multiline(code)
-                            .desired_rows(3)
-                            .desired_width(f32::INFINITY));
+                        ui.add(
+                            egui::TextEdit::multiline(code)
+                                .desired_rows(3)
+                                .desired_width(f32::INFINITY),
+                        );
 
                         if ui.button("Edit Script").clicked() {
                             // TODO: Open script editor
                         }
                     });
-            },
+            }
 
-            Component::Light { light_type, intensity, color } => {
+            Component::Light {
+                light_type,
+                intensity,
+                color,
+            } => {
                 egui::CollapsingHeader::new("Light")
                     .default_open(true)
                     .show(ui, |ui| {
@@ -271,7 +404,11 @@ impl Inspector {
                             egui::ComboBox::from_id_source(format!("light_type_{}", index))
                                 .selected_text(light_type.as_str())
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(light_type, "Directional".to_string(), "Directional");
+                                    ui.selectable_value(
+                                        light_type,
+                                        "Directional".to_string(),
+                                        "Directional",
+                                    );
                                     ui.selectable_value(light_type, "Point".to_string(), "Point");
                                     ui.selectable_value(light_type, "Spot".to_string(), "Spot");
                                 });
@@ -282,7 +419,11 @@ impl Inspector {
 
                         ui.horizontal(|ui| {
                             ui.label("Intensity:");
-                            ui.add(egui::DragValue::new(intensity).speed(0.1).clamp_range(0.0..=10.0));
+                            ui.add(
+                                egui::DragValue::new(intensity)
+                                    .speed(0.1)
+                                    .clamp_range(0.0..=10.0),
+                            );
                         });
 
                         ui.horizontal(|ui| {
@@ -290,7 +431,7 @@ impl Inspector {
                             ui.color_edit_button_rgb(color);
                         });
                     });
-            },
+            }
 
             Component::Camera { fov, near, far } => {
                 egui::CollapsingHeader::new("Camera")
@@ -298,7 +439,12 @@ impl Inspector {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Field of View:");
-                            ui.add(egui::DragValue::new(fov).speed(1.0).clamp_range(1.0..=179.0).suffix("°"));
+                            ui.add(
+                                egui::DragValue::new(fov)
+                                    .speed(1.0)
+                                    .clamp_range(1.0..=179.0)
+                                    .suffix("°"),
+                            );
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
@@ -306,15 +452,23 @@ impl Inspector {
 
                         ui.horizontal(|ui| {
                             ui.label("Near Plane:");
-                            ui.add(egui::DragValue::new(near).speed(0.01).clamp_range(0.001..=1000.0));
+                            ui.add(
+                                egui::DragValue::new(near)
+                                    .speed(0.01)
+                                    .clamp_range(0.001..=1000.0),
+                            );
                         });
 
                         ui.horizontal(|ui| {
                             ui.label("Far Plane:");
-                            ui.add(egui::DragValue::new(far).speed(1.0).clamp_range(1.0..=10000.0));
+                            ui.add(
+                                egui::DragValue::new(far)
+                                    .speed(1.0)
+                                    .clamp_range(1.0..=10000.0),
+                            );
                         });
                     });
-            },
+            }
 
             Component::Collider { shape, is_trigger } => {
                 egui::CollapsingHeader::new("Collider")
@@ -322,6 +476,7 @@ impl Inspector {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.checkbox(is_trigger, "Is Trigger");
+                            ui.label(format!("Shape: {:?}", shape));
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
@@ -330,7 +485,7 @@ impl Inspector {
                         ui.label("Shape: (same as RigidBody)");
                         // Shape editing would be similar to RigidBody
                     });
-            },
+            }
         }
 
         should_remove
@@ -348,7 +503,9 @@ impl Inspector {
 
             if ui.button("Rigid Body").clicked() {
                 object.components.push(Component::RigidBody {
-                    shape: Shape::Box { size: Vec3::new(1.0, 1.0, 1.0) },
+                    shape: Shape::Box {
+                        size: Vec3::new(1.0, 1.0, 1.0),
+                    },
                     mass: 1.0,
                 });
                 ui.close_menu();
@@ -356,7 +513,9 @@ impl Inspector {
 
             if ui.button("Collider").clicked() {
                 object.components.push(Component::Collider {
-                    shape: Shape::Box { size: Vec3::new(1.0, 1.0, 1.0) },
+                    shape: Shape::Box {
+                        size: Vec3::new(1.0, 1.0, 1.0),
+                    },
                     is_trigger: false,
                 });
                 ui.close_menu();

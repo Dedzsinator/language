@@ -5,6 +5,7 @@ use crate::physics::math::*;
 use crate::physics::rigid_body::*;
 use crate::physics::*;
 use eframe::egui;
+use egui_dock::{DockArea, DockState, NodeIndex, Tab};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -440,7 +441,12 @@ impl UnityStyleEditor {
         // Central viewport
         egui::CentralPanel::default().show(ctx, |_ui| {
             if let Some(scene) = self.scene_manager.current_scene() {
+                // Synchronize view mode between editor and viewport
+                self.viewport.set_view_mode(self.view_mode);
                 self.viewport.show(ctx, scene, self.selected_object);
+
+                // Update editor view mode if viewport changed it
+                self.view_mode = self.viewport.get_view_mode();
             }
         });
     }

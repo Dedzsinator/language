@@ -26,6 +26,16 @@ impl Viewport {
         }
     }
 
+    /// Get the current view mode
+    pub fn get_view_mode(&self) -> ViewMode {
+        self.view_mode
+    }
+
+    /// Set the view mode
+    pub fn set_view_mode(&mut self, mode: ViewMode) {
+        self.view_mode = mode;
+    }
+
     pub fn show(&mut self, ctx: &egui::Context, scene: &Scene, selected_object: Option<u32>) {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Viewport toolbar

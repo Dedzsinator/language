@@ -42,8 +42,19 @@ impl SceneManager {
         }
     }
 
-    pub fn save_scene(&mut self, index: usize, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_scene(
+        &mut self,
+        index: usize,
+        path: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(scene) = self.scenes.get(index) {
+            let path_obj = Path::new(path);
+
+            // Ensure parent directory exists
+            if let Some(parent) = path_obj.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
             let serialized = serde_json::to_string_pretty(scene)?;
             std::fs::write(path, serialized)?;
             if index < self.scene_files.len() {
@@ -54,6 +65,19 @@ impl SceneManager {
     }
 
     pub fn load_scene(&mut self, path: &str) -> Result<usize, Box<dyn std::error::Error>> {
+        let path_obj = Path::new(path);
+
+        // Validate that the file exists and has correct extension
+        if !path_obj.exists() {
+            return Err(format!("Scene file not found: {}", path).into());
+        }
+
+        if let Some(ext) = path_obj.extension() {
+            if ext != "scene" && ext != "json" {
+                return Err("Invalid scene file extension. Expected .scene or .json".into());
+            }
+        }
+
         let content = std::fs::read_to_string(path)?;
         let scene: Scene = serde_json::from_str(&content)?;
 
@@ -108,38 +132,60 @@ impl SceneManager {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     let current_scene = self.current_scene;
                     let mut scene_to_switch = None;
+                    let mut scene_to_delete = None;
+                    let mut scene_to_duplicate = None;
+                    let mut scene_to_save = None;
 
-                    for (index, scene) in self.scenes.iter().enumerate() {
+                    // Create a copy of scene info to avoid borrowing conflicts
+                    let scene_info: Vec<(usize, String, bool)> = self
+                        .scenes
+                        .iter()
+                        .enumerate()
+                        .map(|(index, scene)| (index, scene.name.clone(), index == current_scene))
+                        .collect();
+
+                    for (index, scene_name, is_current) in scene_info {
                         ui.horizontal(|ui| {
-                            let is_current = index == current_scene;
                             let button_text = if is_current {
-                                format!("● {}", scene.name)
+                                format!("● {}", scene_name)
                             } else {
-                                scene.name.clone()
+                                scene_name.clone()
                             };
 
                             if ui.selectable_label(is_current, &button_text).clicked() {
                                 scene_to_switch = Some(index);
                             }
 
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.small_button("🗑").clicked() {
-                                    self.delete_scene(index);
-                                }
-                                if ui.small_button("📋").clicked() {
-                                    self.duplicate_scene(index);
-                                }
-                                if ui.small_button("💾").clicked() {
-                                    // TODO: Open file dialog
-                                    let _ = self.save_scene(index, &format!("{}.scene", scene.name));
-                                }
-                            });
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.small_button("🗑").clicked() {
+                                        scene_to_delete = Some(index);
+                                    }
+                                    if ui.small_button("📋").clicked() {
+                                        scene_to_duplicate = Some(index);
+                                    }
+                                    if ui.small_button("💾").clicked() {
+                                        scene_to_save =
+                                            Some((index, format!("{}.scene", scene_name)));
+                                    }
+                                },
+                            );
                         });
                     }
 
-                    // Handle scene switch outside the iterator
+                    // Handle scene operations outside the iterator
                     if let Some(index) = scene_to_switch {
                         self.switch_scene(index);
+                    }
+                    if let Some(index) = scene_to_delete {
+                        self.delete_scene(index);
+                    }
+                    if let Some(index) = scene_to_duplicate {
+                        self.duplicate_scene(index);
+                    }
+                    if let Some((index, filename)) = scene_to_save {
+                        let _ = self.save_scene(index, &filename);
                     }
                 });
 
@@ -150,7 +196,10 @@ impl SceneManager {
                         // TODO: Open file dialog
                     }
                     if ui.button("Save All").clicked() {
-                        let indices_to_save: Vec<_> = self.scenes.iter().enumerate()
+                        let indices_to_save: Vec<_> = self
+                            .scenes
+                            .iter()
+                            .enumerate()
                             .filter_map(|(index, _)| {
                                 if !self.scene_files[index].is_empty() {
                                     Some((index, self.scene_files[index].clone()))

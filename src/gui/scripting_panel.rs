@@ -51,10 +51,11 @@ impl ScriptingPanel {
     }
 
     pub fn show(&mut self, ctx: &egui::Context) {
-        egui::Window::new("Script Editor")
-            .default_width(800.0)
-            .default_height(600.0)
+        egui::SidePanel::right("scripting_panel")
+            .default_width(600.0)
+            .resizable(true)
             .show(ctx, |ui| {
+                ui.heading("Script Editor");
                 self.show_toolbar(ui);
                 ui.separator();
                 self.show_script_tabs(ui);
@@ -116,7 +117,11 @@ impl ScriptingPanel {
 
                 for script_name in script_names {
                     let is_active = self.active_script.as_ref() == Some(&script_name);
-                    let is_dirty = self.scripts.get(&script_name).map(|s| s.is_dirty).unwrap_or(false);
+                    let is_dirty = self
+                        .scripts
+                        .get(&script_name)
+                        .map(|s| s.is_dirty)
+                        .unwrap_or(false);
 
                     let tab_text = if is_dirty {
                         format!("● {}", script_name)
@@ -152,17 +157,46 @@ impl ScriptingPanel {
 
     fn show_active_script_editor(&mut self, ui: &mut egui::Ui) {
         if let Some(active_name) = self.active_script.clone() {
-            if let Some(script) = self.scripts.get_mut(&active_name) {
+            // Get script information first to avoid borrowing conflicts
+            let script_info = if let Some(script) = self.scripts.get(&active_name) {
+                Some((
+                    script.name.clone(),
+                    script.code.clone(),
+                    script.file_path.clone(),
+                    script.syntax_errors.clone(),
+                    script.auto_save,
+                    script.is_dirty,
+                    script.cursor_position,
+                ))
+            } else {
+                None
+            };
+
+            if let Some((
+                name,
+                mut code,
+                file_path,
+                syntax_errors,
+                mut auto_save,
+                mut is_dirty,
+                mut cursor_position,
+            )) = script_info
+            {
+                let mut code_changed = false;
+                let mut format_requested = false;
+                let mut check_syntax_requested = false;
+                let mut generate_docs_requested = false;
+
                 ui.columns(2, |columns| {
                     // Code editor
                     columns[0].vertical(|ui| {
-                        ui.heading(&format!("Editing: {}", script.name));
+                        ui.heading(&format!("Editing: {}", name));
 
                         // Line numbers and code editor
                         egui::ScrollArea::both()
                             .auto_shrink([false; 2])
                             .show(ui, |ui| {
-                                let lines = script.code.lines().count().max(1);
+                                let lines = code.lines().count().max(1);
                                 ui.horizontal_top(|ui| {
                                     // Line numbers
                                     ui.vertical(|ui| {
@@ -176,16 +210,29 @@ impl ScriptingPanel {
 
                                     // Code editor
                                     let response = ui.add(
-                                        egui::TextEdit::multiline(&mut script.code)
+                                        egui::TextEdit::multiline(&mut code)
                                             .font(egui::TextStyle::Monospace)
                                             .desired_width(f32::INFINITY)
                                             .desired_rows(25)
                                     );
 
                                     if response.changed() {
-                                        script.is_dirty = true;
-                                        // TODO: Fix borrow checker issue
-                                        // self.check_syntax(&active_name);
+                                        is_dirty = true;
+                                        code_changed = true;
+                                    }
+
+                                    // Track cursor position if the text editor has focus
+                                    if response.has_focus() {
+                                        if let Some(cursor_range) = response.ctx.input(|i| i.events.iter().find_map(|event| {
+                                            if let egui::Event::Text(text) = event {
+                                                Some(text.len())
+                                            } else {
+                                                None
+                                            }
+                                        })) {
+                                            // Simple cursor position tracking
+                                            cursor_position = code.len().min(cursor_position + cursor_range);
+                                        }
                                     }
                                 });
                             });
@@ -198,10 +245,11 @@ impl ScriptingPanel {
                         // File info
                         ui.group(|ui| {
                             ui.label("File Information");
-                            ui.label(format!("Path: {}", script.file_path));
-                            ui.label(format!("Lines: {}", script.code.lines().count()));
-                            ui.label(format!("Characters: {}", script.code.len()));
-                            ui.checkbox(&mut script.auto_save, "Auto Save");
+                            ui.label(format!("Path: {}", file_path));
+                            ui.label(format!("Lines: {}", code.lines().count()));
+                            ui.label(format!("Characters: {}", code.len()));
+                            ui.label(format!("Cursor Position: {}", cursor_position));
+                            ui.checkbox(&mut auto_save, "Auto Save");
                         });
 
                         ui.separator();
@@ -209,13 +257,13 @@ impl ScriptingPanel {
                         // Syntax errors
                         ui.group(|ui| {
                             ui.label("Syntax Errors");
-                            if script.syntax_errors.is_empty() {
+                            if syntax_errors.is_empty() {
                                 ui.label("✅ No errors");
                             } else {
                                 egui::ScrollArea::vertical()
                                     .max_height(150.0)
                                     .show(ui, |ui| {
-                                        for error in &script.syntax_errors {
+                                        for error in &syntax_errors {
                                             ui.horizontal(|ui| {
                                                 let icon = match error.error_type {
                                                     ErrorType::Lexer => "🔤",
@@ -238,18 +286,21 @@ impl ScriptingPanel {
                                 ui.label("Code Templates");
                                 if ui.button("Function Template").clicked() {
                                     let template = "let myFunction = (param: Type) -> ReturnType => {\n    // Function body\n    return result\n}";
-                                    script.code.push_str(template);
-                                    script.is_dirty = true;
+                                    code.push_str(template);
+                                    is_dirty = true;
+                                    code_changed = true;
                                 }
                                 if ui.button("Class Template").clicked() {
                                     let template = "struct MyStruct {\n    field: Type\n}\n\nimpl MyStruct {\n    let new = (field: Type) -> MyStruct => {\n        MyStruct { field }\n    }\n}";
-                                    script.code.push_str(template);
-                                    script.is_dirty = true;
+                                    code.push_str(template);
+                                    is_dirty = true;
+                                    code_changed = true;
                                 }
                                 if ui.button("Physics Object").clicked() {
                                     let template = "// Create a physics object\nlet physicsObject = {\n    position: Vec3::new(0.0, 0.0, 0.0),\n    velocity: Vec3::new(0.0, 0.0, 0.0),\n    mass: 1.0\n}";
-                                    script.code.push_str(template);
-                                    script.is_dirty = true;
+                                    code.push_str(template);
+                                    is_dirty = true;
+                                    code_changed = true;
                                 }
                             });
                         }
@@ -260,18 +311,36 @@ impl ScriptingPanel {
                         ui.group(|ui| {
                             ui.label("Actions");
                             if ui.button("Format Code").clicked() {
-                                self.format_code(&active_name);
+                                format_requested = true;
                             }
                             if ui.button("Check Syntax").clicked() {
-                                // TODO: Fix borrow checker issue
-                                // self.check_syntax(&active_name);
+                                check_syntax_requested = true;
                             }
                             if ui.button("Generate Documentation").clicked() {
-                                self.generate_documentation(&active_name);
+                                generate_docs_requested = true;
                             }
                         });
                     });
                 });
+
+                // Apply changes back to the script
+                if let Some(script) = self.scripts.get_mut(&active_name) {
+                    script.code = code;
+                    script.auto_save = auto_save;
+                    script.is_dirty = is_dirty;
+                    script.cursor_position = cursor_position;
+                }
+
+                // Handle deferred actions
+                if format_requested {
+                    self.format_code(&active_name);
+                }
+                if check_syntax_requested {
+                    self.check_syntax(&active_name);
+                }
+                if generate_docs_requested {
+                    self.generate_documentation(&active_name);
+                }
             }
         } else {
             ui.label("No script selected. Create a new script or open an existing one.");
@@ -282,9 +351,11 @@ impl ScriptingPanel {
         ui.horizontal(|ui| {
             if let Some(active_name) = &self.active_script {
                 if let Some(script) = self.scripts.get(active_name) {
-                    ui.label(format!("Lines: {} | Characters: {}",
+                    ui.label(format!(
+                        "Lines: {} | Characters: {}",
                         script.code.lines().count(),
-                        script.code.len()));
+                        script.code.len()
+                    ));
 
                     if script.is_dirty {
                         ui.label("● Modified");
@@ -311,7 +382,10 @@ impl ScriptingPanel {
 
             ui.horizontal(|ui| {
                 if ui.button("Create").clicked() && !self.new_script_name.is_empty() {
-                    self.create_new_script(self.new_script_name.clone(), get_default_script_template());
+                    self.create_new_script(
+                        self.new_script_name.clone(),
+                        get_default_script_template(),
+                    );
                     self.active_script = Some(self.new_script_name.clone());
                     self.new_script_name.clear();
                 }
@@ -381,17 +455,15 @@ impl ScriptingPanel {
                 // Parse and execute the script
                 let lexer = Lexer::new(&script.code);
                 match Parser::new(lexer) {
-                    Ok(mut parser) => {
-                        match parser.parse_program() {
-                            Ok(ast) => {
-                                let mut interpreter = Interpreter::new();
-                                match interpreter.eval_program(&ast) {
-                                    Ok(result) => println!("Script result: {:?}", result),
-                                    Err(e) => println!("Runtime error: {:?}", e),
-                                }
-                            },
-                            Err(e) => println!("Parse error: {:?}", e),
+                    Ok(mut parser) => match parser.parse_program() {
+                        Ok(ast) => {
+                            let mut interpreter = Interpreter::new();
+                            match interpreter.eval_program(&ast) {
+                                Ok(result) => println!("Script result: {:?}", result),
+                                Err(e) => println!("Runtime error: {:?}", e),
+                            }
                         }
+                        Err(e) => println!("Parse error: {:?}", e),
                     },
                     Err(e) => println!("Parser creation error: {:?}", e),
                 }
@@ -419,7 +491,7 @@ impl ScriptingPanel {
                             error_type: ErrorType::Parser,
                         });
                     }
-                },
+                }
                 Err(e) => {
                     script.syntax_errors.push(SyntaxError {
                         line: 1,
@@ -433,13 +505,62 @@ impl ScriptingPanel {
     }
 
     fn format_code(&mut self, script_name: &str) {
-        // TODO: Implement code formatting
-        println!("Code formatting not yet implemented");
+        if let Some(script) = self.scripts.get_mut(script_name) {
+            // Basic code formatting - normalize whitespace and indentation
+            let formatted = script
+                .code
+                .lines()
+                .map(|line| line.trim())
+                .filter(|line| !line.is_empty())
+                .map(|line| {
+                    // Add basic indentation for blocks
+                    if line.starts_with('}') {
+                        format!("{}", line)
+                    } else if line.ends_with('{') {
+                        format!("{}", line)
+                    } else {
+                        format!("    {}", line)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            script.code = formatted;
+            script.is_dirty = true;
+        }
     }
 
     fn generate_documentation(&mut self, script_name: &str) {
-        // TODO: Implement documentation generation
-        println!("Documentation generation not yet implemented");
+        if let Some(script) = self.scripts.get(script_name) {
+            // Generate basic documentation from comments and function signatures
+            let mut docs = format!("# Documentation for {}\n\n", script_name);
+
+            for (i, line) in script.code.lines().enumerate() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") {
+                    docs.push_str(&format!("Line {}: {}\n", i + 1, trimmed));
+                } else if trimmed.starts_with("let") && trimmed.contains("=>") {
+                    docs.push_str(&format!("Function found at line {}: {}\n", i + 1, trimmed));
+                } else if trimmed.starts_with("struct") {
+                    docs.push_str(&format!("Struct found at line {}: {}\n", i + 1, trimmed));
+                }
+            }
+
+            // Create documentation as a new script
+            let doc_name = format!("{}_docs", script_name);
+            let doc_script = ScriptEditor {
+                name: doc_name.clone(),
+                code: docs,
+                file_path: format!("{}.md", doc_name),
+                is_dirty: true,
+                auto_save: false,
+                syntax_errors: vec![],
+                cursor_position: 0,
+            };
+
+            self.scripts.insert(doc_name.clone(), doc_script);
+            self.active_script = Some(doc_name);
+        }
     }
 }
 
@@ -470,7 +591,8 @@ let numbers = [1, 2, 3, 4, 5]
 
 // Main execution
 let result = add(x, 3)
-"#.to_string()
+"#
+    .to_string()
 }
 
 impl Default for ScriptingPanel {
