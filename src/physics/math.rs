@@ -1,7 +1,7 @@
 // High-performance 3D math for physics simulation
-use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, Neg};
-use crate::eval::interpreter::{Value, RuntimeResult};
+use crate::eval::interpreter::{RuntimeResult, Value};
 use serde::{Deserialize, Serialize};
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// 3D Vector with SIMD-optimized operations
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -95,6 +95,268 @@ impl Vec3 {
             self.y.max(other.y),
             self.z.max(other.z),
         )
+    }
+
+    /// Essential math functions for physics calculations
+    pub fn pow(self, exponent: f64) -> Self {
+        Self::new(
+            self.x.powf(exponent),
+            self.y.powf(exponent),
+            self.z.powf(exponent),
+        )
+    }
+
+    pub fn exp(self) -> Self {
+        Self::new(self.x.exp(), self.y.exp(), self.z.exp())
+    }
+
+    pub fn ln(self) -> Self {
+        Self::new(self.x.ln(), self.y.ln(), self.z.ln())
+    }
+
+    pub fn log10(self) -> Self {
+        Self::new(self.x.log10(), self.y.log10(), self.z.log10())
+    }
+
+    pub fn sqrt(self) -> Self {
+        Self::new(self.x.sqrt(), self.y.sqrt(), self.z.sqrt())
+    }
+
+    pub fn cbrt(self) -> Self {
+        Self::new(self.x.cbrt(), self.y.cbrt(), self.z.cbrt())
+    }
+
+    pub fn abs(self) -> Self {
+        Self::new(self.x.abs(), self.y.abs(), self.z.abs())
+    }
+
+    pub fn floor(self) -> Self {
+        Self::new(self.x.floor(), self.y.floor(), self.z.floor())
+    }
+
+    pub fn ceil(self) -> Self {
+        Self::new(self.x.ceil(), self.y.ceil(), self.z.ceil())
+    }
+
+    pub fn round(self) -> Self {
+        Self::new(self.x.round(), self.y.round(), self.z.round())
+    }
+
+    pub fn sin(self) -> Self {
+        Self::new(self.x.sin(), self.y.sin(), self.z.sin())
+    }
+
+    pub fn cos(self) -> Self {
+        Self::new(self.x.cos(), self.y.cos(), self.z.cos())
+    }
+
+    pub fn tan(self) -> Self {
+        Self::new(self.x.tan(), self.y.tan(), self.z.tan())
+    }
+
+    pub fn asin(self) -> Self {
+        Self::new(self.x.asin(), self.y.asin(), self.z.asin())
+    }
+
+    pub fn acos(self) -> Self {
+        Self::new(self.x.acos(), self.y.acos(), self.z.acos())
+    }
+
+    pub fn atan(self) -> Self {
+        Self::new(self.x.atan(), self.y.atan(), self.z.atan())
+    }
+
+    pub fn atan2(self, other: Self) -> Self {
+        Self::new(
+            self.x.atan2(other.x),
+            self.y.atan2(other.y),
+            self.z.atan2(other.z),
+        )
+    }
+
+    pub fn sinh(self) -> Self {
+        Self::new(self.x.sinh(), self.y.sinh(), self.z.sinh())
+    }
+
+    pub fn cosh(self) -> Self {
+        Self::new(self.x.cosh(), self.y.cosh(), self.z.cosh())
+    }
+
+    pub fn tanh(self) -> Self {
+        Self::new(self.x.tanh(), self.y.tanh(), self.z.tanh())
+    }
+
+    // Physics-specific functions
+    pub fn force_from_acceleration(self, mass: f64) -> Self {
+        self * mass
+    }
+
+    pub fn velocity_from_force(self, mass: f64, dt: f64) -> Self {
+        self * (dt / mass)
+    }
+
+    pub fn clamp(self, min: Self, max: Self) -> Self {
+        Self::new(
+            self.x.clamp(min.x, max.x),
+            self.y.clamp(min.y, max.y),
+            self.z.clamp(min.z, max.z),
+        )
+    }
+
+    pub fn clamp_magnitude(self, max_magnitude: f64) -> Self {
+        let mag = self.magnitude();
+        if mag > max_magnitude {
+            self.normalized() * max_magnitude
+        } else {
+            self
+        }
+    }
+
+    /// Essential physics utility functions
+    pub fn gravitational_force(
+        pos1: Self,
+        mass1: f64,
+        pos2: Self,
+        mass2: f64,
+        g_constant: f64,
+    ) -> Self {
+        let direction = pos2 - pos1;
+        let distance_sq = direction.magnitude_squared().max(0.01); // Prevent division by zero
+        let force_magnitude = g_constant * mass1 * mass2 / distance_sq;
+        direction.normalized() * force_magnitude
+    }
+
+    /// Calculate spring force (Hooke's law)
+    pub fn spring_force(pos1: Self, pos2: Self, rest_length: f64, spring_constant: f64) -> Self {
+        let direction = pos2 - pos1;
+        let distance = direction.magnitude();
+        let displacement = distance - rest_length;
+        direction.normalized() * (spring_constant * displacement)
+    }
+
+    /// Calculate damping force
+    pub fn damping_force(velocity: Self, damping_coefficient: f64) -> Self {
+        velocity * (-damping_coefficient)
+    }
+
+    /// Calculate drag force
+    pub fn drag_force(
+        velocity: Self,
+        drag_coefficient: f64,
+        fluid_density: f64,
+        cross_sectional_area: f64,
+    ) -> Self {
+        let speed = velocity.magnitude();
+        if speed > 0.0 {
+            let drag_magnitude =
+                0.5 * drag_coefficient * fluid_density * cross_sectional_area * speed * speed;
+            velocity.normalized() * (-drag_magnitude)
+        } else {
+            Self::zero()
+        }
+    }
+
+    /// Calculate buoyancy force
+    pub fn buoyancy_force(fluid_density: f64, volume: f64, gravity: Self) -> Self {
+        gravity * (-fluid_density * volume)
+    }
+
+    /// Calculate centripetal acceleration
+    pub fn centripetal_acceleration(velocity: Self, radius: f64) -> Self {
+        if radius > 0.0 {
+            let speed = velocity.magnitude();
+            let centripetal_magnitude = speed * speed / radius;
+            // Direction is toward center (perpendicular to velocity)
+            velocity.normalized() * centripetal_magnitude
+        } else {
+            Self::zero()
+        }
+    }
+
+    /// Calculate orbital velocity for circular orbit
+    pub fn orbital_velocity(central_mass: f64, orbital_radius: f64, g_constant: f64) -> f64 {
+        if orbital_radius > 0.0 {
+            (g_constant * central_mass / orbital_radius).sqrt()
+        } else {
+            0.0
+        }
+    }
+
+    /// Calculate escape velocity
+    pub fn escape_velocity(mass: f64, radius: f64, g_constant: f64) -> f64 {
+        if radius > 0.0 {
+            (2.0 * g_constant * mass / radius).sqrt()
+        } else {
+            0.0
+        }
+    }
+
+    /// Apply impulse to change velocity instantly
+    pub fn apply_impulse(velocity: Self, impulse: Self, mass: f64) -> Self {
+        if mass > 0.0 {
+            velocity + (impulse / mass)
+        } else {
+            velocity
+        }
+    }
+
+    /// Calculate kinetic energy
+    pub fn kinetic_energy(velocity: Self, mass: f64) -> f64 {
+        0.5 * mass * velocity.magnitude_squared()
+    }
+
+    /// Calculate potential energy in gravity field
+    pub fn gravitational_potential_energy(position: Self, mass: f64, gravity: Self) -> f64 {
+        mass * gravity.magnitude() * position.y
+    }
+
+    /// Calculate elastic potential energy
+    pub fn elastic_potential_energy(displacement: f64, spring_constant: f64) -> f64 {
+        0.5 * spring_constant * displacement * displacement
+    }
+
+    /// Project vector onto another vector
+    pub fn project_onto(self, other: Self) -> Self {
+        let other_normalized = other.normalized();
+        other_normalized * self.dot(other_normalized)
+    }
+
+    /// Reject vector from another vector (component perpendicular to other)
+    pub fn reject_from(self, other: Self) -> Self {
+        self - self.project_onto(other)
+    }
+
+    /// Calculate angle between two vectors in radians
+    pub fn angle_between(self, other: Self) -> f64 {
+        let dot_product = self.dot(other);
+        let magnitudes = self.magnitude() * other.magnitude();
+        if magnitudes > 0.0 {
+            (dot_product / magnitudes).clamp(-1.0, 1.0).acos()
+        } else {
+            0.0
+        }
+    }
+
+    /// Rotate vector around axis by angle in radians
+    pub fn rotate_around_axis(self, axis: Self, angle: f64) -> Self {
+        let axis_normalized = axis.normalized();
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+
+        // Rodrigues' rotation formula
+        self * cos_angle
+            + axis_normalized.cross(self) * sin_angle
+            + axis_normalized * axis_normalized.dot(self) * (1.0 - cos_angle)
+    }
+
+    /// Calculate momentum
+    pub fn momentum(velocity: Self, mass: f64) -> Self {
+        velocity * mass
+    }
+
+    /// Calculate angular momentum for point mass
+    pub fn angular_momentum(position: Self, velocity: Self, mass: f64) -> Self {
+        position.cross(velocity * mass)
     }
 }
 
@@ -224,7 +486,12 @@ impl Quat {
         let mag_sq = self.magnitude_squared();
         if mag_sq > f64::EPSILON {
             let conj = self.conjugate();
-            Self::new(conj.w / mag_sq, conj.x / mag_sq, conj.y / mag_sq, conj.z / mag_sq)
+            Self::new(
+                conj.w / mag_sq,
+                conj.x / mag_sq,
+                conj.y / mag_sq,
+                conj.z / mag_sq,
+            )
         } else {
             Self::identity()
         }
@@ -317,27 +584,15 @@ impl Mat3 {
     }
 
     pub fn identity() -> Self {
-        Self::new([
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.0],
-        ])
+        Self::new([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
     }
 
     pub fn zero() -> Self {
-        Self::new([
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-        ])
+        Self::new([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
     }
 
     pub fn from_diagonal(x: f64, y: f64, z: f64) -> Self {
-        Self::new([
-            [x, 0.0, 0.0],
-            [0.0, y, 0.0],
-            [0.0, 0.0, z],
-        ])
+        Self::new([[x, 0.0, 0.0], [0.0, y, 0.0], [0.0, 0.0, z]])
     }
 
     pub fn transpose(self) -> Self {
@@ -437,7 +692,11 @@ pub struct Transform {
 
 impl Transform {
     pub fn new(position: Vec3, rotation: Quat, scale: Vec3) -> Self {
-        Self { position, rotation, scale }
+        Self {
+            position,
+            rotation,
+            scale,
+        }
     }
 
     pub fn identity() -> Self {
@@ -453,13 +712,21 @@ impl Transform {
     }
 
     pub fn transform_point(self, point: Vec3) -> Vec3 {
-        let scaled = Vec3::new(point.x * self.scale.x, point.y * self.scale.y, point.z * self.scale.z);
+        let scaled = Vec3::new(
+            point.x * self.scale.x,
+            point.y * self.scale.y,
+            point.z * self.scale.z,
+        );
         let rotated = self.rotation.rotate_vector(scaled);
         rotated + self.position
     }
 
     pub fn transform_vector(self, vector: Vec3) -> Vec3 {
-        let scaled = Vec3::new(vector.x * self.scale.x, vector.y * self.scale.y, vector.z * self.scale.z);
+        let scaled = Vec3::new(
+            vector.x * self.scale.x,
+            vector.y * self.scale.y,
+            vector.z * self.scale.z,
+        );
         self.rotation.rotate_vector(scaled)
     }
 
@@ -469,7 +736,11 @@ impl Transform {
         let inv_position = inv_rotation.rotate_vector(-self.position);
 
         Self::new(
-            Vec3::new(inv_position.x * inv_scale.x, inv_position.y * inv_scale.y, inv_position.z * inv_scale.z),
+            Vec3::new(
+                inv_position.x * inv_scale.x,
+                inv_position.y * inv_scale.y,
+                inv_position.z * inv_scale.z,
+            ),
             inv_rotation,
             inv_scale,
         )
@@ -507,28 +778,50 @@ impl AABB {
     }
 
     pub fn contains_point(self, point: Vec3) -> bool {
-        point.x >= self.min.x && point.x <= self.max.x
-            && point.y >= self.min.y && point.y <= self.max.y
-            && point.z >= self.min.z && point.z <= self.max.z
+        point.x >= self.min.x
+            && point.x <= self.max.x
+            && point.y >= self.min.y
+            && point.y <= self.max.y
+            && point.z >= self.min.z
+            && point.z <= self.max.z
     }
 
     pub fn intersects(self, other: Self) -> bool {
-        self.min.x <= other.max.x && self.max.x >= other.min.x
-            && self.min.y <= other.max.y && self.max.y >= other.min.y
-            && self.min.z <= other.max.z && self.max.z >= other.min.z
+        self.min.x <= other.max.x
+            && self.max.x >= other.min.x
+            && self.min.y <= other.max.y
+            && self.max.y >= other.min.y
+            && self.min.z <= other.max.z
+            && self.max.z >= other.min.z
     }
 
     pub fn expand(self, point: Vec3) -> Self {
         Self::new(
-            Vec3::new(self.min.x.min(point.x), self.min.y.min(point.y), self.min.z.min(point.z)),
-            Vec3::new(self.max.x.max(point.x), self.max.y.max(point.y), self.max.z.max(point.z)),
+            Vec3::new(
+                self.min.x.min(point.x),
+                self.min.y.min(point.y),
+                self.min.z.min(point.z),
+            ),
+            Vec3::new(
+                self.max.x.max(point.x),
+                self.max.y.max(point.y),
+                self.max.z.max(point.z),
+            ),
         )
     }
 
     pub fn union(self, other: Self) -> Self {
         Self::new(
-            Vec3::new(self.min.x.min(other.min.x), self.min.y.min(other.min.y), self.min.z.min(other.min.z)),
-            Vec3::new(self.max.x.max(other.max.x), self.max.y.max(other.max.y), self.max.z.max(other.max.z)),
+            Vec3::new(
+                self.min.x.min(other.min.x),
+                self.min.y.min(other.min.y),
+                self.min.z.min(other.min.z),
+            ),
+            Vec3::new(
+                self.max.x.max(other.max.x),
+                self.max.y.max(other.max.y),
+                self.max.z.max(other.max.z),
+            ),
         )
     }
 }
@@ -570,11 +863,7 @@ mod tests {
         let v = Vec3::new(1.0, 2.0, 3.0);
         assert_eq!(m * v, v);
 
-        let det = Mat3::new([
-            [1.0, 2.0, 3.0],
-            [0.0, 1.0, 4.0],
-            [5.0, 6.0, 0.0],
-        ]).determinant();
+        let det = Mat3::new([[1.0, 2.0, 3.0], [0.0, 1.0, 4.0], [5.0, 6.0, 0.0]]).determinant();
         assert_eq!(det, 1.0);
     }
 

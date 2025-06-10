@@ -51,3 +51,12 @@ e
 print(pi * 2)
 print(e)
 exit
+print(pi)
+print(pi*3)
+print(pi^2)
+print(pi**2)
+sin(5)
+let x = 42
+sin(x)
+sin(42)
+sin(43)

@@ -55,15 +55,23 @@ impl ScriptingPanel {
             .default_width(600.0)
             .resizable(true)
             .show(ctx, |ui| {
-                ui.heading("Script Editor");
-                self.show_toolbar(ui);
-                ui.separator();
-                self.show_script_tabs(ui);
-                ui.separator();
-                self.show_active_script_editor(ui);
-                ui.separator();
-                self.show_status_bar(ui);
+                self.show_ui_content(ui);
             });
+    }
+
+    pub fn show_ui(&mut self, ui: &mut egui::Ui) {
+        self.show_ui_content(ui);
+    }
+
+    fn show_ui_content(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Script Editor");
+        self.show_toolbar(ui);
+        ui.separator();
+        self.show_script_tabs(ui);
+        ui.separator();
+        self.show_active_script_editor(ui);
+        ui.separator();
+        self.show_status_bar(ui);
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {

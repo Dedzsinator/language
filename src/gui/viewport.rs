@@ -1,4 +1,5 @@
 use super::*;
+use crate::physics::math::Vec3;
 
 /// Viewport panel for 2D and 3D scene rendering
 pub struct Viewport {
@@ -10,6 +11,15 @@ pub struct Viewport {
     show_gizmos: bool,
     grid_size: f32,
     background_color: [f32; 4],
+
+    /// Callback for object creation
+    pub object_creation_callback: Option<Box<dyn Fn(&str, Vec3) + Send + Sync>>,
+
+    /// Callback for preset creation
+    pub preset_creation_callback: Option<Box<dyn Fn(&str) + Send + Sync>>,
+
+    /// Callback for selection changes
+    pub selection_callback: Option<Box<dyn Fn(Option<u32>) + Send + Sync>>,
 }
 
 impl Viewport {
@@ -23,6 +33,10 @@ impl Viewport {
             show_gizmos: true,
             grid_size: 1.0,
             background_color: [0.2, 0.3, 0.8, 1.0],
+
+            object_creation_callback: None,
+            preset_creation_callback: None,
+            selection_callback: None,
         }
     }
 
@@ -46,6 +60,16 @@ impl Viewport {
             // Main viewport area
             self.show_viewport_content(ui, scene, selected_object);
         });
+    }
+
+    pub fn show_content(&mut self, ui: &mut egui::Ui, scene: &Scene, selected_object: Option<u32>) -> Option<u32> {
+        // Viewport toolbar
+        self.show_viewport_toolbar(ui, scene);
+
+        ui.separator();
+
+        // Main viewport area
+        self.show_viewport_content(ui, scene, selected_object)
     }
 
     fn show_viewport_toolbar(&mut self, ui: &mut egui::Ui, scene: &Scene) {
@@ -104,12 +128,118 @@ impl Viewport {
         ui: &mut egui::Ui,
         scene: &Scene,
         selected_object: Option<u32>,
-    ) {
+    ) -> Option<u32> {
         let available_size = ui.available_size();
 
         // Create a custom paint widget for the 3D viewport
         let (response, painter) =
             ui.allocate_painter(available_size, egui::Sense::click_and_drag());
+
+        let mut new_selection = None;
+
+        // Handle keyboard input for WASD camera movement
+        let mut camera_moved = false;
+        ui.input(|i| {
+            let camera_speed = if i.modifiers.shift { 1.0 } else { 0.3 };
+
+            // WASD movement
+            if i.key_down(egui::Key::W) {
+                match self.view_mode {
+                    ViewMode::Scene3D | ViewMode::Game3D => {
+                        // Move forward in 3D
+                        let forward = self.get_forward_vector();
+                        self.camera_position += forward * camera_speed;
+                    }
+                    ViewMode::Scene2D | ViewMode::Game2D => {
+                        // Move up in 2D
+                        self.camera_position.y += camera_speed;
+                    }
+                }
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::S) {
+                match self.view_mode {
+                    ViewMode::Scene3D | ViewMode::Game3D => {
+                        // Move backward in 3D
+                        let forward = self.get_forward_vector();
+                        self.camera_position -= forward * camera_speed;
+                    }
+                    ViewMode::Scene2D | ViewMode::Game2D => {
+                        // Move down in 2D
+                        self.camera_position.y -= camera_speed;
+                    }
+                }
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::A) {
+                match self.view_mode {
+                    ViewMode::Scene3D | ViewMode::Game3D => {
+                        // Strafe left in 3D
+                        let right = self.get_right_vector();
+                        self.camera_position -= right * camera_speed;
+                    }
+                    ViewMode::Scene2D | ViewMode::Game2D => {
+                        // Move left in 2D
+                        self.camera_position.x -= camera_speed;
+                    }
+                }
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::D) {
+                match self.view_mode {
+                    ViewMode::Scene3D | ViewMode::Game3D => {
+                        // Strafe right in 3D
+                        let right = self.get_right_vector();
+                        self.camera_position += right * camera_speed;
+                    }
+                    ViewMode::Scene2D | ViewMode::Game2D => {
+                        // Move right in 2D
+                        self.camera_position.x += camera_speed;
+                    }
+                }
+                camera_moved = true;
+            }
+
+            // Q/E for up/down movement in 3D
+            if i.key_down(egui::Key::Q)
+                && matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
+            {
+                self.camera_position.y -= camera_speed;
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::E)
+                && matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
+            {
+                self.camera_position.y += camera_speed;
+                camera_moved = true;
+            }
+
+            // Arrow keys for camera rotation
+            let rotation_speed = 3.0;
+            if i.key_down(egui::Key::ArrowUp) {
+                self.camera_rotation.x += rotation_speed;
+                self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::ArrowDown) {
+                self.camera_rotation.x -= rotation_speed;
+                self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::ArrowLeft) {
+                self.camera_rotation.y -= rotation_speed;
+                camera_moved = true;
+            }
+            if i.key_down(egui::Key::ArrowRight) {
+                self.camera_rotation.y += rotation_speed;
+                camera_moved = true;
+            }
+        });
+
+        // Request repaint if camera moved
+        if camera_moved {
+            ui.ctx().request_repaint();
+        }
 
         // Handle mouse input for camera controls
         if response.dragged() {
@@ -117,23 +247,24 @@ impl Viewport {
             match self.view_mode {
                 ViewMode::Scene2D | ViewMode::Game2D => {
                     // Pan in 2D
-                    self.camera_position.x -= (delta.x * 0.01) as f64;
-                    self.camera_position.y += (delta.y * 0.01) as f64;
+                    self.camera_position.x -= (delta.x * 0.02) as f64;
+                    self.camera_position.y += (delta.y * 0.02) as f64;
                 }
                 ViewMode::Scene3D | ViewMode::Game3D => {
                     // Rotate camera in 3D
                     if ui.input(|i| i.modifiers.shift) {
                         // Pan
-                        let right = Vec3::new(1.0, 0.0, 0.0); // Simplified right vector
-                        let up = Vec3::new(0.0, 1.0, 0.0);
+                        let right = self.get_right_vector();
+                        let up = self.get_up_vector();
                         self.camera_position = self.camera_position
-                            - right * ((delta.x * 0.01) as f64)
-                            + up * ((delta.y * 0.01) as f64);
+                            - right * ((delta.x * 0.02) as f64)
+                            + up * ((delta.y * 0.02) as f64);
                     } else {
                         // Rotate
-                        self.camera_rotation.y += (delta.x * 0.5) as f64;
-                        self.camera_rotation.x -= (delta.y * 0.5) as f64;
+                        self.camera_rotation.y += (delta.x * 0.8) as f64;
+                        self.camera_rotation.x -= (delta.y * 0.8) as f64;
                         self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                        camera_moved = true;
                     }
                 }
             }
@@ -142,23 +273,32 @@ impl Viewport {
         // Handle zoom with mouse wheel
         ui.input(|i| {
             if response.hovered() {
-                let scroll_delta = i.scroll_delta.y;
+                let scroll_delta = i.raw_scroll_delta.y;
                 if scroll_delta != 0.0 {
-                    self.zoom_level *= 1.0 + scroll_delta * 0.001;
-                    self.zoom_level = self.zoom_level.clamp(0.1, 10.0);
+                    self.zoom_level *= 1.0 + scroll_delta * 0.002;
+                    self.zoom_level = self.zoom_level.clamp(0.1, 20.0);
+                    camera_moved = true;
                 }
             }
         });
 
+        // Set background color based on view mode
+        let bg_color = match self.view_mode {
+            ViewMode::Scene2D => [0.3, 0.3, 0.3, 1.0],
+            ViewMode::Scene3D => self.background_color,
+            ViewMode::Game2D => [0.1, 0.1, 0.1, 1.0],
+            ViewMode::Game3D => [0.05, 0.05, 0.1, 1.0],
+        };
+
         // Clear background
         painter.rect_filled(
             response.rect,
-            egui::Rounding::ZERO,
+            egui::CornerRadius::ZERO,
             egui::Color32::from_rgba_unmultiplied(
-                (self.background_color[0] * 255.0) as u8,
-                (self.background_color[1] * 255.0) as u8,
-                (self.background_color[2] * 255.0) as u8,
-                (self.background_color[3] * 255.0) as u8,
+                (bg_color[0] * 255.0) as u8,
+                (bg_color[1] * 255.0) as u8,
+                (bg_color[2] * 255.0) as u8,
+                (bg_color[3] * 255.0) as u8,
             ),
         );
 
@@ -171,26 +311,113 @@ impl Viewport {
         self.draw_scene_objects(&painter, response.rect, scene, selected_object);
 
         // Draw gizmos if enabled
-        if self.show_gizmos && selected_object.is_some() {
-            self.draw_gizmos(&painter, response.rect, scene, selected_object.unwrap());
+        if self.show_gizmos {
+            if let Some(selected_id) = selected_object {
+                self.draw_gizmos(&painter, response.rect, scene, selected_id);
+            }
         }
+
+        // Show camera info overlay
+        self.draw_camera_info(ui, response.rect);
 
         // Handle right-click context menu for creating objects
         response.context_menu(|ui| {
             ui.label("Create:");
             if ui.button("Cube").clicked() {
                 ui.close_menu();
-                // TODO: Create cube at mouse position
+                if let Some(ref callback) = self.object_creation_callback {
+                    callback(
+                        "Cube",
+                        self.screen_to_world(
+                            response.interact_pointer_pos().unwrap_or_default(),
+                            response.rect.center(),
+                        ),
+                    );
+                }
             }
             if ui.button("Sphere").clicked() {
                 ui.close_menu();
-                // TODO: Create sphere at mouse position
+                if let Some(ref callback) = self.object_creation_callback {
+                    callback(
+                        "Sphere",
+                        self.screen_to_world(
+                            response.interact_pointer_pos().unwrap_or_default(),
+                            response.rect.center(),
+                        ),
+                    );
+                }
             }
             if ui.button("Light").clicked() {
                 ui.close_menu();
-                // TODO: Create light at mouse position
+                if let Some(ref callback) = self.object_creation_callback {
+                    callback(
+                        "Light",
+                        self.screen_to_world(
+                            response.interact_pointer_pos().unwrap_or_default(),
+                            response.rect.center(),
+                        ),
+                    );
+                }
+            }
+            ui.separator();
+            ui.label("Presets:");
+            if ui.button("Aquarium 3D").clicked() {
+                ui.close_menu();
+                if let Some(ref callback) = self.preset_creation_callback {
+                    callback("Aquarium3D");
+                }
+            }
+            if ui.button("Aquarium 2D").clicked() {
+                ui.close_menu();
+                if let Some(ref callback) = self.preset_creation_callback {
+                    callback("Aquarium2D");
+                }
+            }
+            if ui.button("Physics Playground").clicked() {
+                ui.close_menu();
+                if let Some(ref callback) = self.preset_creation_callback {
+                    callback("PhysicsPlayground");
+                }
             }
         });
+
+        // Handle object selection by clicking
+        if response.clicked() {
+            // Find which object was clicked (simplified ray casting)
+            let click_pos = response
+                .interact_pointer_pos()
+                .unwrap_or(response.rect.center());
+            let world_click = self.screen_to_world(click_pos, response.rect.center());
+
+            // Find the closest object to the click position
+            let mut closest_object = None;
+            let mut closest_distance = f64::INFINITY;
+
+            for (object_id, object) in &scene.objects {
+                if !object.visible {
+                    continue;
+                }
+
+                let distance = (object.transform.position - world_click).magnitude();
+                let selection_threshold = match &object.object_type {
+                    GameObjectType::Sphere => (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64,
+                    GameObjectType::Cube => (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64,
+                    _ => 2.0, // Default threshold
+                };
+                
+                if distance < closest_distance && distance < selection_threshold {
+                    closest_distance = distance;
+                    closest_object = Some(*object_id);
+                }
+            }
+
+            new_selection = closest_object;
+        }
+
+        // Draw camera information overlay
+        self.draw_camera_info(ui, response.rect);
+        
+        new_selection
     }
 
     fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect) {
@@ -284,7 +511,7 @@ impl Viewport {
                     let size = (object.transform.scale.x * (self.zoom_level as f64) * 10.0) as f32;
                     painter.rect_filled(
                         egui::Rect::from_center_size(screen_pos, egui::Vec2::splat(size)),
-                        egui::Rounding::ZERO,
+                        egui::CornerRadius::ZERO,
                         object_color,
                     );
                 }
@@ -311,7 +538,7 @@ impl Viewport {
                     let size = 12.0;
                     painter.rect_filled(
                         egui::Rect::from_center_size(screen_pos, egui::Vec2::new(size, size * 0.7)),
-                        egui::Rounding::same(2.0),
+                        egui::CornerRadius::same(2),
                         object_color,
                     );
                     painter.circle_filled(
@@ -409,6 +636,28 @@ impl Viewport {
         }
     }
 
+    fn screen_to_world(&self, screen_pos: egui::Pos2, screen_center: egui::Pos2) -> Vec3 {
+        match self.view_mode {
+            ViewMode::Scene2D | ViewMode::Game2D => Vec3::new(
+                self.camera_position.x
+                    + ((screen_pos.x - screen_center.x) / (self.zoom_level * 20.0)) as f64,
+                self.camera_position.y
+                    - ((screen_pos.y - screen_center.y) / (self.zoom_level * 20.0)) as f64,
+                0.0,
+            ),
+            ViewMode::Scene3D | ViewMode::Game3D => {
+                // Simple orthographic unprojection for now
+                Vec3::new(
+                    self.camera_position.x
+                        + ((screen_pos.x - screen_center.x) / (self.zoom_level * 20.0)) as f64,
+                    self.camera_position.y
+                        - ((screen_pos.y - screen_center.y) / (self.zoom_level * 20.0)) as f64,
+                    self.camera_position.z,
+                )
+            }
+        }
+    }
+
     fn reset_camera(&mut self) {
         match self.view_mode {
             ViewMode::Scene2D | ViewMode::Game2D => {
@@ -421,6 +670,83 @@ impl Viewport {
             }
         }
         self.zoom_level = 1.0;
+    }
+
+    /// Get camera forward vector based on rotation
+    fn get_forward_vector(&self) -> Vec3 {
+        let pitch = self.camera_rotation.x.to_radians();
+        let yaw = self.camera_rotation.y.to_radians();
+
+        Vec3::new(
+            yaw.sin() * pitch.cos(),
+            -pitch.sin(),
+            yaw.cos() * pitch.cos(),
+        )
+        .normalized()
+    }
+
+    /// Get camera right vector based on rotation
+    fn get_right_vector(&self) -> Vec3 {
+        let yaw = self.camera_rotation.y.to_radians();
+        Vec3::new(yaw.cos(), 0.0, -yaw.sin()).normalized()
+    }
+
+    /// Get camera up vector based on rotation
+    fn get_up_vector(&self) -> Vec3 {
+        self.get_right_vector()
+            .cross(self.get_forward_vector())
+            .normalized()
+    }
+
+    /// Draw camera information overlay
+    fn draw_camera_info(&self, ui: &mut egui::Ui, rect: egui::Rect) {
+        let info_text = format!(
+            "Camera: ({:.1}, {:.1}, {:.1})\nRotation: ({:.1}°, {:.1}°, {:.1}°)\nZoom: {:.1}x\nView: {:?}\n[WASD: Move, Arrows: Rotate, Q/E: Up/Down]",
+            self.camera_position.x,
+            self.camera_position.y,
+            self.camera_position.z,
+            self.camera_rotation.x,
+            self.camera_rotation.y,
+            self.camera_rotation.z,
+            self.zoom_level,
+            self.view_mode
+        );
+
+        ui.allocate_new_ui(
+            egui::UiBuilder::new()
+                .max_rect(egui::Rect::from_min_size(
+                    rect.min + egui::Vec2::new(10.0, 10.0),
+                    egui::Vec2::new(300.0, 100.0),
+                )),
+            |ui| {
+                ui.visuals_mut().override_text_color = Some(egui::Color32::WHITE);
+                ui.label(info_text);
+            },
+        );
+    }
+
+    /// Set object creation callback
+    pub fn set_object_creation_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, Vec3) + Send + Sync + 'static,
+    {
+        self.object_creation_callback = Some(Box::new(callback));
+    }
+
+    /// Set preset creation callback
+    pub fn set_preset_creation_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str) + Send + Sync + 'static,
+    {
+        self.preset_creation_callback = Some(Box::new(callback));
+    }
+
+    /// Set selection callback
+    pub fn set_selection_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(Option<u32>) + Send + Sync + 'static,
+    {
+        self.selection_callback = Some(Box::new(callback));
     }
 }
 

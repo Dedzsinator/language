@@ -33,7 +33,27 @@ impl Inspector {
             });
     }
 
-    fn show_object_inspector(&mut self, ui: &mut egui::Ui, object: &mut GameObject) {
+    pub fn show_ui(&mut self, ui: &mut egui::Ui, scene: &mut Scene, selected_object: Option<u32>) -> bool {
+        ui.heading("Inspector");
+        
+        let mut transform_changed = false;
+
+        if let Some(object_id) = selected_object {
+            if let Some(object) = scene.objects.get_mut(&object_id) {
+                transform_changed = self.show_object_inspector(ui, object);
+            } else {
+                ui.label("Selected object not found");
+            }
+        } else {
+            ui.label("No object selected");
+        }
+        
+        transform_changed
+    }
+
+    fn show_object_inspector(&mut self, ui: &mut egui::Ui, object: &mut GameObject) -> bool {
+        let mut transform_changed = false;
+        
         egui::ScrollArea::vertical().show(ui, |ui| {
             // Object header
             ui.group(|ui| {
@@ -49,7 +69,7 @@ impl Inspector {
 
                 ui.horizontal(|ui| {
                     ui.label("Layer:");
-                    egui::ComboBox::from_id_source("layer_combo")
+                    egui::ComboBox::from_id_salt("layer_combo")
                         .selected_text("Default")
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut 0, 0, "Default");
@@ -62,7 +82,7 @@ impl Inspector {
             ui.separator();
 
             // Transform component (always present)
-            self.show_transform_component(ui, &mut object.transform);
+            transform_changed = self.show_transform_component(ui, &mut object.transform);
 
             ui.separator();
 
@@ -85,81 +105,105 @@ impl Inspector {
                 self.show_add_component_menu(ui, object);
             }
         });
+        
+        transform_changed
     }
 
-    fn show_transform_component(&mut self, ui: &mut egui::Ui, transform: &mut Transform) {
+    fn show_transform_component(&mut self, ui: &mut egui::Ui, transform: &mut Transform) -> bool {
+        let mut changed = false;
+        
         egui::CollapsingHeader::new("Transform")
             .default_open(true)
             .show(ui, |ui| {
                 ui.columns(2, |columns| {
                     columns[0].label("Position");
                     columns[1].horizontal(|ui| {
-                        ui.add(
+                        if ui.add(
                             egui::DragValue::new(&mut transform.position.x)
                                 .prefix("X: ")
                                 .speed(0.1),
-                        );
-                        ui.add(
+                        ).changed() {
+                            changed = true;
+                        }
+                        if ui.add(
                             egui::DragValue::new(&mut transform.position.y)
                                 .prefix("Y: ")
                                 .speed(0.1),
-                        );
-                        ui.add(
+                        ).changed() {
+                            changed = true;
+                        }
+                        if ui.add(
                             egui::DragValue::new(&mut transform.position.z)
                                 .prefix("Z: ")
                                 .speed(0.1),
-                        );
+                        ).changed() {
+                            changed = true;
+                        }
                     });
                 });
 
                 ui.columns(2, |columns| {
                     columns[0].label("Rotation");
                     columns[1].horizontal(|ui| {
-                        ui.add(
+                        if ui.add(
                             egui::DragValue::new(&mut transform.rotation.x)
                                 .prefix("X: ")
                                 .speed(1.0)
                                 .suffix("°"),
-                        );
-                        ui.add(
+                        ).changed() {
+                            changed = true;
+                        }
+                        if ui.add(
                             egui::DragValue::new(&mut transform.rotation.y)
                                 .prefix("Y: ")
                                 .speed(1.0)
                                 .suffix("°"),
-                        );
-                        ui.add(
+                        ).changed() {
+                            changed = true;
+                        }
+                        if ui.add(
                             egui::DragValue::new(&mut transform.rotation.z)
                                 .prefix("Z: ")
                                 .speed(1.0)
                                 .suffix("°"),
-                        );
+                        ).changed() {
+                            changed = true;
+                        }
                     });
                 });
 
                 ui.columns(2, |columns| {
                     columns[0].label("Scale");
                     columns[1].horizontal(|ui| {
-                        ui.add(
+                        if ui.add(
                             egui::DragValue::new(&mut transform.scale.x)
                                 .prefix("X: ")
                                 .speed(0.01)
-                                .clamp_range(0.001..=100.0),
-                        );
-                        ui.add(
+                                .range(0.001..=100.0),
+                        ).changed() {
+                            changed = true;
+                        }
+                        if ui.add(
                             egui::DragValue::new(&mut transform.scale.y)
                                 .prefix("Y: ")
                                 .speed(0.01)
-                                .clamp_range(0.001..=100.0),
-                        );
-                        ui.add(
+                                .range(0.001..=100.0),
+                        ).changed() {
+                            changed = true;
+                        }
+                        if ui.add(
                             egui::DragValue::new(&mut transform.scale.z)
                                 .prefix("Z: ")
                                 .speed(0.01)
-                                .clamp_range(0.001..=100.0),
-                        );
+                                .range(0.001..=100.0),
+                        ).changed() {
+                            changed = true;
+                        }
                     });
                 });
             });
+        
+        changed
     }
 
     fn show_component(
@@ -181,20 +225,48 @@ impl Inspector {
                         ui.horizontal(|ui| {
                             ui.label("Mesh Type:");
 
-                            egui::ComboBox::from_id_source(format!("mesh_type_{}", index))
+                            egui::ComboBox::from_id_salt(format!("mesh_type_{}", index))
                                 .selected_text(mesh_type.as_str())
                                 .show_ui(ui, |ui| {
-                                    if ui.selectable_value(mesh_type, "Cube".to_string(), "Cube").clicked() {
-                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Cube".to_string());
+                                    if ui
+                                        .selectable_value(mesh_type, "Cube".to_string(), "Cube")
+                                        .clicked()
+                                    {
+                                        self.temp_values.insert(
+                                            validation_key.clone(),
+                                            "Mesh type changed to Cube".to_string(),
+                                        );
                                     }
-                                    if ui.selectable_value(mesh_type, "Sphere".to_string(), "Sphere").clicked() {
-                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Sphere".to_string());
+                                    if ui
+                                        .selectable_value(mesh_type, "Sphere".to_string(), "Sphere")
+                                        .clicked()
+                                    {
+                                        self.temp_values.insert(
+                                            validation_key.clone(),
+                                            "Mesh type changed to Sphere".to_string(),
+                                        );
                                     }
-                                    if ui.selectable_value(mesh_type, "Cylinder".to_string(), "Cylinder").clicked() {
-                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Cylinder".to_string());
+                                    if ui
+                                        .selectable_value(
+                                            mesh_type,
+                                            "Cylinder".to_string(),
+                                            "Cylinder",
+                                        )
+                                        .clicked()
+                                    {
+                                        self.temp_values.insert(
+                                            validation_key.clone(),
+                                            "Mesh type changed to Cylinder".to_string(),
+                                        );
                                     }
-                                    if ui.selectable_value(mesh_type, "Plane".to_string(), "Plane").clicked() {
-                                        self.temp_values.insert(validation_key.clone(), "Mesh type changed to Plane".to_string());
+                                    if ui
+                                        .selectable_value(mesh_type, "Plane".to_string(), "Plane")
+                                        .clicked()
+                                    {
+                                        self.temp_values.insert(
+                                            validation_key.clone(),
+                                            "Mesh type changed to Plane".to_string(),
+                                        );
                                     }
                                 });
 
@@ -223,7 +295,9 @@ impl Inspector {
                             if is_editing {
                                 // Edit mode with validation
                                 let temp_key = format!("material_temp_{}", index);
-                                let current_material = self.temp_values.get(&temp_key)
+                                let current_material = self
+                                    .temp_values
+                                    .get(&temp_key)
                                     .cloned()
                                     .unwrap_or_else(|| material.clone());
 
@@ -235,7 +309,10 @@ impl Inspector {
                                 if ui.small_button("✓").clicked() {
                                     if let Some(new_material) = self.temp_values.get(&temp_key) {
                                         *material = new_material.clone();
-                                        self.temp_values.insert(validation_key.clone(), "Material updated successfully".to_string());
+                                        self.temp_values.insert(
+                                            validation_key.clone(),
+                                            "Material updated successfully".to_string(),
+                                        );
                                     }
                                     self.editing_component = None;
                                     self.temp_values.remove(&temp_key);
@@ -261,7 +338,8 @@ impl Inspector {
                         ui.horizontal(|ui| {
                             ui.label("Color:");
                             if ui.color_edit_button_rgba_unmultiplied(color).changed() {
-                                self.temp_values.insert(validation_key.clone(), "Color updated".to_string());
+                                self.temp_values
+                                    .insert(validation_key.clone(), "Color updated".to_string());
                             }
                         });
 
@@ -278,11 +356,7 @@ impl Inspector {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Mass:");
-                            ui.add(
-                                egui::DragValue::new(mass)
-                                    .speed(0.1)
-                                    .clamp_range(0.001..=1000.0),
-                            );
+                            ui.add(egui::DragValue::new(mass).speed(0.1).range(0.001..=1000.0));
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
@@ -296,7 +370,7 @@ impl Inspector {
                                     ui.add(
                                         egui::DragValue::new(radius)
                                             .speed(0.1)
-                                            .clamp_range(0.001..=100.0),
+                                            .range(0.001..=100.0),
                                     );
                                 });
                             }
@@ -350,7 +424,7 @@ impl Inspector {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Particles:");
-                            ui.add(egui::DragValue::new(particles).clamp_range(10..=1000));
+                            ui.add(egui::DragValue::new(particles).range(10..=1000));
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
                             }
@@ -401,7 +475,7 @@ impl Inspector {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Type:");
-                            egui::ComboBox::from_id_source(format!("light_type_{}", index))
+                            egui::ComboBox::from_id_salt(format!("light_type_{}", index))
                                 .selected_text(light_type.as_str())
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(
@@ -419,11 +493,7 @@ impl Inspector {
 
                         ui.horizontal(|ui| {
                             ui.label("Intensity:");
-                            ui.add(
-                                egui::DragValue::new(intensity)
-                                    .speed(0.1)
-                                    .clamp_range(0.0..=10.0),
-                            );
+                            ui.add(egui::DragValue::new(intensity).speed(0.1).range(0.0..=10.0));
                         });
 
                         ui.horizontal(|ui| {
@@ -442,7 +512,7 @@ impl Inspector {
                             ui.add(
                                 egui::DragValue::new(fov)
                                     .speed(1.0)
-                                    .clamp_range(1.0..=179.0)
+                                    .range(1.0..=179.0)
                                     .suffix("°"),
                             );
                             if ui.small_button("🗑").clicked() {
@@ -452,20 +522,12 @@ impl Inspector {
 
                         ui.horizontal(|ui| {
                             ui.label("Near Plane:");
-                            ui.add(
-                                egui::DragValue::new(near)
-                                    .speed(0.01)
-                                    .clamp_range(0.001..=1000.0),
-                            );
+                            ui.add(egui::DragValue::new(near).speed(0.01).range(0.001..=1000.0));
                         });
 
                         ui.horizontal(|ui| {
                             ui.label("Far Plane:");
-                            ui.add(
-                                egui::DragValue::new(far)
-                                    .speed(1.0)
-                                    .clamp_range(1.0..=10000.0),
-                            );
+                            ui.add(egui::DragValue::new(far).speed(1.0).range(1.0..=10000.0));
                         });
                     });
             }

@@ -1,3 +1,6 @@
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use crate::eval::Interpreter;
 use super::*;
 
 /// Console panel for logging, debugging, and command input
@@ -10,6 +13,8 @@ pub struct Console {
     show_timestamps: bool,
     filter_level: LogLevel,
     max_entries: usize,
+    pub scene_callback: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
+    pub spawn_callback: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +73,8 @@ impl Console {
             show_timestamps: true,
             filter_level: LogLevel::Debug,
             max_entries: 1000,
+            scene_callback: None,
+            spawn_callback: None,
         };
 
         // Add some initial messages
@@ -85,19 +92,27 @@ impl Console {
         egui::TopBottomPanel::bottom("console_panel")
             .default_height(200.0)
             .show(ctx, |ui| {
-                ui.heading("Console");
-
-                // Toolbar
-                self.show_toolbar(ui);
-                ui.separator();
-
-                // Log area
-                self.show_log_area(ui);
-                ui.separator();
-
-                // Command input
-                self.show_command_input(ui);
+                self.show_ui_content(ui);
             });
+    }
+
+    pub fn show_ui(&mut self, ui: &mut egui::Ui) {
+        self.show_ui_content(ui);
+    }
+
+    fn show_ui_content(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Console");
+
+        // Toolbar
+        self.show_toolbar(ui);
+        ui.separator();
+
+        // Log area
+        self.show_log_area(ui);
+        ui.separator();
+
+        // Command input
+        self.show_command_input(ui);
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
@@ -110,7 +125,7 @@ impl Console {
 
             // Filter level
             ui.label("Filter:");
-            egui::ComboBox::from_id_source("log_filter")
+            egui::ComboBox::from_id_salt("log_filter")
                 .selected_text(self.filter_level.name())
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.filter_level, LogLevel::Debug, "Debug");
@@ -292,8 +307,15 @@ impl Console {
                         &format!("Running script: {}", script_name),
                         "System",
                     );
-                    // TODO: Actually run the script
-                    self.log(LogLevel::Info, "Script execution completed", "System");
+                    // Execute the script file
+                    match self.execute_script(script_name) {
+                        Ok(result) => {
+                            self.log(LogLevel::Info, &format!("Script result: {}", result), "System");
+                        }
+                        Err(error) => {
+                            self.log(LogLevel::Error, &format!("Script error: {}", error), "System");
+                        }
+                    }
                 } else {
                     self.log(LogLevel::Warning, "run requires a script name", "System");
                 }
@@ -302,12 +324,23 @@ impl Console {
             "scene" => {
                 if parts.len() > 1 {
                     let scene_name = parts[1];
-                    self.log(
-                        LogLevel::Info,
-                        &format!("Switching to scene: {}", scene_name),
-                        "System",
-                    );
-                    // TODO: Actually switch scene
+                    if let Some(ref callback) = self.scene_callback {
+                        if callback(scene_name) {
+                            self.log(
+                                LogLevel::Info,
+                                &format!("Switched to scene: {}", scene_name),
+                                "System",
+                            );
+                        } else {
+                            self.log(
+                                LogLevel::Warning,
+                                &format!("Failed to switch to scene: {}", scene_name),
+                                "System",
+                            );
+                        }
+                    } else {
+                        self.log(LogLevel::Warning, "Scene switching not available", "System");
+                    }
                 } else {
                     self.log(LogLevel::Warning, "scene requires a scene name", "System");
                 }
@@ -316,12 +349,23 @@ impl Console {
             "spawn" => {
                 if parts.len() > 1 {
                     let object_type = parts[1];
-                    self.log(
-                        LogLevel::Info,
-                        &format!("Spawning object: {}", object_type),
-                        "System",
-                    );
-                    // TODO: Actually spawn object
+                    if let Some(ref callback) = self.spawn_callback {
+                        if callback(object_type) {
+                            self.log(
+                                LogLevel::Info,
+                                &format!("Spawned object: {}", object_type),
+                                "System",
+                            );
+                        } else {
+                            self.log(
+                                LogLevel::Warning,
+                                &format!("Failed to spawn object: {}", object_type),
+                                "System",
+                            );
+                        }
+                    } else {
+                        self.log(LogLevel::Warning, "Object spawning not available", "System");
+                    }
                 } else {
                     self.log(LogLevel::Warning, "spawn requires an object type", "System");
                 }
@@ -483,6 +527,53 @@ impl Console {
 
     pub fn log_debug(&mut self, message: &str, source: &str) {
         self.log(LogLevel::Debug, message, source);
+    }
+
+    /// Execute a Matrix Language script
+    fn execute_script(&mut self, script_name: &str) -> Result<String, String> {
+        let script_path = if script_name.ends_with(".matrix") {
+            script_name.to_string()
+        } else {
+            format!("{}.matrix", script_name)
+        };
+
+        // Try to read the script file
+        let script_content = match std::fs::read_to_string(&script_path) {
+            Ok(content) => content,
+            Err(_) => {
+                // Try in current directory
+                match std::fs::read_to_string(&format!("./{}", script_path)) {
+                    Ok(content) => content,
+                    Err(e) => return Err(format!("Could not read script file '{}': {}", script_path, e)),
+                }
+            }
+        };
+
+        // Parse and execute the script
+        let lexer = Lexer::new(&script_content);
+
+        let mut parser = Parser::new(lexer).map_err(|e| format!("Parser init error: {:?}", e))?;
+        let ast = parser.parse_program().map_err(|e| format!("Parser error: {:?}", e))?;
+
+        let mut interpreter = Interpreter::new();
+        let result = interpreter.eval_program(&ast).map_err(|e| format!("Runtime error: {:?}", e))?;
+
+        // Convert result to string for display
+        Ok(format!("{:?}", result))
+    }
+
+    /// Set scene switch callback
+    pub fn set_scene_callback<F>(&mut self, callback: F)
+    where F: Fn(&str) -> bool + Send + Sync + 'static
+    {
+        self.scene_callback = Some(Box::new(callback));
+    }
+
+    /// Set object spawn callback
+    pub fn set_spawn_callback<F>(&mut self, callback: F)
+    where F: Fn(&str) -> bool + Send + Sync + 'static
+    {
+        self.spawn_callback = Some(Box::new(callback));
     }
 }
 

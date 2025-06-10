@@ -17,20 +17,26 @@ rand = { version = "0.8", features = ["std"] }
 rand_pcg = "0.3"
 
 # GUI and Graphics
-eframe = "0.24"
-egui = "0.24"
-egui_plot = "0.24"
-egui_dock = "0.8"
+eframe = "0.31"
+egui = "0.31"
+egui_plot = "0.31"
+egui_dock = "0.16"
 
 # ECS and Performance
 bevy_ecs = "0.12"
 rayon = "1.8"
 nalgebra = "0.32"
 
+# GPU computation
+wgpu = "0.19"
+bytemuck = { version = "1.14", features = ["derive"] }
+futures-intrusive = "0.5"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
 # Optional dependencies (disabled for now due to linker issues)
 # nom = "7.1"
-# wgpu = "0.19"
-# tokio = { version = "1.35", features = ["full"] }
 
 # Optional JIT compilation
 # inkwell = { version = "0.4", features = ["llvm17-0"], optional = true }

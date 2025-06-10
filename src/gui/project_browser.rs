@@ -40,19 +40,27 @@ impl ProjectBrowser {
         egui::SidePanel::left("project_browser")
             .default_width(300.0)
             .show(ctx, |ui| {
-                ui.heading("Project");
-
-                // Toolbar
-                self.show_toolbar(ui);
-                ui.separator();
-
-                // Favorites section
-                self.show_favorites(ui);
-                ui.separator();
-
-                // File tree
-                self.show_file_tree(ui);
+                self.show_ui_content(ui);
             });
+    }
+
+    pub fn show_ui(&mut self, ui: &mut egui::Ui) {
+        self.show_ui_content(ui);
+    }
+
+    fn show_ui_content(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Project");
+
+        // Toolbar
+        self.show_toolbar(ui);
+        ui.separator();
+
+        // Favorites section
+        self.show_favorites(ui);
+        ui.separator();
+
+        // File tree
+        self.show_file_tree(ui);
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {

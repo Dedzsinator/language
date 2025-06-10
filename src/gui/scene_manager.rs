@@ -16,8 +16,135 @@ impl SceneManager {
             scene_files: Vec::new(),
         };
 
-        // Create default scene
-        manager.create_new_scene("Main Scene".to_string(), false);
+        // Create default scene with some sample objects
+        let scene_index = manager.create_new_scene("Main Scene".to_string(), false);
+        if let Some(scene) = manager.scenes.get_mut(scene_index) {
+            // Add a cube with physics
+            let cube_id = scene.add_object("Physics Cube".to_string(), GameObjectType::Cube);
+            if let Some(cube) = scene.objects.get_mut(&cube_id) {
+                cube.transform.position = Vec3::new(0.0, 2.0, 0.0);
+                cube.components.push(Component::Mesh {
+                    mesh_type: "Cube".to_string(),
+                });
+                cube.components.push(Component::Renderer {
+                    material: "Default".to_string(),
+                    color: [0.7, 0.3, 0.3, 1.0],
+                });
+                cube.components.push(Component::RigidBody {
+                    shape: Shape::Box {
+                        size: Vec3::new(1.0, 1.0, 1.0),
+                    },
+                    mass: 1.0,
+                });
+                cube.components.push(Component::Collider {
+                    shape: Shape::Box {
+                        size: Vec3::new(1.0, 1.0, 1.0),
+                    },
+                    is_trigger: false,
+                });
+            }
+
+            // Add a sphere with different physics properties
+            let sphere_id = scene.add_object("Bouncy Sphere".to_string(), GameObjectType::Sphere);
+            if let Some(sphere) = scene.objects.get_mut(&sphere_id) {
+                sphere.transform.position = Vec3::new(3.0, 5.0, 0.0);
+                sphere.components.push(Component::Mesh {
+                    mesh_type: "Sphere".to_string(),
+                });
+                sphere.components.push(Component::Renderer {
+                    material: "Rubber".to_string(),
+                    color: [0.3, 0.7, 0.3, 1.0],
+                });
+                sphere.components.push(Component::RigidBody {
+                    shape: Shape::Sphere { radius: 0.5 },
+                    mass: 0.5,
+                });
+                sphere.components.push(Component::Collider {
+                    shape: Shape::Sphere { radius: 0.5 },
+                    is_trigger: false,
+                });
+            }
+
+            // Add a ground plane
+            let ground_id = scene.add_object("Ground".to_string(), GameObjectType::Plane);
+            if let Some(ground) = scene.objects.get_mut(&ground_id) {
+                ground.transform.position = Vec3::new(0.0, -1.0, 0.0);
+                ground.transform.scale = Vec3::new(10.0, 1.0, 10.0);
+                ground.components.push(Component::Mesh {
+                    mesh_type: "Plane".to_string(),
+                });
+                ground.components.push(Component::Renderer {
+                    material: "Ground".to_string(),
+                    color: [0.2, 0.6, 0.2, 1.0],
+                });
+                ground.components.push(Component::RigidBody {
+                    shape: Shape::Box {
+                        size: Vec3::new(10.0, 1.0, 10.0),
+                    },
+                    mass: 0.0, // Static body
+                });
+                ground.components.push(Component::Collider {
+                    shape: Shape::Box {
+                        size: Vec3::new(10.0, 1.0, 10.0),
+                    },
+                    is_trigger: false,
+                });
+            }
+
+            // Add a directional light
+            let light_id = scene.add_object("Main Light".to_string(), GameObjectType::Light);
+            if let Some(light) = scene.objects.get_mut(&light_id) {
+                light.transform.position = Vec3::new(0.0, 5.0, 5.0);
+                light.transform.rotation = Vec3::new(-45.0, 0.0, 0.0);
+                light.components.push(Component::Light {
+                    light_type: "Directional".to_string(),
+                    intensity: 1.5,
+                    color: [1.0, 0.95, 0.8],
+                });
+            }
+
+            // Add a camera with better positioning
+            let camera_id = scene.add_object("Main Camera".to_string(), GameObjectType::Camera);
+            if let Some(camera) = scene.objects.get_mut(&camera_id) {
+                camera.transform.position = Vec3::new(5.0, 3.0, 8.0);
+                camera.transform.rotation = Vec3::new(-15.0, -25.0, 0.0);
+                camera.components.push(Component::Camera {
+                    fov: 75.0,
+                    near: 0.1,
+                    far: 1000.0,
+                });
+            }
+
+            // Add a scripted object as example
+            let scripted_id =
+                scene.add_object("Scripted Object".to_string(), GameObjectType::Sphere);
+            if let Some(scripted) = scene.objects.get_mut(&scripted_id) {
+                scripted.transform.position = Vec3::new(-2.0, 1.0, 2.0);
+                scripted.transform.scale = Vec3::new(0.8, 0.8, 0.8);
+                scripted.components.push(Component::Mesh {
+                    mesh_type: "Sphere".to_string(),
+                });
+                scripted.components.push(Component::Renderer {
+                    material: "Scripted".to_string(),
+                    color: [0.8, 0.2, 0.8, 1.0],
+                });
+                scripted.components.push(Component::Script {
+                    script_path: "rotating_object.matrix".to_string(),
+                    code: r#"// Rotating object script
+let rotation_speed = 45.0 // degrees per second
+let time = 0.0
+
+let update = () -> {
+    time = time + dt
+    let rotation_y = rotation_speed * time
+    transform.rotation.y = rotation_y
+}
+"#
+                    .to_string(),
+                });
+            }
+        }
+
         manager
     }
 
