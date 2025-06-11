@@ -12,6 +12,24 @@ pub struct Viewport {
     grid_size: f32,
     background_color: [f32; 4],
 
+    // Enhanced 3D rendering
+    field_of_view: f32,
+    near_clip: f32,
+    far_clip: f32,
+
+    // Animation and game view
+    is_playing: bool,
+    animation_time: f32,
+    show_game_view: bool,
+    game_camera_position: Vec3,
+    game_camera_rotation: Vec3,
+
+    // Gizmo interaction
+    gizmo_mode: GizmoMode,
+    gizmo_dragging: Option<GizmoAxis>,
+    drag_start_pos: Option<egui::Pos2>,
+    drag_start_transform: Option<Transform>,
+
     /// Callback for object creation
     pub object_creation_callback: Option<Box<dyn Fn(&str, Vec3) + Send + Sync>>,
 
@@ -20,6 +38,26 @@ pub struct Viewport {
 
     /// Callback for selection changes
     pub selection_callback: Option<Box<dyn Fn(Option<u32>) + Send + Sync>>,
+
+    /// Callback for transform changes
+    pub transform_changed_callback: Option<Box<dyn Fn(u32, Transform) + Send + Sync>>,
+}
+
+/// Gizmo interaction modes
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GizmoMode {
+    Translate,
+    Rotate,
+    Scale,
+}
+
+/// Gizmo axis for interaction
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GizmoAxis {
+    X,
+    Y,
+    Z,
+    Center, // For uniform scaling or multi-axis movement
 }
 
 impl Viewport {
@@ -34,9 +72,28 @@ impl Viewport {
             grid_size: 1.0,
             background_color: [0.2, 0.3, 0.8, 1.0],
 
+            // Enhanced 3D rendering
+            field_of_view: 75.0,
+            near_clip: 0.1,
+            far_clip: 1000.0,
+
+            // Animation and game view
+            is_playing: false,
+            animation_time: 0.0,
+            show_game_view: false,
+            game_camera_position: Vec3::new(0.0, 2.0, 5.0),
+            game_camera_rotation: Vec3::new(-10.0, 0.0, 0.0),
+
+            // Gizmo interaction
+            gizmo_mode: GizmoMode::Translate,
+            gizmo_dragging: None,
+            drag_start_pos: None,
+            drag_start_transform: None,
+
             object_creation_callback: None,
             preset_creation_callback: None,
             selection_callback: None,
+            transform_changed_callback: None,
         }
     }
 
@@ -88,6 +145,48 @@ impl Viewport {
 
             ui.separator();
 
+            // Game view toggle
+            if ui.checkbox(&mut self.show_game_view, "Game View").changed() {
+                if self.show_game_view {
+                    // Switch to game camera when enabled
+                    self.view_mode = ViewMode::Game3D;
+                }
+            }
+
+            ui.separator();
+
+            // Animation controls
+            ui.label("Animation:");
+            if ui
+                .button(if self.is_playing {
+                    "⏸ Pause"
+                } else {
+                    "▶ Play"
+                })
+                .clicked()
+            {
+                self.is_playing = !self.is_playing;
+            }
+            if ui.button("⏹ Stop").clicked() {
+                self.is_playing = false;
+                self.animation_time = 0.0;
+            }
+            if ui.button("⏮ Reset").clicked() {
+                self.animation_time = 0.0;
+            }
+
+            ui.label(format!("Time: {:.1}s", self.animation_time));
+
+            ui.separator();
+
+            // Gizmo mode selection
+            ui.label("Gizmo:");
+            ui.selectable_value(&mut self.gizmo_mode, GizmoMode::Translate, "🔄 Move");
+            ui.selectable_value(&mut self.gizmo_mode, GizmoMode::Rotate, "🔄 Rotate");
+            ui.selectable_value(&mut self.gizmo_mode, GizmoMode::Scale, "📏 Scale");
+
+            ui.separator();
+
             // View options
             ui.checkbox(&mut self.show_grid, "Grid");
             ui.checkbox(&mut self.show_gizmos, "Gizmos");
@@ -102,6 +201,16 @@ impl Viewport {
             ui.label(format!("Zoom: {:.1}x", self.zoom_level));
 
             ui.separator();
+
+            // 3D rendering settings
+            if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+                ui.menu_button("3D Settings", |ui| {
+                    ui.add(egui::Slider::new(&mut self.field_of_view, 30.0..=120.0).text("FOV"));
+                    ui.add(egui::Slider::new(&mut self.near_clip, 0.01..=1.0).text("Near Clip"));
+                    ui.add(egui::Slider::new(&mut self.far_clip, 100.0..=10000.0).text("Far Clip"));
+                });
+                ui.separator();
+            }
 
             // Lighting options
             ui.menu_button("Lighting", |ui| {
@@ -136,11 +245,24 @@ impl Viewport {
     ) -> Option<u32> {
         let available_size = ui.available_size();
 
+        // Update animation time if playing
+        if self.is_playing {
+            self.animation_time += ui.ctx().input(|i| i.stable_dt);
+            ui.ctx().request_repaint(); // Keep animating
+        }
+
         // Create a custom paint widget for the 3D viewport
         let (response, painter) =
             ui.allocate_painter(available_size, egui::Sense::click_and_drag());
 
         let mut new_selection = None;
+
+        // Determine which camera to use
+        let (camera_pos, camera_rot) = if self.show_game_view {
+            (self.game_camera_position, self.game_camera_rotation)
+        } else {
+            (self.camera_position, self.camera_rotation)
+        };
 
         // Handle keyboard input for WASD camera movement
         let mut camera_moved = false;
@@ -152,12 +274,20 @@ impl Viewport {
                 match self.view_mode {
                     ViewMode::Scene3D | ViewMode::Game3D => {
                         // Move forward in 3D
-                        let forward = self.get_forward_vector();
-                        self.camera_position += forward * camera_speed;
+                        let forward = self.get_forward_vector_for_camera(camera_rot);
+                        if self.show_game_view {
+                            self.game_camera_position += forward * camera_speed;
+                        } else {
+                            self.camera_position += forward * camera_speed;
+                        }
                     }
                     ViewMode::Scene2D | ViewMode::Game2D => {
                         // Move up in 2D
-                        self.camera_position.y += camera_speed;
+                        if self.show_game_view {
+                            self.game_camera_position.y += camera_speed;
+                        } else {
+                            self.camera_position.y += camera_speed;
+                        }
                     }
                 }
                 camera_moved = true;
@@ -166,12 +296,20 @@ impl Viewport {
                 match self.view_mode {
                     ViewMode::Scene3D | ViewMode::Game3D => {
                         // Move backward in 3D
-                        let forward = self.get_forward_vector();
-                        self.camera_position -= forward * camera_speed;
+                        let forward = self.get_forward_vector_for_camera(camera_rot);
+                        if self.show_game_view {
+                            self.game_camera_position -= forward * camera_speed;
+                        } else {
+                            self.camera_position -= forward * camera_speed;
+                        }
                     }
                     ViewMode::Scene2D | ViewMode::Game2D => {
                         // Move down in 2D
-                        self.camera_position.y -= camera_speed;
+                        if self.show_game_view {
+                            self.game_camera_position.y -= camera_speed;
+                        } else {
+                            self.camera_position.y -= camera_speed;
+                        }
                     }
                 }
                 camera_moved = true;
@@ -180,12 +318,20 @@ impl Viewport {
                 match self.view_mode {
                     ViewMode::Scene3D | ViewMode::Game3D => {
                         // Strafe left in 3D
-                        let right = self.get_right_vector();
-                        self.camera_position -= right * camera_speed;
+                        let right = self.get_right_vector_for_camera(camera_rot);
+                        if self.show_game_view {
+                            self.game_camera_position -= right * camera_speed;
+                        } else {
+                            self.camera_position -= right * camera_speed;
+                        }
                     }
                     ViewMode::Scene2D | ViewMode::Game2D => {
                         // Move left in 2D
-                        self.camera_position.x -= camera_speed;
+                        if self.show_game_view {
+                            self.game_camera_position.x -= camera_speed;
+                        } else {
+                            self.camera_position.x -= camera_speed;
+                        }
                     }
                 }
                 camera_moved = true;
@@ -194,12 +340,20 @@ impl Viewport {
                 match self.view_mode {
                     ViewMode::Scene3D | ViewMode::Game3D => {
                         // Strafe right in 3D
-                        let right = self.get_right_vector();
-                        self.camera_position += right * camera_speed;
+                        let right = self.get_right_vector_for_camera(camera_rot);
+                        if self.show_game_view {
+                            self.game_camera_position += right * camera_speed;
+                        } else {
+                            self.camera_position += right * camera_speed;
+                        }
                     }
                     ViewMode::Scene2D | ViewMode::Game2D => {
                         // Move right in 2D
-                        self.camera_position.x += camera_speed;
+                        if self.show_game_view {
+                            self.game_camera_position.x += camera_speed;
+                        } else {
+                            self.camera_position.x += camera_speed;
+                        }
                     }
                 }
                 camera_moved = true;
@@ -209,34 +363,60 @@ impl Viewport {
             if i.key_down(egui::Key::Q)
                 && matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
             {
-                self.camera_position.y -= camera_speed;
+                if self.show_game_view {
+                    self.game_camera_position.y -= camera_speed;
+                } else {
+                    self.camera_position.y -= camera_speed;
+                }
                 camera_moved = true;
             }
             if i.key_down(egui::Key::E)
                 && matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
             {
-                self.camera_position.y += camera_speed;
+                if self.show_game_view {
+                    self.game_camera_position.y += camera_speed;
+                } else {
+                    self.camera_position.y += camera_speed;
+                }
                 camera_moved = true;
             }
 
             // Arrow keys for camera rotation
             let rotation_speed = 3.0;
             if i.key_down(egui::Key::ArrowUp) {
-                self.camera_rotation.x += rotation_speed;
-                self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                if self.show_game_view {
+                    self.game_camera_rotation.x += rotation_speed;
+                    self.game_camera_rotation.x = self.game_camera_rotation.x.clamp(-89.0, 89.0);
+                } else {
+                    self.camera_rotation.x += rotation_speed;
+                    self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                }
                 camera_moved = true;
             }
             if i.key_down(egui::Key::ArrowDown) {
-                self.camera_rotation.x -= rotation_speed;
-                self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                if self.show_game_view {
+                    self.game_camera_rotation.x -= rotation_speed;
+                    self.game_camera_rotation.x = self.game_camera_rotation.x.clamp(-89.0, 89.0);
+                } else {
+                    self.camera_rotation.x -= rotation_speed;
+                    self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                }
                 camera_moved = true;
             }
             if i.key_down(egui::Key::ArrowLeft) {
-                self.camera_rotation.y -= rotation_speed;
+                if self.show_game_view {
+                    self.game_camera_rotation.y -= rotation_speed;
+                } else {
+                    self.camera_rotation.y -= rotation_speed;
+                }
                 camera_moved = true;
             }
             if i.key_down(egui::Key::ArrowRight) {
-                self.camera_rotation.y += rotation_speed;
+                if self.show_game_view {
+                    self.game_camera_rotation.y += rotation_speed;
+                } else {
+                    self.camera_rotation.y += rotation_speed;
+                }
                 camera_moved = true;
             }
         });
@@ -246,33 +426,117 @@ impl Viewport {
             ui.ctx().request_repaint();
         }
 
-        // Handle mouse input for camera controls
+        // Handle mouse input for camera controls and gizmo interaction
         if response.dragged() {
             let delta = response.drag_delta();
-            match self.view_mode {
-                ViewMode::Scene2D | ViewMode::Game2D => {
-                    // Pan in 2D
-                    self.camera_position.x -= (delta.x * 0.02) as f64;
-                    self.camera_position.y += (delta.y * 0.02) as f64;
+
+            // Check if we're dragging a gizmo
+            if let Some(gizmo_axis) = self.gizmo_dragging {
+                if let Some(selected_id) = selected_object {
+                    self.handle_gizmo_drag(delta, gizmo_axis, selected_id, response.rect);
                 }
-                ViewMode::Scene3D | ViewMode::Game3D => {
-                    // Rotate camera in 3D
-                    if ui.input(|i| i.modifiers.shift) {
-                        // Pan
-                        let right = self.get_right_vector();
-                        let up = self.get_up_vector();
-                        self.camera_position = self.camera_position
-                            - right * ((delta.x * 0.02) as f64)
-                            + up * ((delta.y * 0.02) as f64);
-                    } else {
-                        // Rotate
-                        self.camera_rotation.y += (delta.x * 0.8) as f64;
-                        self.camera_rotation.x -= (delta.y * 0.8) as f64;
-                        self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
-                        camera_moved = true;
+            } else {
+                // Normal camera controls
+                match self.view_mode {
+                    ViewMode::Scene2D | ViewMode::Game2D => {
+                        // Pan in 2D
+                        if self.show_game_view {
+                            self.game_camera_position.x -= (delta.x * 0.02) as f64;
+                            self.game_camera_position.y += (delta.y * 0.02) as f64;
+                        } else {
+                            self.camera_position.x -= (delta.x * 0.02) as f64;
+                            self.camera_position.y += (delta.y * 0.02) as f64;
+                        }
+                    }
+                    ViewMode::Scene3D | ViewMode::Game3D => {
+                        // Rotate camera in 3D
+                        if ui.input(|i| i.modifiers.shift) {
+                            // Pan
+                            let right = self.get_right_vector_for_camera(camera_rot);
+                            let up = self.get_up_vector_for_camera(camera_rot);
+                            let pan_delta =
+                                right * (-(delta.x * 0.02) as f64) + up * ((delta.y * 0.02) as f64);
+                            if self.show_game_view {
+                                self.game_camera_position += pan_delta;
+                            } else {
+                                self.camera_position += pan_delta;
+                            }
+                        } else {
+                            // Rotate
+                            if self.show_game_view {
+                                self.game_camera_rotation.y += (delta.x * 0.8) as f64;
+                                self.game_camera_rotation.x -= (delta.y * 0.8) as f64;
+                                self.game_camera_rotation.x =
+                                    self.game_camera_rotation.x.clamp(-89.0, 89.0);
+                            } else {
+                                self.camera_rotation.y += (delta.x * 0.8) as f64;
+                                self.camera_rotation.x -= (delta.y * 0.8) as f64;
+                                self.camera_rotation.x = self.camera_rotation.x.clamp(-89.0, 89.0);
+                            }
+                            camera_moved = true;
+                        }
                     }
                 }
             }
+        }
+
+        // Handle gizmo selection on click
+        if response.clicked() && selected_object.is_some() && self.show_gizmos {
+            let click_pos = response
+                .interact_pointer_pos()
+                .unwrap_or(response.rect.center());
+            if let Some(gizmo_axis) =
+                self.check_gizmo_click(click_pos, selected_object.unwrap(), scene, response.rect)
+            {
+                self.gizmo_dragging = Some(gizmo_axis);
+                self.drag_start_pos = Some(click_pos);
+                if let Some(object) = scene.objects.get(&selected_object.unwrap()) {
+                    self.drag_start_transform = Some(object.transform);
+                }
+            } else {
+                // Handle object selection by clicking
+                let world_click = self.screen_to_world_with_camera(
+                    click_pos,
+                    response.rect.center(),
+                    camera_pos,
+                    camera_rot,
+                );
+
+                // Find the closest object to the click position
+                let mut closest_object = None;
+                let mut closest_distance = f64::INFINITY;
+
+                for (object_id, object) in &scene.objects {
+                    if !object.visible {
+                        continue;
+                    }
+
+                    let distance = (object.transform.position - world_click).magnitude();
+                    let selection_threshold = match &object.object_type {
+                        GameObjectType::Sphere => {
+                            (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64
+                        }
+                        GameObjectType::Cube => {
+                            (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64
+                        }
+                        _ => 2.0, // Default threshold
+                    };
+
+                    if distance < closest_distance && distance < selection_threshold {
+                        closest_distance = distance;
+                        closest_object = Some(*object_id);
+                    }
+                }
+
+                new_selection = closest_object;
+            }
+        }
+
+        // Stop gizmo dragging on release
+        if !response.dragged() {
+            self.gizmo_dragging = None;
+            self.drag_start_pos = None;
+            self.drag_start_transform = None;
         }
 
         // Handle zoom with mouse wheel
@@ -309,21 +573,28 @@ impl Viewport {
 
         // Draw grid if enabled
         if self.show_grid {
-            self.draw_grid(&painter, response.rect);
+            self.draw_grid(&painter, response.rect, camera_pos, camera_rot);
         }
 
         // Draw scene objects
-        self.draw_scene_objects(&painter, response.rect, scene, selected_object);
+        self.draw_scene_objects(
+            &painter,
+            response.rect,
+            scene,
+            selected_object,
+            camera_pos,
+            camera_rot,
+        );
 
         // Draw gizmos if enabled
         if self.show_gizmos {
             if let Some(selected_id) = selected_object {
-                self.draw_gizmos(&painter, response.rect, scene, selected_id);
+                self.draw_enhanced_gizmos(&painter, response.rect, scene, selected_id);
             }
         }
 
         // Show camera info overlay
-        self.draw_camera_info(ui, response.rect);
+        self.draw_camera_info(ui, response.rect, camera_pos, camera_rot);
 
         // Handle right-click context menu for creating objects
         response.context_menu(|ui| {
@@ -333,9 +604,11 @@ impl Viewport {
                 if let Some(ref callback) = self.object_creation_callback {
                     callback(
                         "Cube",
-                        self.screen_to_world(
+                        self.screen_to_world_with_camera(
                             response.interact_pointer_pos().unwrap_or_default(),
                             response.rect.center(),
+                            camera_pos,
+                            camera_rot,
                         ),
                     );
                 }
@@ -345,9 +618,11 @@ impl Viewport {
                 if let Some(ref callback) = self.object_creation_callback {
                     callback(
                         "Sphere",
-                        self.screen_to_world(
+                        self.screen_to_world_with_camera(
                             response.interact_pointer_pos().unwrap_or_default(),
                             response.rect.center(),
+                            camera_pos,
+                            camera_rot,
                         ),
                     );
                 }
@@ -357,9 +632,11 @@ impl Viewport {
                 if let Some(ref callback) = self.object_creation_callback {
                     callback(
                         "Light",
-                        self.screen_to_world(
+                        self.screen_to_world_with_camera(
                             response.interact_pointer_pos().unwrap_or_default(),
                             response.rect.center(),
+                            camera_pos,
+                            camera_rot,
                         ),
                     );
                 }
@@ -386,50 +663,16 @@ impl Viewport {
             }
         });
 
-        // Handle object selection by clicking
-        if response.clicked() {
-            // Find which object was clicked (simplified ray casting)
-            let click_pos = response
-                .interact_pointer_pos()
-                .unwrap_or(response.rect.center());
-            let world_click = self.screen_to_world(click_pos, response.rect.center());
-
-            // Find the closest object to the click position
-            let mut closest_object = None;
-            let mut closest_distance = f64::INFINITY;
-
-            for (object_id, object) in &scene.objects {
-                if !object.visible {
-                    continue;
-                }
-
-                let distance = (object.transform.position - world_click).magnitude();
-                let selection_threshold = match &object.object_type {
-                    GameObjectType::Sphere => {
-                        (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64
-                    }
-                    GameObjectType::Cube => {
-                        (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64
-                    }
-                    _ => 2.0, // Default threshold
-                };
-
-                if distance < closest_distance && distance < selection_threshold {
-                    closest_distance = distance;
-                    closest_object = Some(*object_id);
-                }
-            }
-
-            new_selection = closest_object;
-        }
-
-        // Draw camera information overlay
-        self.draw_camera_info(ui, response.rect);
-
         new_selection
     }
 
-    fn draw_grid(&self, painter: &egui::Painter, rect: egui::Rect) {
+    fn draw_grid(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        _camera_pos: Vec3,
+        _camera_rot: Vec3,
+    ) {
         let center = rect.center();
         let grid_spacing = self.grid_size * self.zoom_level * 20.0;
 
@@ -480,6 +723,8 @@ impl Viewport {
         rect: egui::Rect,
         scene: &Scene,
         selected_object: Option<u32>,
+        camera_pos: Vec3,
+        camera_rot: Vec3,
     ) {
         let center = rect.center();
 
@@ -491,12 +736,22 @@ impl Viewport {
             .map(|(object_id, object)| {
                 let (screen_pos, depth) = match self.view_mode {
                     ViewMode::Scene2D | ViewMode::Game2D => {
-                        let pos = self.world_to_screen(object.transform.position, center);
+                        let pos = self.world_to_screen_with_camera(
+                            object.transform.position,
+                            center,
+                            camera_pos,
+                            camera_rot,
+                        );
                         (pos, 0.0)
                     }
                     ViewMode::Scene3D | ViewMode::Game3D => {
-                        let pos = self.world_to_screen(object.transform.position, center);
-                        let depth = (object.transform.position - self.camera_position).magnitude();
+                        let pos = self.world_to_screen_with_camera(
+                            object.transform.position,
+                            center,
+                            camera_pos,
+                            camera_rot,
+                        );
+                        let depth = (object.transform.position - camera_pos).magnitude();
                         (pos, depth)
                     }
                 };
@@ -537,16 +792,40 @@ impl Viewport {
                 }
             };
 
-            // Calculate size based on distance and scale for 3D perspective
+            // Calculate size based on distance and scale for better 3D perspective
             let base_size = object.transform.scale.x;
             let size_factor = match self.view_mode {
                 ViewMode::Scene2D | ViewMode::Game2D => self.zoom_level as f64 * 10.0,
                 ViewMode::Scene3D | ViewMode::Game3D => {
-                    // Apply perspective scaling
-                    let distance = (object.transform.position - self.camera_position).magnitude();
-                    let perspective_scale = 50.0 / (distance.max(1.0)); // Prevent division by zero
-                    self.zoom_level as f64 * perspective_scale
+                    // Apply perspective scaling with improved formula
+                    let distance = (object.transform.position - camera_pos).magnitude();
+                    let perspective_scale = 100.0 / (distance.max(1.0)); // Improved perspective
+                    let fov_scale = (self.field_of_view / 75.0) as f64; // Scale with FOV
+                    self.zoom_level as f64 * perspective_scale * fov_scale
                 }
+            };
+
+            // Apply animation transformations
+            let animated_position = if self.is_playing {
+                // Simple rotation animation for demonstration
+                let rotation_speed = 1.0;
+                let angle = self.animation_time as f64 * rotation_speed;
+                Vec3::new(
+                    object.transform.position.x * angle.cos()
+                        - object.transform.position.z * angle.sin(),
+                    object.transform.position.y,
+                    object.transform.position.x * angle.sin()
+                        + object.transform.position.z * angle.cos(),
+                )
+            } else {
+                object.transform.position
+            };
+
+            // Recalculate screen position with animation
+            let animated_screen_pos = if self.is_playing {
+                self.world_to_screen_with_camera(animated_position, center, camera_pos, camera_rot)
+            } else {
+                screen_pos
             };
 
             // Draw object representation based on type
@@ -554,24 +833,24 @@ impl Viewport {
                 GameObjectType::Cube | GameObjectType::RigidBody(_) => {
                     let size = (base_size * size_factor) as f32;
                     painter.rect_filled(
-                        egui::Rect::from_center_size(screen_pos, egui::Vec2::splat(size)),
+                        egui::Rect::from_center_size(animated_screen_pos, egui::Vec2::splat(size)),
                         egui::CornerRadius::ZERO,
                         object_color,
                     );
                 }
                 GameObjectType::Sphere => {
                     let radius = (base_size * size_factor) as f32;
-                    painter.circle_filled(screen_pos, radius, object_color);
+                    painter.circle_filled(animated_screen_pos, radius, object_color);
                 }
                 GameObjectType::Light => {
-                    painter.circle_filled(screen_pos, 8.0, object_color);
+                    painter.circle_filled(animated_screen_pos, 8.0, object_color);
                     // Draw light rays
                     for i in 0..8 {
                         let angle = (i as f32) * std::f32::consts::PI * 2.0 / 8.0;
-                        let end_pos =
-                            screen_pos + egui::Vec2::new(angle.cos() * 15.0, angle.sin() * 15.0);
+                        let end_pos = animated_screen_pos
+                            + egui::Vec2::new(angle.cos() * 15.0, angle.sin() * 15.0);
                         painter.line_segment(
-                            [screen_pos, end_pos],
+                            [animated_screen_pos, end_pos],
                             egui::Stroke::new(1.0, object_color),
                         );
                     }
@@ -580,25 +859,28 @@ impl Viewport {
                     // Draw camera icon
                     let size = 12.0;
                     painter.rect_filled(
-                        egui::Rect::from_center_size(screen_pos, egui::Vec2::new(size, size * 0.7)),
+                        egui::Rect::from_center_size(
+                            animated_screen_pos,
+                            egui::Vec2::new(size, size * 0.7),
+                        ),
                         egui::CornerRadius::same(2),
                         object_color,
                     );
                     painter.circle_filled(
-                        screen_pos + egui::Vec2::new(size * 0.3, 0.0),
+                        animated_screen_pos + egui::Vec2::new(size * 0.3, 0.0),
                         3.0,
                         egui::Color32::BLACK,
                     );
                 }
                 _ => {
                     // Default representation
-                    painter.circle_filled(screen_pos, 5.0, object_color);
+                    painter.circle_filled(animated_screen_pos, 5.0, object_color);
                 }
             }
 
             // Draw object name
             painter.text(
-                screen_pos + egui::Vec2::new(0.0, 20.0),
+                animated_screen_pos + egui::Vec2::new(0.0, 20.0),
                 egui::Align2::CENTER_TOP,
                 &object.name,
                 egui::FontId::proportional(12.0),
@@ -607,7 +889,8 @@ impl Viewport {
         }
     }
 
-    fn draw_gizmos(
+    // Enhanced gizmos drawing with proper camera support
+    fn draw_enhanced_gizmos(
         &self,
         painter: &egui::Painter,
         rect: egui::Rect,
@@ -616,181 +899,464 @@ impl Viewport {
     ) {
         if let Some(object) = scene.objects.get(&selected_object_id) {
             let center = rect.center();
-            let screen_pos = self.world_to_screen(object.transform.position, center);
-
-            // Draw translation gizmo
-            let gizmo_size = 30.0;
-
-            // X axis (red)
-            painter.line_segment(
-                [screen_pos, screen_pos + egui::Vec2::new(gizmo_size, 0.0)],
-                egui::Stroke::new(3.0, egui::Color32::RED),
-            );
-            painter.circle_filled(
-                screen_pos + egui::Vec2::new(gizmo_size, 0.0),
-                4.0,
-                egui::Color32::RED,
-            );
-
-            // Y axis (green)
-            painter.line_segment(
-                [screen_pos, screen_pos + egui::Vec2::new(0.0, -gizmo_size)],
-                egui::Stroke::new(3.0, egui::Color32::GREEN),
-            );
-            painter.circle_filled(
-                screen_pos + egui::Vec2::new(0.0, -gizmo_size),
-                4.0,
-                egui::Color32::GREEN,
+            let camera_pos = if self.show_game_view {
+                self.game_camera_position
+            } else {
+                self.camera_position
+            };
+            let camera_rot = if self.show_game_view {
+                self.game_camera_rotation
+            } else {
+                self.camera_rotation
+            };
+            let screen_pos = self.world_to_screen_with_camera(
+                object.transform.position,
+                center,
+                camera_pos,
+                camera_rot,
             );
 
-            // Z axis (blue) - represented as a square for 2D view
-            if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
-                painter.circle_filled(screen_pos, 6.0, egui::Color32::BLUE);
-                painter.circle_stroke(
-                    screen_pos,
-                    6.0,
-                    egui::Stroke::new(2.0, egui::Color32::WHITE),
-                );
+            // Draw based on gizmo mode
+            match self.gizmo_mode {
+                GizmoMode::Translate => self.draw_translate_gizmo(painter, screen_pos),
+                GizmoMode::Rotate => self.draw_rotate_gizmo(painter, screen_pos),
+                GizmoMode::Scale => self.draw_scale_gizmo(painter, screen_pos),
             }
         }
     }
 
-    fn world_to_screen(&self, world_pos: Vec3, screen_center: egui::Pos2) -> egui::Pos2 {
-        match self.view_mode {
-            ViewMode::Scene2D | ViewMode::Game2D => egui::pos2(
-                screen_center.x
-                    + ((world_pos.x - self.camera_position.x) * (self.zoom_level as f64) * 20.0)
-                        as f32,
-                screen_center.y
-                    - ((world_pos.y - self.camera_position.y) * (self.zoom_level as f64) * 20.0)
-                        as f32,
-            ),
-            ViewMode::Scene3D | ViewMode::Game3D => {
-                // Transform to camera space
-                let camera_pos = self.transform_world_to_camera(world_pos);
+    fn draw_translate_gizmo(&self, painter: &egui::Painter, center: egui::Pos2) {
+        let gizmo_size = 40.0;
+        let thickness = 3.0;
 
-                // Check if behind camera
-                if camera_pos.z <= 0.1 {
-                    return egui::pos2(-10000.0, -10000.0); // Off-screen
-                }
+        // X axis (red arrow)
+        let x_end = center + egui::Vec2::new(gizmo_size, 0.0);
+        painter.line_segment(
+            [center, x_end],
+            egui::Stroke::new(thickness, egui::Color32::RED),
+        );
+        painter.circle_filled(x_end, 5.0, egui::Color32::RED);
 
-                // Apply perspective projection with proper field of view
-                let fov = 60.0_f64.to_radians();
-                let tan_half_fov = (fov / 2.0).tan();
-                let aspect_ratio = 1.0; // Square viewport
+        // Y axis (green arrow)
+        let y_end = center + egui::Vec2::new(0.0, -gizmo_size);
+        painter.line_segment(
+            [center, y_end],
+            egui::Stroke::new(thickness, egui::Color32::GREEN),
+        );
+        painter.circle_filled(y_end, 5.0, egui::Color32::GREEN);
 
-                // Project to normalized device coordinates
-                let ndc_x = camera_pos.x / (camera_pos.z * tan_half_fov * aspect_ratio);
-                let ndc_y = camera_pos.y / (camera_pos.z * tan_half_fov);
-
-                // Convert to screen coordinates with proper scaling
-                let scale_factor = self.zoom_level as f64 * 150.0;
-                egui::pos2(
-                    screen_center.x + (ndc_x * scale_factor) as f32,
-                    screen_center.y - (ndc_y * scale_factor) as f32, // Flip Y for screen coordinates
-                )
-            }
+        // Z axis (blue arrow) - only in 3D
+        if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+            painter.circle_filled(center, 7.0, egui::Color32::BLUE);
+            painter.circle_stroke(center, 7.0, egui::Stroke::new(2.0, egui::Color32::WHITE));
         }
     }
 
-    fn screen_to_world(&self, screen_pos: egui::Pos2, screen_center: egui::Pos2) -> Vec3 {
-        match self.view_mode {
-            ViewMode::Scene2D | ViewMode::Game2D => Vec3::new(
-                self.camera_position.x
-                    + ((screen_pos.x - screen_center.x) / (self.zoom_level * 20.0)) as f64,
-                self.camera_position.y
-                    - ((screen_pos.y - screen_center.y) / (self.zoom_level * 20.0)) as f64,
+    fn draw_rotate_gizmo(&self, painter: &egui::Painter, center: egui::Pos2) {
+        let radius = 35.0;
+        let thickness = 2.0;
+
+        // X rotation (red circle)
+        painter.circle_stroke(
+            center,
+            radius,
+            egui::Stroke::new(thickness, egui::Color32::RED),
+        );
+
+        // Y rotation (green circle) - slightly smaller
+        painter.circle_stroke(
+            center,
+            radius * 0.8,
+            egui::Stroke::new(thickness, egui::Color32::GREEN),
+        );
+
+        // Z rotation (blue circle) - only in 3D
+        if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+            painter.circle_stroke(
+                center,
+                radius * 0.6,
+                egui::Stroke::new(thickness, egui::Color32::BLUE),
+            );
+        }
+    }
+
+    fn draw_scale_gizmo(&self, painter: &egui::Painter, center: egui::Pos2) {
+        let gizmo_size = 35.0;
+        let thickness = 3.0;
+        let cube_size = 6.0;
+
+        // X axis (red)
+        let x_end = center + egui::Vec2::new(gizmo_size, 0.0);
+        painter.line_segment(
+            [center, x_end],
+            egui::Stroke::new(thickness, egui::Color32::RED),
+        );
+        painter.rect_filled(
+            egui::Rect::from_center_size(x_end, egui::Vec2::splat(cube_size)),
+            0.0,
+            egui::Color32::RED,
+        );
+
+        // Y axis (green)
+        let y_end = center + egui::Vec2::new(0.0, -gizmo_size);
+        painter.line_segment(
+            [center, y_end],
+            egui::Stroke::new(thickness, egui::Color32::GREEN),
+        );
+        painter.rect_filled(
+            egui::Rect::from_center_size(y_end, egui::Vec2::splat(cube_size)),
+            0.0,
+            egui::Color32::GREEN,
+        );
+
+        // Z axis (blue) - only in 3D
+        if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+            painter.rect_filled(
+                egui::Rect::from_center_size(center, egui::Vec2::splat(cube_size * 1.2)),
                 0.0,
-            ),
-            ViewMode::Scene3D | ViewMode::Game3D => {
-                // Convert screen coordinates to normalized device coordinates
-                let ndc_x = (screen_pos.x - screen_center.x) / (self.zoom_level * 200.0);
-                let ndc_y = -(screen_pos.y - screen_center.y) / (self.zoom_level * 200.0);
+                egui::Color32::BLUE,
+            );
+        }
+    }
 
-                // Unproject to world space (assuming depth = 5.0 units from camera)
-                let depth = 5.0;
-                let fov = 60.0_f64.to_radians();
-                let tan_half_fov = (fov / 2.0).tan();
+    // Gizmo interaction methods
+    fn check_gizmo_click(
+        &self,
+        click_pos: egui::Pos2,
+        object_id: u32,
+        scene: &Scene,
+        rect: egui::Rect,
+    ) -> Option<GizmoAxis> {
+        if let Some(object) = scene.objects.get(&object_id) {
+            let center = rect.center();
+            let camera_pos = if self.show_game_view {
+                self.game_camera_position
+            } else {
+                self.camera_position
+            };
+            let camera_rot = if self.show_game_view {
+                self.game_camera_rotation
+            } else {
+                self.camera_rotation
+            };
+            let gizmo_center = self.world_to_screen_with_camera(
+                object.transform.position,
+                center,
+                camera_pos,
+                camera_rot,
+            );
 
-                // Convert NDC to camera space
-                let camera_x = ndc_x as f64 * depth * tan_half_fov;
-                let camera_y = ndc_y as f64 * depth * tan_half_fov;
-                let camera_z = depth;
+            let distance_to_center = (click_pos - gizmo_center).length();
+            let gizmo_size = 40.0;
 
-                // Transform from camera space to world space
-                let forward = self.get_forward_vector();
-                let right = self.get_right_vector();
-                let up = self.get_up_vector();
+            // Check center first
+            if distance_to_center < 10.0 {
+                return Some(GizmoAxis::Center);
+            }
 
-                let world_offset = right * camera_x + up * camera_y + forward * camera_z;
-                self.camera_position + world_offset
+            // Check X axis
+            let x_end = gizmo_center + egui::Vec2::new(gizmo_size, 0.0);
+            if (click_pos - x_end).length() < 8.0 {
+                return Some(GizmoAxis::X);
+            }
+
+            // Check Y axis
+            let y_end = gizmo_center + egui::Vec2::new(0.0, -gizmo_size);
+            if (click_pos - y_end).length() < 8.0 {
+                return Some(GizmoAxis::Y);
+            }
+
+            // Check Z axis (only in 3D)
+            if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
+                && distance_to_center < 12.0
+            {
+                return Some(GizmoAxis::Z);
+            }
+        }
+        None
+    }
+
+    fn handle_gizmo_drag(
+        &mut self,
+        delta: egui::Vec2,
+        axis: GizmoAxis,
+        object_id: u32,
+        _rect: egui::Rect,
+    ) {
+        let sensitivity = 0.01;
+
+        match (self.gizmo_mode, axis) {
+            (GizmoMode::Translate, GizmoAxis::X) => {
+                let world_delta = crate::gui::Transform {
+                    position: Vec3::new((delta.x * sensitivity) as f64, 0.0, 0.0),
+                    rotation: Vec3::new(0.0, 0.0, 0.0),
+                    scale: Vec3::new(1.0, 1.0, 1.0),
+                };
+                if let Some(callback) = &self.transform_changed_callback {
+                    callback(object_id, world_delta);
+                }
+            }
+            (GizmoMode::Translate, GizmoAxis::Y) => {
+                let world_delta = crate::gui::Transform {
+                    position: Vec3::new(0.0, (-(delta.y * sensitivity)) as f64, 0.0),
+                    rotation: Vec3::new(0.0, 0.0, 0.0),
+                    scale: Vec3::new(1.0, 1.0, 1.0),
+                };
+                if let Some(callback) = &self.transform_changed_callback {
+                    callback(object_id, world_delta);
+                }
+            }
+            (GizmoMode::Translate, GizmoAxis::Z) => {
+                let world_delta = crate::gui::Transform {
+                    position: Vec3::new(0.0, 0.0, (delta.y * sensitivity) as f64),
+                    rotation: Vec3::new(0.0, 0.0, 0.0),
+                    scale: Vec3::new(1.0, 1.0, 1.0),
+                };
+                if let Some(callback) = &self.transform_changed_callback {
+                    callback(object_id, world_delta);
+                }
+            }
+            (GizmoMode::Translate, GizmoAxis::Center) => {
+                // For translation center, move in screen plane
+                let world_delta = crate::gui::Transform {
+                    position: Vec3::new(
+                        (delta.x * sensitivity) as f64,
+                        (-(delta.y * sensitivity)) as f64,
+                        0.0,
+                    ),
+                    rotation: Vec3::new(0.0, 0.0, 0.0),
+                    scale: Vec3::new(1.0, 1.0, 1.0),
+                };
+                if let Some(callback) = &self.transform_changed_callback {
+                    callback(object_id, world_delta);
+                }
+            }
+            (GizmoMode::Rotate, _) => {
+                let rotation_delta = match axis {
+                    GizmoAxis::X => Vec3::new((delta.y * sensitivity) as f64, 0.0, 0.0),
+                    GizmoAxis::Y => Vec3::new(0.0, (delta.x * sensitivity) as f64, 0.0),
+                    GizmoAxis::Z => Vec3::new(0.0, 0.0, (delta.x * sensitivity) as f64),
+                    GizmoAxis::Center => Vec3::new(0.0, (delta.x * sensitivity) as f64, 0.0),
+                };
+                let transform_delta = crate::gui::Transform {
+                    position: Vec3::new(0.0, 0.0, 0.0),
+                    rotation: rotation_delta,
+                    scale: Vec3::new(1.0, 1.0, 1.0),
+                };
+                if let Some(callback) = &self.transform_changed_callback {
+                    callback(object_id, transform_delta);
+                }
+            }
+            (GizmoMode::Scale, _) => {
+                let scale_factor = 1.0 + (delta.length() * sensitivity * 0.1) as f64;
+                let scale_delta = match axis {
+                    GizmoAxis::X => Vec3::new(scale_factor, 1.0, 1.0),
+                    GizmoAxis::Y => Vec3::new(1.0, scale_factor, 1.0),
+                    GizmoAxis::Z => Vec3::new(1.0, 1.0, scale_factor),
+                    GizmoAxis::Center => Vec3::new(scale_factor, scale_factor, scale_factor),
+                };
+                let transform_delta = crate::gui::Transform {
+                    position: Vec3::new(0.0, 0.0, 0.0),
+                    rotation: Vec3::new(0.0, 0.0, 0.0),
+                    scale: scale_delta,
+                };
+                if let Some(callback) = &self.transform_changed_callback {
+                    callback(object_id, transform_delta);
+                }
             }
         }
     }
 
-    fn reset_camera(&mut self) {
-        match self.view_mode {
-            ViewMode::Scene2D | ViewMode::Game2D => {
-                self.camera_position = Vec3::new(0.0, 0.0, 0.0);
-                self.camera_rotation = Vec3::new(0.0, 0.0, 0.0);
-            }
-            ViewMode::Scene3D | ViewMode::Game3D => {
-                self.camera_position = Vec3::new(0.0, 5.0, 10.0);
-                self.camera_rotation = Vec3::new(-20.0, 0.0, 0.0);
-            }
-        }
-        self.zoom_level = 1.0;
+    // Camera information display
+    fn draw_camera_info(
+        &self,
+        ui: &mut egui::Ui,
+        _rect: egui::Rect,
+        camera_pos: Vec3,
+        camera_rot: Vec3,
+    ) {
+        // Display camera information in the corner
+        let info_text = format!(
+            "Camera: ({:.1}, {:.1}, {:.1})\nRotation: ({:.1}°, {:.1}°, {:.1}°)\nFOV: {:.1}°\nZoom: {:.2}x",
+            camera_pos.x, camera_pos.y, camera_pos.z,
+            camera_rot.x, camera_rot.y, camera_rot.z,
+            self.field_of_view,
+            self.zoom_level
+        );
+
+        let info_rect = egui::Rect::from_min_size(
+            _rect.min + egui::Vec2::new(10.0, 10.0),
+            egui::Vec2::new(200.0, 100.0),
+        );
+        let mut child_ui = ui.new_child(egui::UiBuilder::new().max_rect(info_rect));
+        child_ui.label(
+            egui::RichText::new(info_text)
+                .small()
+                .color(egui::Color32::WHITE),
+        );
     }
 
-    /// Get camera forward vector based on rotation
-    fn get_forward_vector(&self) -> Vec3 {
-        let pitch = self.camera_rotation.x.to_radians();
-        let yaw = self.camera_rotation.y.to_radians();
+    // Camera helper methods
+    fn get_forward_vector_for_camera(&self, camera_rot: Vec3) -> Vec3 {
+        let pitch = camera_rot.x.to_radians();
+        let yaw = camera_rot.y.to_radians();
 
         Vec3::new(
             yaw.sin() * pitch.cos(),
             -pitch.sin(),
             yaw.cos() * pitch.cos(),
         )
-        .normalized()
     }
 
-    /// Get camera right vector based on rotation
-    fn get_right_vector(&self) -> Vec3 {
-        let yaw = self.camera_rotation.y.to_radians();
-        Vec3::new(yaw.cos(), 0.0, -yaw.sin()).normalized()
+    fn get_right_vector_for_camera(&self, camera_rot: Vec3) -> Vec3 {
+        let yaw = camera_rot.y.to_radians();
+        Vec3::new(yaw.cos(), 0.0, -yaw.sin())
     }
 
-    /// Get camera up vector based on rotation
-    fn get_up_vector(&self) -> Vec3 {
-        self.get_right_vector()
-            .cross(self.get_forward_vector())
-            .normalized()
+    fn get_up_vector_for_camera(&self, camera_rot: Vec3) -> Vec3 {
+        let forward = self.get_forward_vector_for_camera(camera_rot);
+        let right = self.get_right_vector_for_camera(camera_rot);
+        right.cross(forward).normalized()
     }
 
-    /// Transform world position to camera space
-    fn transform_world_to_camera(&self, world_pos: Vec3) -> Vec3 {
-        // Translate relative to camera
-        let relative_pos = world_pos - self.camera_position;
+    // Enhanced coordinate transformation methods
+    fn world_to_screen_with_camera(
+        &self,
+        world_pos: Vec3,
+        screen_center: egui::Pos2,
+        camera_pos: Vec3,
+        camera_rot: Vec3,
+    ) -> egui::Pos2 {
+        let camera_space =
+            self.transform_world_to_camera_with_params(world_pos, camera_pos, camera_rot);
+        let projected = self.apply_perspective_projection(camera_space);
 
-        // Create camera basis vectors
-        let forward = self.get_forward_vector();
-        let right = self.get_right_vector();
-        let up = self.get_up_vector();
+        screen_center + egui::Vec2::new(projected.x as f32 * 100.0, projected.y as f32 * 100.0)
+    }
 
-        // Transform to camera space
+    fn screen_to_world_with_camera(
+        &self,
+        screen_pos: egui::Pos2,
+        screen_center: egui::Pos2,
+        camera_pos: Vec3,
+        camera_rot: Vec3,
+    ) -> Vec3 {
+        let screen_delta = screen_pos - screen_center;
+        let depth = 5.0; // Default depth for screen-to-world conversion
+
+        let forward = self.get_forward_vector_for_camera(camera_rot);
+        let right = self.get_right_vector_for_camera(camera_rot);
+        let up = self.get_up_vector_for_camera(camera_rot);
+
+        camera_pos
+            + forward * depth
+            + right * (screen_delta.x as f64 * 0.01)
+            + up * (-screen_delta.y as f64 * 0.01)
+    }
+
+    fn transform_world_to_camera_with_params(
+        &self,
+        world_pos: Vec3,
+        camera_pos: Vec3,
+        camera_rot: Vec3,
+    ) -> Vec3 {
+        // Transform world position relative to camera
+        let relative_pos = world_pos - camera_pos;
+
+        // Apply camera rotation (inverse transform)
+        let forward = self.get_forward_vector_for_camera(camera_rot);
+        let right = self.get_right_vector_for_camera(camera_rot);
+        let up = self.get_up_vector_for_camera(camera_rot);
+
         Vec3::new(
-            relative_pos.dot(right),    // X in camera space
-            relative_pos.dot(up),       // Y in camera space
-            -relative_pos.dot(forward), // Z in camera space (negative because we look down -Z)
+            relative_pos.dot(right),
+            relative_pos.dot(up),
+            relative_pos.dot(forward),
         )
     }
 
-    /// Apply perspective projection to camera space position
+    // Legacy compatibility functions for existing codebase
+
+    /// Legacy world to screen conversion (uses current camera)
+    pub fn world_to_screen(&self, world_pos: Vec3, screen_center: egui::Pos2) -> egui::Pos2 {
+        let camera_pos = if self.show_game_view {
+            self.game_camera_position
+        } else {
+            self.camera_position
+        };
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+        self.world_to_screen_with_camera(world_pos, screen_center, camera_pos, camera_rot)
+    }
+
+    /// Legacy screen to world conversion (uses current camera)
+    pub fn screen_to_world(&self, screen_pos: egui::Pos2, screen_center: egui::Pos2) -> Vec3 {
+        let camera_pos = if self.show_game_view {
+            self.game_camera_position
+        } else {
+            self.camera_position
+        };
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+        self.screen_to_world_with_camera(screen_pos, screen_center, camera_pos, camera_rot)
+    }
+
+    /// Legacy camera forward vector
+    pub fn get_forward_vector(&self) -> Vec3 {
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+        self.get_forward_vector_for_camera(camera_rot)
+    }
+
+    /// Legacy camera right vector
+    pub fn get_right_vector(&self) -> Vec3 {
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+        self.get_right_vector_for_camera(camera_rot)
+    }
+
+    /// Legacy camera up vector
+    pub fn get_up_vector(&self) -> Vec3 {
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+        self.get_up_vector_for_camera(camera_rot)
+    }
+
+    /// Legacy transform world to camera
+    pub fn transform_world_to_camera(&self, world_pos: Vec3) -> Vec3 {
+        let camera_pos = if self.show_game_view {
+            self.game_camera_position
+        } else {
+            self.camera_position
+        };
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+        self.transform_world_to_camera_with_params(world_pos, camera_pos, camera_rot)
+    }
+
+    /// Legacy apply perspective projection
     fn apply_perspective_projection(&self, camera_pos: Vec3) -> Vec3 {
-        let fov = 60.0_f64.to_radians(); // Field of view
-        let near = 0.1;
-        let far = 1000.0;
+        let fov = self.field_of_view.to_radians() as f64;
+        let _near = self.near_clip as f64;
+        let _far = self.far_clip as f64;
 
         // Avoid division by zero for points at camera
         if camera_pos.z.abs() < 0.001 {
@@ -808,54 +1374,40 @@ impl Viewport {
         )
     }
 
-    /// Draw camera information overlay
-    fn draw_camera_info(&self, ui: &mut egui::Ui, rect: egui::Rect) {
-        let info_text = format!(
-            "Camera: ({:.1}, {:.1}, {:.1})\nRotation: ({:.1}°, {:.1}°, {:.1}°)\nZoom: {:.1}x\nView: {:?}\n[WASD: Move, Arrows: Rotate, Q/E: Up/Down]",
-            self.camera_position.x,
-            self.camera_position.y,
-            self.camera_position.z,
-            self.camera_rotation.x,
-            self.camera_rotation.y,
-            self.camera_rotation.z,
-            self.zoom_level,
-            self.view_mode
-        );
-
-        ui.allocate_new_ui(
-            egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
-                rect.min + egui::Vec2::new(10.0, 10.0),
-                egui::Vec2::new(300.0, 100.0),
-            )),
-            |ui| {
-                ui.visuals_mut().override_text_color = Some(egui::Color32::WHITE);
-                ui.label(info_text);
-            },
-        );
+    /// Legacy draw gizmos function
+    pub fn draw_gizmos(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        scene: &Scene,
+        selected_object_id: u32,
+    ) {
+        self.draw_enhanced_gizmos(painter, rect, scene, selected_object_id);
     }
 
-    /// Set object creation callback
-    pub fn set_object_creation_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(&str, Vec3) + Send + Sync + 'static,
-    {
-        self.object_creation_callback = Some(Box::new(callback));
-    }
-
-    /// Set preset creation callback
-    pub fn set_preset_creation_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(&str) + Send + Sync + 'static,
-    {
-        self.preset_creation_callback = Some(Box::new(callback));
-    }
-
-    /// Set selection callback
-    pub fn set_selection_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(Option<u32>) + Send + Sync + 'static,
-    {
-        self.selection_callback = Some(Box::new(callback));
+    /// Legacy reset camera function
+    fn reset_camera(&mut self) {
+        match self.view_mode {
+            ViewMode::Scene2D | ViewMode::Game2D => {
+                if self.show_game_view {
+                    self.game_camera_position = Vec3::new(0.0, 0.0, 0.0);
+                    self.game_camera_rotation = Vec3::new(0.0, 0.0, 0.0);
+                } else {
+                    self.camera_position = Vec3::new(0.0, 0.0, 0.0);
+                    self.camera_rotation = Vec3::new(0.0, 0.0, 0.0);
+                }
+            }
+            ViewMode::Scene3D | ViewMode::Game3D => {
+                if self.show_game_view {
+                    self.game_camera_position = Vec3::new(0.0, 2.0, 5.0);
+                    self.game_camera_rotation = Vec3::new(-10.0, 0.0, 0.0);
+                } else {
+                    self.camera_position = Vec3::new(0.0, 5.0, 10.0);
+                    self.camera_rotation = Vec3::new(-20.0, 0.0, 0.0);
+                }
+            }
+        }
+        self.zoom_level = 1.0;
     }
 }
 

@@ -2,7 +2,7 @@ use crate::eval::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::physics::math::*;
-use crate::physics::rigid_body::{Shape, *};
+use crate::physics::rigid_body::Shape;
 use crate::physics::*;
 use eframe::egui;
 use egui_dock::{DockState, TabViewer};
