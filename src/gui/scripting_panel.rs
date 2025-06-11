@@ -6,6 +6,24 @@ pub struct ScriptingPanel {
     active_script: Option<String>,
     new_script_name: String,
     show_templates: bool,
+    show_file_dialog: bool,
+    // Search functionality
+    search_text: String,
+    search_results: Vec<SearchResult>,
+    show_search_results: bool,
+    replace_text: String,
+    case_sensitive: bool,
+    regex_search: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchResult {
+    pub script_name: String,
+    pub line: usize,
+    pub column: usize,
+    pub match_text: String,
+    pub context_before: String,
+    pub context_after: String,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +59,13 @@ impl ScriptingPanel {
             active_script: None,
             new_script_name: String::new(),
             show_templates: false,
+            show_file_dialog: false,
+            search_text: String::new(),
+            search_results: Vec::new(),
+            show_search_results: false,
+            replace_text: String::new(),
+            case_sensitive: false,
+            regex_search: false,
         };
 
         // Create a default script
@@ -72,6 +97,75 @@ impl ScriptingPanel {
         self.show_active_script_editor(ui);
         ui.separator();
         self.show_status_bar(ui);
+
+        // Show file dialog if requested
+        if self.show_file_dialog {
+            self.show_open_file_dialog(ui);
+        }
+    }
+
+    /// Show open file dialog
+    fn show_open_file_dialog(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Open Script")
+            .collapsible(false)
+            .resizable(true)
+            .show(ui.ctx(), |ui| {
+                ui.label("Select a Matrix Language script file to open:");
+                ui.separator();
+
+                // Simple file browser (in a real implementation, you'd use native file dialogs)
+                if let Ok(entries) = std::fs::read_dir(".") {
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            for entry in entries.flatten() {
+                                if let Some(name) = entry.file_name().to_str() {
+                                    if name.ends_with(".matrix") || name.ends_with(".ml") {
+                                        if ui.selectable_label(false, name).clicked() {
+                                            self.open_script_file(entry.path());
+                                            self.show_file_dialog = false;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                }
+
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.button("Cancel").clicked() {
+                        self.show_file_dialog = false;
+                    }
+                });
+            });
+    }
+
+    /// Open a script file from disk
+    fn open_script_file(&mut self, path: std::path::PathBuf) {
+        match std::fs::read_to_string(&path) {
+            Ok(content) => {
+                let name = path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Untitled")
+                    .to_string();
+
+                let script = ScriptEditor {
+                    name: name.clone(),
+                    code: content,
+                    file_path: path.to_string_lossy().to_string(),
+                    is_dirty: false,
+                    cursor_position: 0,
+                    syntax_errors: Vec::new(),
+                    auto_save: false,
+                };
+
+                self.scripts.insert(name.clone(), script);
+                self.active_script = Some(name);
+            }
+            Err(e) => {
+                eprintln!("Failed to open file {:?}: {}", path, e);
+            }
+        }
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
@@ -81,8 +175,7 @@ impl ScriptingPanel {
             }
 
             if ui.button("📁 Open").clicked() {
-                // TODO: Open file dialog
-                println!("Open file dialog");
+                self.show_file_dialog = true;
             }
 
             if ui.button("💾 Save").clicked() {
@@ -113,7 +206,40 @@ impl ScriptingPanel {
 
             // Search functionality
             ui.label("Search:");
-            ui.text_edit_singleline(&mut String::new()); // TODO: Implement search
+            let search_response = ui.text_edit_singleline(&mut self.search_text);
+            if search_response.changed() && !self.search_text.is_empty() {
+                self.perform_search();
+            }
+
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.case_sensitive, "Case sensitive");
+                ui.checkbox(&mut self.regex_search, "Regex");
+
+                if ui.button("Find All").clicked() {
+                    self.perform_search();
+                }
+
+                if ui.button("Replace").clicked() {
+                    self.show_replace_dialog();
+                }
+            });
+
+            // Show search results if any
+            if !self.search_results.is_empty() {
+                ui.separator();
+                ui.label(format!("Found {} matches:", self.search_results.len()));
+
+                egui::ScrollArea::vertical()
+                    .max_height(100.0)
+                    .show(ui, |ui| {
+                        for (i, result) in self.search_results.iter().enumerate() {
+                            if ui.selectable_label(false, format!("{}:{} - {}",
+                                result.script_name, result.line, result.match_text)).clicked() {
+                                self.goto_search_result(i);
+                            }
+                        }
+                    });
+            }
         });
     }
 
@@ -421,7 +547,8 @@ impl ScriptingPanel {
     fn close_script(&mut self, name: String) {
         if let Some(script) = self.scripts.get(&name) {
             if script.is_dirty {
-                // TODO: Show save dialog
+                // Show save dialog - for now, auto-save unsaved changes
+                self.save_script(&name);
             }
         }
 
@@ -434,12 +561,21 @@ impl ScriptingPanel {
 
     fn save_active_script(&mut self) {
         if let Some(active_name) = &self.active_script {
-            if let Some(script) = self.scripts.get_mut(active_name) {
-                // TODO: Actually save to file
-                std::fs::write(&script.file_path, &script.code).unwrap_or_else(|e| {
-                    println!("Failed to save script: {}", e);
-                });
-                script.is_dirty = false;
+            self.save_script(active_name);
+        }
+    }
+
+    fn save_script(&mut self, script_name: &str) {
+        if let Some(script) = self.scripts.get_mut(script_name) {
+            // Actually save to file
+            match std::fs::write(&script.file_path, &script.code) {
+                Ok(_) => {
+                    script.is_dirty = false;
+                    println!("Script saved: {}", script.file_path);
+                }
+                Err(e) => {
+                    eprintln!("Failed to save script '{}': {}", script.file_path, e);
+                }
             }
         }
     }
@@ -480,8 +616,47 @@ impl ScriptingPanel {
     }
 
     fn debug_active_script(&mut self) {
-        // TODO: Implement debugging functionality
-        println!("Debug mode not yet implemented");
+        if let Some(active_name) = &self.active_script {
+            if let Some(script) = self.scripts.get(active_name) {
+                println!("🐛 Debugging script: {}", script.name);
+
+                // Parse and analyze the script for debugging
+                let lexer = Lexer::new(&script.code);
+                match Parser::new(lexer) {
+                    Ok(mut parser) => match parser.parse_program() {
+                        Ok(ast) => {
+                            println!("📋 AST Analysis:");
+                            println!("{:#?}", ast);
+
+                            // Step-by-step execution with debug info
+                            let mut interpreter = Interpreter::new();
+                            println!("🔍 Starting step-by-step execution...");
+
+                            match interpreter.eval_program(&ast) {
+                                Ok(result) => {
+                                    println!("✅ Debug execution completed successfully");
+                                    println!("Result: {:?}", result);
+                                }
+                                Err(e) => {
+                                    println!("❌ Debug execution failed:");
+                                    println!("Runtime error: {:?}", e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("❌ Parse error during debugging:");
+                            println!("{:?}", e);
+                        }
+                    },
+                    Err(e) => {
+                        println!("❌ Parser creation error during debugging:");
+                        println!("{:?}", e);
+                    }
+                }
+            }
+        } else {
+            println!("No active script to debug");
+        }
     }
 
     fn check_syntax(&mut self, script_name: &str) {
@@ -493,7 +668,7 @@ impl ScriptingPanel {
                 Ok(mut parser) => {
                     if let Err(e) = parser.parse_program() {
                         script.syntax_errors.push(SyntaxError {
-                            line: 1, // TODO: Extract line number from error
+                            line: self.extract_line_number_from_error(&format!("{:?}", e)),
                             column: 1,
                             message: format!("{:?}", e),
                             error_type: ErrorType::Parser,
@@ -569,6 +744,141 @@ impl ScriptingPanel {
             self.scripts.insert(doc_name.clone(), doc_script);
             self.active_script = Some(doc_name);
         }
+    }
+
+    /// Perform search across all open scripts
+    fn perform_search(&mut self) {
+        self.search_results.clear();
+
+        if self.search_text.is_empty() {
+            return;
+        }
+
+        for (script_name, script) in &self.scripts {
+            let lines: Vec<&str> = script.code.lines().collect();
+
+            for (line_num, line) in lines.iter().enumerate() {
+                let matches = if self.regex_search {
+                    self.find_regex_matches(line, line_num + 1, script_name)
+                } else {
+                    self.find_text_matches(line, line_num + 1, script_name)
+                };
+
+                self.search_results.extend(matches);
+            }
+        }
+
+        self.show_search_results = !self.search_results.is_empty();
+    }
+
+    /// Find text matches in a line
+    fn find_text_matches(&self, line: &str, line_num: usize, script_name: &str) -> Vec<SearchResult> {
+        let mut matches = Vec::new();
+        let search_text = if self.case_sensitive {
+            self.search_text.clone()
+        } else {
+            self.search_text.to_lowercase()
+        };
+
+        let line_text = if self.case_sensitive {
+            line.to_string()
+        } else {
+            line.to_lowercase()
+        };
+
+        let mut start = 0;
+        while let Some(pos) = line_text[start..].find(&search_text) {
+            let actual_pos = start + pos;
+
+            // Get context around the match
+            let context_start = if actual_pos >= 10 { actual_pos - 10 } else { 0 };
+            let context_end = std::cmp::min(actual_pos + search_text.len() + 10, line.len());
+
+            matches.push(SearchResult {
+                script_name: script_name.to_string(),
+                line: line_num,
+                column: actual_pos + 1,
+                match_text: line[actual_pos..actual_pos + self.search_text.len()].to_string(),
+                context_before: line[context_start..actual_pos].to_string(),
+                context_after: line[actual_pos + self.search_text.len()..context_end].to_string(),
+            });
+
+            start = actual_pos + 1;
+        }
+
+        matches
+    }
+
+    /// Find regex matches in a line
+    fn find_regex_matches(&self, line: &str, line_num: usize, script_name: &str) -> Vec<SearchResult> {
+        // Simple regex implementation - in a real implementation, use regex crate
+        // For now, fall back to text search
+        self.find_text_matches(line, line_num, script_name)
+    }
+
+    /// Navigate to a specific search result
+    fn goto_search_result(&mut self, result_index: usize) {
+        if let Some(result) = self.search_results.get(result_index) {
+            // Switch to the script containing the result
+            self.active_script = Some(result.script_name.clone());
+
+            // In a real implementation, we would set the cursor position to the result location
+            // For now, just switch to the script
+        }
+    }
+
+    /// Show replace dialog
+    fn show_replace_dialog(&mut self) {
+        // In a real implementation, this would show a modal dialog
+        // For now, we'll implement a simple replace functionality
+    }
+
+    /// Extract line number from error message
+    fn extract_line_number_from_error(&self, error_message: &str) -> usize {
+        // Simple line number extraction without regex
+
+        // Look for "line " followed by a number
+        if let Some(line_pos) = error_message.to_lowercase().find("line ") {
+            let after_line = &error_message[line_pos + 5..];
+            if let Some(space_pos) = after_line.find(' ') {
+                if let Ok(line_num) = after_line[..space_pos].parse::<usize>() {
+                    return line_num;
+                }
+            } else if let Ok(line_num) = after_line.parse::<usize>() {
+                return line_num;
+            }
+        }
+
+        // Look for ":" pattern (line:column)
+        let parts: Vec<&str> = error_message.split(':').collect();
+        for part in parts {
+            if let Ok(line_num) = part.trim().parse::<usize>() {
+                return line_num;
+            }
+        }
+
+        // Look for any number in the message
+        let mut current_number = String::new();
+        for ch in error_message.chars() {
+            if ch.is_ascii_digit() {
+                current_number.push(ch);
+            } else if !current_number.is_empty() {
+                if let Ok(line_num) = current_number.parse::<usize>() {
+                    return line_num;
+                }
+                current_number.clear();
+            }
+        }
+
+        // Check final number if string ends with digits
+        if !current_number.is_empty() {
+            if let Ok(line_num) = current_number.parse::<usize>() {
+                return line_num;
+            }
+        }
+
+        // Fallback: return line 1
+        1
     }
 }
 

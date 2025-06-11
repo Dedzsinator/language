@@ -189,6 +189,7 @@ pub enum Component {
 pub struct GameObject {
     pub id: u32,
     pub name: String,
+    pub tag: String,
     pub transform: Transform,
     pub object_type: GameObjectType,
     pub components: Vec<Component>,
@@ -203,6 +204,7 @@ impl GameObject {
         Self {
             id,
             name,
+            tag: "Untagged".to_string(),
             transform: Transform::default(),
             object_type,
             components: Vec::new(),
@@ -321,6 +323,44 @@ pub enum DragPayload {
     Asset(String),
 }
 
+/// Actions for undo/redo system
+#[derive(Debug, Clone)]
+pub enum EditorAction {
+    CreateObject {
+        id: u32,
+        object: GameObject,
+    },
+    DeleteObject {
+        id: u32,
+        object: GameObject,
+    },
+    ModifyTransform {
+        id: u32,
+        old_transform: Transform,
+        new_transform: Transform,
+    },
+    AddComponent {
+        id: u32,
+        component: Component,
+    },
+    RemoveComponent {
+        id: u32,
+        component_index: usize,
+        component: Component,
+    },
+    ModifyComponent {
+        id: u32,
+        component_index: usize,
+        old_component: Component,
+        new_component: Component,
+    },
+    RenameObject {
+        id: u32,
+        old_name: String,
+        new_name: String,
+    },
+}
+
 /// Unity-style editor application
 pub struct UnityStyleEditor {
     // Core systems
@@ -361,6 +401,15 @@ pub struct UnityStyleEditor {
 
     // New layout system
     bottom_tab: BottomTab,
+
+    // Undo/Redo system
+    undo_stack: Vec<EditorAction>,
+    redo_stack: Vec<EditorAction>,
+    max_undo_history: usize,
+
+    // File dialogs
+    show_open_dialog: bool,
+    show_save_dialog: bool,
 }
 
 impl Default for UnityStyleEditor {
@@ -387,11 +436,16 @@ impl Default for UnityStyleEditor {
             drag_payload: None,
             dock_state: Self::create_default_dock_state(),
             bottom_tab: BottomTab::Console,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            max_undo_history: 50,
+            show_open_dialog: false,
+            show_save_dialog: false,
         };
-        
+
         // Initialize physics for the default scene
         editor.initialize_physics_for_scene();
-        
+
         editor
     }
 }
@@ -404,7 +458,7 @@ impl eframe::App for UnityStyleEditor {
         // Update physics simulation
         if self.is_simulating {
             self.physics_world.step();
-            
+
             // Sync physics world state with scene objects
             self.sync_physics_to_scene();
         }
@@ -420,7 +474,7 @@ impl eframe::App for UnityStyleEditor {
 
         // Handle drag and drop
         self.handle_drag_drop(ctx);
-        
+
         // Update viewport selection when object is selected
         if let Some(selected_id) = self.selected_object {
             if let Some(scene) = self.scene_manager.current_scene() {
@@ -463,11 +517,11 @@ impl UnityStyleEditor {
                         ui.close_menu();
                     }
                     if ui.button("Open Scene").clicked() {
-                        // TODO: Open file dialog
+                        self.show_open_dialog = true;
                         ui.close_menu();
                     }
                     if ui.button("Save Scene").clicked() {
-                        // TODO: Save current scene
+                        self.save_current_scene();
                         ui.close_menu();
                     }
                     ui.separator();
@@ -479,11 +533,11 @@ impl UnityStyleEditor {
                 // Edit menu
                 ui.menu_button("Edit", |ui| {
                     if ui.button("Undo").clicked() {
-                        // TODO: Implement undo
+                        self.undo();
                         ui.close_menu();
                     }
                     if ui.button("Redo").clicked() {
-                        // TODO: Implement redo
+                        self.redo();
                         ui.close_menu();
                     }
                 });
@@ -523,16 +577,16 @@ impl UnityStyleEditor {
 
                 // Simulation controls
                 ui.separator();
-                
+
                 // Add visual indicator for simulation state
                 let sim_color = if self.is_simulating {
                     egui::Color32::GREEN
                 } else {
                     egui::Color32::GRAY
                 };
-                
+
                 ui.colored_label(sim_color, "●");
-                
+
                 if ui
                     .button(if self.is_simulating {
                         "⏸ Pause"
@@ -553,9 +607,9 @@ impl UnityStyleEditor {
                     self.physics_world = PhysicsWorld::new();
                     self.initialize_physics_for_scene();
                 }
-                
+
                 ui.separator();
-                
+
                 ui.label(format!("FPS: {:.0}", 1.0 / ui.ctx().input(|i| i.stable_dt)));
             });
         });
@@ -589,8 +643,9 @@ impl UnityStyleEditor {
                 .max_width(500.0)
                 .show(ctx, |ui| {
                     if let Some(scene) = self.scene_manager.current_scene_mut() {
-                        let transform_changed = self.inspector.show_ui(ui, scene, self.selected_object);
-                        
+                        let transform_changed =
+                            self.inspector.show_ui(ui, scene, self.selected_object);
+
                         // If transform changed, sync to physics world
                         if transform_changed {
                             self.sync_scene_to_physics();
@@ -643,7 +698,9 @@ impl UnityStyleEditor {
         // Central panel - Viewport
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(scene) = self.scene_manager.current_scene() {
-                if let Some(new_selection) = self.viewport.show_content(ui, scene, self.selected_object) {
+                if let Some(new_selection) =
+                    self.viewport.show_content(ui, scene, self.selected_object)
+                {
                     self.selected_object = Some(new_selection);
                 }
             }
@@ -716,7 +773,7 @@ impl UnityStyleEditor {
                 // Check if object has a rigid body component
                 let mut has_rigid_body = false;
                 let mut physics_body_id = None;
-                
+
                 for (idx, component) in object.components.iter().enumerate() {
                     if let Component::RigidBody { .. } = component {
                         has_rigid_body = true;
@@ -724,7 +781,7 @@ impl UnityStyleEditor {
                         break;
                     }
                 }
-                
+
                 if has_rigid_body {
                     if let Some(physics_id) = physics_body_id {
                         // Try to get the physics body from the world
@@ -748,7 +805,8 @@ impl UnityStyleEditor {
                     if let Component::RigidBody { .. } = component {
                         // Update physics body position
                         if idx < self.physics_world.rigid_bodies.len() {
-                            self.physics_world.rigid_bodies[idx].position = object.transform.position;
+                            self.physics_world.rigid_bodies[idx].position =
+                                object.transform.position;
                         }
                         break;
                     }
@@ -762,7 +820,7 @@ impl UnityStyleEditor {
         if let Some(scene) = self.scene_manager.current_scene() {
             // Clear existing physics bodies
             self.physics_world.rigid_bodies.clear();
-            
+
             for (object_id, object) in &scene.objects {
                 for component in &object.components {
                     if let Component::RigidBody { shape, mass } = component {
@@ -770,7 +828,7 @@ impl UnityStyleEditor {
                         let body_id = self.physics_world.add_rigid_body(
                             shape.clone(),
                             *mass,
-                            object.transform.position
+                            object.transform.position,
                         );
                         // Note: In a real implementation, we'd need to store the mapping
                         // between object IDs and physics body IDs

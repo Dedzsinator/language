@@ -6,6 +6,7 @@ pub struct SceneManager {
     pub scenes: Vec<Scene>,
     pub current_scene: usize,
     pub scene_files: Vec<String>,
+    show_load_dialog: bool,
 }
 
 impl SceneManager {
@@ -14,6 +15,7 @@ impl SceneManager {
             scenes: Vec::new(),
             current_scene: 0,
             scene_files: Vec::new(),
+            show_load_dialog: false,
         };
 
         // Create default scene with some sample objects
@@ -320,7 +322,7 @@ let update = () -> {
 
                 ui.horizontal(|ui| {
                     if ui.button("Load Scene").clicked() {
-                        // TODO: Open file dialog
+                        self.show_load_dialog = true;
                     }
                     if ui.button("Save All").clicked() {
                         let indices_to_save: Vec<_> = self
@@ -341,7 +343,74 @@ let update = () -> {
                         }
                     }
                 });
+
+                // Show load scene dialog if triggered
+                if self.show_load_dialog {
+                    self.show_load_scene_dialog(ui);
+                }
             });
+    }
+
+    /// Show load scene dialog
+    fn show_load_scene_dialog(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Load Scene")
+            .collapsible(false)
+            .resizable(true)
+            .show(ui.ctx(), |ui| {
+                ui.label("Select a scene file to load:");
+                ui.separator();
+
+                // Simple file browser for scene files
+                if let Ok(entries) = std::fs::read_dir(".") {
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            for entry in entries.flatten() {
+                                if let Some(name) = entry.file_name().to_str() {
+                                    if name.ends_with(".scene") || name.ends_with(".json") {
+                                        if ui.selectable_label(false, name).clicked() {
+                                            match self.load_scene_from_file(&entry.path()) {
+                                                Ok(_) => {
+                                                    println!("Scene loaded successfully: {}", name);
+                                                }
+                                                Err(e) => {
+                                                    eprintln!(
+                                                        "Failed to load scene {}: {}",
+                                                        name, e
+                                                    );
+                                                }
+                                            }
+                                            self.show_load_dialog = false;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                }
+
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.button("Cancel").clicked() {
+                        self.show_load_dialog = false;
+                    }
+                });
+            });
+    }
+
+    /// Load a scene from file
+    fn load_scene_from_file(
+        &mut self,
+        path: &std::path::Path,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(path)?;
+        let scene: Scene = serde_json::from_str(&content)?;
+
+        let index = self.scenes.len();
+        self.scenes.push(scene);
+        self.scene_files.push(path.to_string_lossy().to_string());
+        self.current_scene = index;
+
+        Ok(index)
     }
 }
 

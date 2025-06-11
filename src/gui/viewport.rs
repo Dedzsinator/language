@@ -62,7 +62,12 @@ impl Viewport {
         });
     }
 
-    pub fn show_content(&mut self, ui: &mut egui::Ui, scene: &Scene, selected_object: Option<u32>) -> Option<u32> {
+    pub fn show_content(
+        &mut self,
+        ui: &mut egui::Ui,
+        scene: &Scene,
+        selected_object: Option<u32>,
+    ) -> Option<u32> {
         // Viewport toolbar
         self.show_viewport_toolbar(ui, scene);
 
@@ -400,11 +405,15 @@ impl Viewport {
 
                 let distance = (object.transform.position - world_click).magnitude();
                 let selection_threshold = match &object.object_type {
-                    GameObjectType::Sphere => (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64,
-                    GameObjectType::Cube => (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64,
+                    GameObjectType::Sphere => {
+                        (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64
+                    }
+                    GameObjectType::Cube => {
+                        (object.transform.scale.x * self.zoom_level as f64 * 10.0) as f64
+                    }
                     _ => 2.0, // Default threshold
                 };
-                
+
                 if distance < closest_distance && distance < selection_threshold {
                     closest_distance = distance;
                     closest_object = Some(*object_id);
@@ -416,7 +425,7 @@ impl Viewport {
 
         // Draw camera information overlay
         self.draw_camera_info(ui, response.rect);
-        
+
         new_selection
     }
 
@@ -713,11 +722,10 @@ impl Viewport {
         );
 
         ui.allocate_new_ui(
-            egui::UiBuilder::new()
-                .max_rect(egui::Rect::from_min_size(
-                    rect.min + egui::Vec2::new(10.0, 10.0),
-                    egui::Vec2::new(300.0, 100.0),
-                )),
+            egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
+                rect.min + egui::Vec2::new(10.0, 10.0),
+                egui::Vec2::new(300.0, 100.0),
+            )),
             |ui| {
                 ui.visuals_mut().override_text_color = Some(egui::Color32::WHITE);
                 ui.label(info_text);

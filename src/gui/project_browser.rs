@@ -8,6 +8,14 @@ pub struct ProjectBrowser {
     show_hidden_files: bool,
     file_filter: String,
     favorites: Vec<String>,
+    project_path: Option<String>,
+    show_create_dialog: bool,
+    create_dialog_name: String,
+    create_dialog_is_folder: bool,
+    // Callbacks for file operations
+    pub script_editor_callback: Option<Box<dyn Fn(&str) + Send + Sync>>,
+    pub scene_loader_callback: Option<Box<dyn Fn(&str) + Send + Sync>>,
+    pub text_editor_callback: Option<Box<dyn Fn(&str) + Send + Sync>>,
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +38,13 @@ impl ProjectBrowser {
             show_hidden_files: false,
             file_filter: String::new(),
             favorites: Vec::new(),
+            project_path: None,
+            show_create_dialog: false,
+            create_dialog_name: String::new(),
+            create_dialog_is_folder: false,
+            script_editor_callback: None,
+            scene_loader_callback: None,
+            text_editor_callback: None,
         };
 
         browser.refresh_file_tree();
@@ -70,11 +85,16 @@ impl ProjectBrowser {
             }
 
             if ui.button("📁").clicked() {
-                // TODO: Open file dialog to select directory
+                // Open file dialog to select directory
+                if let Some(path) = self.select_directory() {
+                    self.project_path = Some(path);
+                    self.refresh_files();
+                }
             }
 
             if ui.button("➕").clicked() {
-                // TODO: Create new file/folder
+                // Create new file/folder
+                self.show_create_dialog = true;
             }
 
             ui.separator();
@@ -239,7 +259,8 @@ impl ProjectBrowser {
                         }
 
                         if ui.button("Show in Explorer").clicked() {
-                            // TODO: Implement show in explorer
+                            // Implement show in explorer
+                            self.show_in_explorer(&node.path);
                             ui.close_menu();
                         }
                     });
@@ -317,119 +338,185 @@ impl ProjectBrowser {
     fn scan_directory(&self, path: &str) -> Vec<FileNode> {
         let mut nodes = Vec::new();
 
-        // Create some default project structure if the directory doesn't exist
-        if path == "Assets" {
-            nodes.push(FileNode {
-                name: "Scripts".to_string(),
-                path: "Assets/Scripts".to_string(),
-                is_directory: true,
-                children: vec![
-                    FileNode {
-                        name: "Player.matrix".to_string(),
-                        path: "Assets/Scripts/Player.matrix".to_string(),
-                        is_directory: false,
-                        children: vec![],
-                        expanded: false,
-                        size: Some(1024),
-                        modified: Some(std::time::SystemTime::now()),
-                    },
-                    FileNode {
-                        name: "GameManager.matrix".to_string(),
-                        path: "Assets/Scripts/GameManager.matrix".to_string(),
-                        is_directory: false,
-                        children: vec![],
-                        expanded: false,
-                        size: Some(2048),
-                        modified: Some(std::time::SystemTime::now()),
-                    },
-                ],
-                expanded: true,
-                size: None,
-                modified: Some(std::time::SystemTime::now()),
-            });
+        // Implement actual file system scanning
+        if let Some(ref project_path) = self.project_path {
+            self.scan_directory_recursive(project_path, &mut nodes);
+        } else {
+            // No project path set, use mock data for demo
+            self.add_mock_data(&mut nodes);
+        }
 
-            nodes.push(FileNode {
-                name: "Scenes".to_string(),
-                path: "Assets/Scenes".to_string(),
-                is_directory: true,
-                children: vec![
-                    FileNode {
-                        name: "Main.scene".to_string(),
-                        path: "Assets/Scenes/Main.scene".to_string(),
-                        is_directory: false,
-                        children: vec![],
-                        expanded: false,
-                        size: Some(4096),
-                        modified: Some(std::time::SystemTime::now()),
-                    },
-                    FileNode {
-                        name: "Level1.scene".to_string(),
-                        path: "Assets/Scenes/Level1.scene".to_string(),
-                        is_directory: false,
-                        children: vec![],
-                        expanded: false,
-                        size: Some(8192),
-                        modified: Some(std::time::SystemTime::now()),
-                    },
-                ],
-                expanded: true,
-                size: None,
-                modified: Some(std::time::SystemTime::now()),
-            });
+        nodes
+    }
 
-            nodes.push(FileNode {
-                name: "Materials".to_string(),
-                path: "Assets/Materials".to_string(),
-                is_directory: true,
-                children: vec![FileNode {
-                    name: "Default.material".to_string(),
-                    path: "Assets/Materials/Default.material".to_string(),
+    /// Scan directory recursively and populate file nodes
+    fn scan_directory_recursive(&self, dir_path: &str, nodes: &mut Vec<FileNode>) {
+        if let Ok(entries) = std::fs::read_dir(dir_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let file_name = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+
+                // Skip hidden files and common build directories
+                if file_name.starts_with('.') ||
+                   file_name == "target" ||
+                   file_name == "node_modules" ||
+                   file_name == "__pycache__" {
+                    continue;
+                }
+
+                let is_directory = path.is_dir();
+                let metadata = entry.metadata().ok();
+                let size = if !is_directory {
+                    metadata.as_ref().map(|m| m.len())
+                } else {
+                    None
+                };
+                let modified = metadata.as_ref()
+                    .and_then(|m| m.modified().ok());
+
+                let mut file_node = FileNode {
+                    name: file_name,
+                    path: path.to_string_lossy().to_string(),
+                    is_directory,
+                    children: Vec::new(),
+                    expanded: false,
+                    size,
+                    modified,
+                };
+
+                // Recursively scan subdirectories (but don't expand them by default)
+                if is_directory {
+                    self.scan_directory_recursive(&file_node.path, &mut file_node.children);
+                }
+
+                nodes.push(file_node);
+            }
+        }
+
+        // Sort nodes: directories first, then files, both alphabetically
+        nodes.sort_by(|a, b| {
+            match (a.is_directory, b.is_directory) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            }
+        });
+    }
+
+    /// Add mock data for demonstration when no project is loaded
+    fn add_mock_data(&self, nodes: &mut Vec<FileNode>) {
+        nodes.push(FileNode {
+            name: "Scenes".to_string(),
+            path: "Scenes".to_string(),
+            is_directory: true,
+            children: vec![
+                FileNode {
+                    name: "MainScene.scene".to_string(),
+                    path: "Scenes/MainScene.scene".to_string(),
                     is_directory: false,
                     children: vec![],
                     expanded: false,
-                    size: Some(512),
+                    size: Some(1024),
                     modified: Some(std::time::SystemTime::now()),
-                }],
-                expanded: false,
-                size: None,
-                modified: Some(std::time::SystemTime::now()),
-            });
+                },
+                FileNode {
+                    name: "PhysicsDemo.scene".to_string(),
+                    path: "Scenes/PhysicsDemo.scene".to_string(),
+                    is_directory: false,
+                    children: vec![],
+                    expanded: false,
+                    size: Some(2048),
+                    modified: Some(std::time::SystemTime::now()),
+                },
+            ],
+            expanded: false,
+            size: None,
+            modified: Some(std::time::SystemTime::now()),
+        });
 
-            nodes.push(FileNode {
-                name: "Textures".to_string(),
-                path: "Assets/Textures".to_string(),
-                is_directory: true,
-                children: vec![],
-                expanded: false,
-                size: None,
-                modified: Some(std::time::SystemTime::now()),
-            });
+        nodes.push(FileNode {
+            name: "Scripts".to_string(),
+            path: "Scripts".to_string(),
+            is_directory: true,
+            children: vec![
+                FileNode {
+                    name: "player_controller.matrix".to_string(),
+                    path: "Scripts/player_controller.matrix".to_string(),
+                    is_directory: false,
+                    children: vec![],
+                    expanded: false,
+                    size: Some(4096),
+                    modified: Some(std::time::SystemTime::now()),
+                },
+                FileNode {
+                    name: "physics_demo.matrix".to_string(),
+                    path: "Scripts/physics_demo.matrix".to_string(),
+                    is_directory: false,
+                    children: vec![],
+                    expanded: false,
+                    size: Some(3072),
+                    modified: Some(std::time::SystemTime::now()),
+                },
+            ],
+            expanded: false,
+            size: None,
+            modified: Some(std::time::SystemTime::now()),
+        });
 
-            nodes.push(FileNode {
-                name: "Models".to_string(),
-                path: "Assets/Models".to_string(),
-                is_directory: true,
-                children: vec![],
-                expanded: false,
-                size: None,
-                modified: Some(std::time::SystemTime::now()),
-            });
+        nodes.push(FileNode {
+            name: "Assets".to_string(),
+            path: "Assets".to_string(),
+            is_directory: true,
+            children: vec![
+                FileNode {
+                    name: "Textures".to_string(),
+                    path: "Assets/Textures".to_string(),
+                    is_directory: true,
+                    children: vec![],
+                    expanded: false,
+                    size: None,
+                    modified: Some(std::time::SystemTime::now()),
+                },
+                FileNode {
+                    name: "Models".to_string(),
+                    path: "Assets/Models".to_string(),
+                    is_directory: true,
+                    children: vec![],
+                    expanded: false,
+                    size: None,
+                    modified: Some(std::time::SystemTime::now()),
+                },
+                FileNode {
+                    name: "Audio".to_string(),
+                    path: "Assets/Audio".to_string(),
+                    is_directory: true,
+                    children: vec![],
+                    expanded: false,
+                    size: None,
+                    modified: Some(std::time::SystemTime::now()),
+                },
+            ],
+            expanded: false,
+            size: None,
+            modified: Some(std::time::SystemTime::now()),
+        });
+    }
 
-            nodes.push(FileNode {
-                name: "Audio".to_string(),
-                path: "Assets/Audio".to_string(),
-                is_directory: true,
-                children: vec![],
-                expanded: false,
-                size: None,
-                modified: Some(std::time::SystemTime::now()),
-            });
-        }
+    /// Simple directory selection (fallback implementation)
+    fn select_directory(&self) -> Option<String> {
+        // For now, return current working directory as a fallback
+        // In a real implementation, this would open a native file dialog
+        std::env::current_dir()
+            .ok()
+            .and_then(|path| path.to_str().map(String::from))
+    }
 
-        // TODO: Implement actual file system scanning
-        // For now, we're using the mock data above
-
-        nodes
+    /// Refresh the file tree
+    fn refresh_files(&mut self) {
+        self.refresh_file_tree();
     }
 
     fn open_file(&self, path: &str) {
@@ -443,27 +530,36 @@ impl ProjectBrowser {
             match extension.to_lowercase().as_str() {
                 "matrix" | "mtx" => {
                     println!("Matrix script file detected: {}", path);
-                    // TODO: Signal to open in script editor
+                    // Signal to open in script editor
+                    if let Some(ref callback) = self.script_editor_callback {
+                        callback(path);
+                    }
                 }
                 "scene" => {
                     println!("Scene file detected: {}", path);
-                    // TODO: Signal to load scene
+                    // Signal to load scene
+                    if let Some(ref callback) = self.scene_loader_callback {
+                        callback(path);
+                    }
                 }
-                "json" | "toml" | "yaml" | "yml" => {
-                    println!("Configuration file detected: {}", path);
-                    // TODO: Open in text editor
+                "json" | "toml" | "yaml" | "yml" | "txt" | "md" | "rs" | "py" | "js" | "ts" => {
+                    println!("Text file detected: {}", path);
+                    // Open in text editor
+                    if let Some(ref callback) = self.text_editor_callback {
+                        callback(path);
+                    }
                 }
                 "png" | "jpg" | "jpeg" | "bmp" | "tga" => {
                     println!("Image file detected: {}", path);
-                    // TODO: Open in image viewer
-                }
-                "txt" | "md" => {
-                    println!("Text file detected: {}", path);
-                    // TODO: Open in text editor
+                    // Open in system default image viewer
+                    self.open_with_system_default(path);
                 }
                 _ => {
                     println!("Unknown file type: {}", path);
                     // Try to open as text file
+                    if let Some(ref callback) = self.text_editor_callback {
+                        callback(path);
+                    }
                 }
             }
         }
@@ -476,6 +572,101 @@ impl ProjectBrowser {
                 }
             }
         }
+    }
+
+    /// Show file/folder in system explorer
+    fn show_in_explorer(&self, path: &str) {
+        let path = std::path::Path::new(path);
+
+        // Platform-specific commands to open file explorer
+        #[cfg(target_os = "windows")]
+        {
+            if path.is_dir() {
+                let _ = std::process::Command::new("explorer")
+                    .arg(path)
+                    .spawn();
+            } else if let Some(parent) = path.parent() {
+                let _ = std::process::Command::new("explorer")
+                    .arg("/select,")
+                    .arg(path)
+                    .spawn();
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            if path.is_dir() {
+                let _ = std::process::Command::new("open")
+                    .arg(path)
+                    .spawn();
+            } else {
+                let _ = std::process::Command::new("open")
+                    .arg("-R")
+                    .arg(path)
+                    .spawn();
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let folder_path = if path.is_dir() {
+                path
+            } else {
+                path.parent().unwrap_or(path)
+            };
+
+            let _ = std::process::Command::new("xdg-open")
+                .arg(folder_path)
+                .spawn();
+        }
+    }
+
+    /// Open file with system default application
+    fn open_with_system_default(&self, path: &str) {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = std::process::Command::new("cmd")
+                .args(["/C", "start", path])
+                .spawn();
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("open")
+                .arg(path)
+                .spawn();
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let _ = std::process::Command::new("xdg-open")
+                .arg(path)
+                .spawn();
+        }
+    }
+
+    /// Set callback for opening script files
+    pub fn set_script_editor_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str) + Send + Sync + 'static,
+    {
+        self.script_editor_callback = Some(Box::new(callback));
+    }
+
+    /// Set callback for loading scene files
+    pub fn set_scene_loader_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str) + Send + Sync + 'static,
+    {
+        self.scene_loader_callback = Some(Box::new(callback));
+    }
+
+    /// Set callback for opening text files
+    pub fn set_text_editor_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str) + Send + Sync + 'static,
+    {
+        self.text_editor_callback = Some(Box::new(callback));
     }
 }
 

@@ -558,6 +558,31 @@ impl Quat {
             )
         }
     }
+
+    pub fn to_axis_angle(self) -> (Vec3, f64) {
+        let normalized = self.normalized();
+
+        // Handle the case where w = 1 (no rotation)
+        if normalized.w >= 1.0 {
+            return (Vec3::up(), 0.0);
+        }
+
+        let angle = 2.0 * normalized.w.clamp(-1.0, 1.0).acos();
+        let sin_half_angle = (1.0 - normalized.w * normalized.w).sqrt();
+
+        if sin_half_angle < 1e-6 {
+            // Near zero rotation
+            return (Vec3::up(), 0.0);
+        }
+
+        let axis = Vec3::new(
+            normalized.x / sin_half_angle,
+            normalized.y / sin_half_angle,
+            normalized.z / sin_half_angle,
+        );
+
+        (axis, angle)
+    }
 }
 
 impl Mul for Quat {

@@ -1,7 +1,7 @@
+use super::*;
+use crate::eval::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::eval::Interpreter;
-use super::*;
 
 /// Console panel for logging, debugging, and command input
 pub struct Console {
@@ -15,6 +15,9 @@ pub struct Console {
     max_entries: usize,
     pub scene_callback: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
     pub spawn_callback: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
+    debug_mode: bool,
+    frame_times: std::collections::VecDeque<std::time::Instant>,
+    last_frame_time: std::time::Instant,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +78,9 @@ impl Console {
             max_entries: 1000,
             scene_callback: None,
             spawn_callback: None,
+            debug_mode: false,
+            frame_times: std::collections::VecDeque::with_capacity(60),
+            last_frame_time: std::time::Instant::now(),
         };
 
         // Add some initial messages
@@ -310,10 +316,18 @@ impl Console {
                     // Execute the script file
                     match self.execute_script(script_name) {
                         Ok(result) => {
-                            self.log(LogLevel::Info, &format!("Script result: {}", result), "System");
+                            self.log(
+                                LogLevel::Info,
+                                &format!("Script result: {}", result),
+                                "System",
+                            );
                         }
                         Err(error) => {
-                            self.log(LogLevel::Error, &format!("Script error: {}", error), "System");
+                            self.log(
+                                LogLevel::Error,
+                                &format!("Script error: {}", error),
+                                "System",
+                            );
                         }
                     }
                 } else {
@@ -375,12 +389,10 @@ impl Console {
                 if parts.len() > 1 {
                     match parts[1].to_lowercase().as_str() {
                         "on" | "true" | "1" => {
-                            self.log(LogLevel::Info, "Debug mode enabled", "System");
-                            // TODO: Enable debug mode
+                            self.set_debug_mode(true);
                         }
                         "off" | "false" | "0" => {
-                            self.log(LogLevel::Info, "Debug mode disabled", "System");
-                            // TODO: Disable debug mode
+                            self.set_debug_mode(false);
                         }
                         _ => {
                             self.log(LogLevel::Warning, "debug requires 'on' or 'off'", "System");
@@ -392,10 +404,30 @@ impl Console {
             }
 
             "fps" => {
+                let current_fps = self.calculate_fps();
+                let frame_time_ms = 1000.0 / current_fps;
+
                 self.log(LogLevel::Info, "Performance Information:", "System");
-                self.log(LogLevel::Info, "  FPS: 60", "System"); // TODO: Get actual FPS
-                self.log(LogLevel::Info, "  Frame Time: 16.7ms", "System");
-                self.log(LogLevel::Info, "  Memory Usage: 128MB", "System");
+                self.log(
+                    LogLevel::Info,
+                    &format!("  FPS: {:.1}", current_fps),
+                    "System",
+                );
+                self.log(
+                    LogLevel::Info,
+                    &format!("  Frame Time: {:.1}ms", frame_time_ms),
+                    "System",
+                );
+
+                // Get memory usage (approximate)
+                let memory_usage = self.log_entries.len() * std::mem::size_of::<LogEntry>()
+                    + self.command_history.iter().map(|s| s.len()).sum::<usize>()
+                    + self.frame_times.len() * std::mem::size_of::<std::time::Instant>();
+                self.log(
+                    LogLevel::Info,
+                    &format!("  Console Memory: {:.1}KB", memory_usage as f32 / 1024.0),
+                    "System",
+                );
             }
 
             _ => {
@@ -407,12 +439,14 @@ impl Console {
                         "Interpreter",
                     );
 
-                    // TODO: Execute with Matrix Language interpreter
+                    // Execute with Matrix Language interpreter
                     let lexer = Lexer::new(command);
                     match Parser::new(lexer) {
                         Ok(mut parser) => match parser.parse_expression() {
                             Ok(ast) => {
-                                self.log(LogLevel::Debug, &format!("AST: {:?}", ast), "Parser");
+                                if self.debug_mode {
+                                    self.log(LogLevel::Debug, &format!("AST: {:?}", ast), "Parser");
+                                }
 
                                 let mut interpreter = Interpreter::new();
                                 match interpreter.eval_expression(&ast) {
@@ -498,6 +532,11 @@ impl Console {
     }
 
     pub fn log(&mut self, level: LogLevel, message: &str, source: &str) {
+        // Skip debug messages when debug mode is disabled
+        if level == LogLevel::Debug && !self.debug_mode {
+            return;
+        }
+
         let entry = LogEntry {
             timestamp: std::time::SystemTime::now(),
             level,
@@ -544,7 +583,12 @@ impl Console {
                 // Try in current directory
                 match std::fs::read_to_string(&format!("./{}", script_path)) {
                     Ok(content) => content,
-                    Err(e) => return Err(format!("Could not read script file '{}': {}", script_path, e)),
+                    Err(e) => {
+                        return Err(format!(
+                            "Could not read script file '{}': {}",
+                            script_path, e
+                        ))
+                    }
                 }
             }
         };
@@ -553,10 +597,14 @@ impl Console {
         let lexer = Lexer::new(&script_content);
 
         let mut parser = Parser::new(lexer).map_err(|e| format!("Parser init error: {:?}", e))?;
-        let ast = parser.parse_program().map_err(|e| format!("Parser error: {:?}", e))?;
+        let ast = parser
+            .parse_program()
+            .map_err(|e| format!("Parser error: {:?}", e))?;
 
         let mut interpreter = Interpreter::new();
-        let result = interpreter.eval_program(&ast).map_err(|e| format!("Runtime error: {:?}", e))?;
+        let result = interpreter
+            .eval_program(&ast)
+            .map_err(|e| format!("Runtime error: {:?}", e))?;
 
         // Convert result to string for display
         Ok(format!("{:?}", result))
@@ -564,16 +612,66 @@ impl Console {
 
     /// Set scene switch callback
     pub fn set_scene_callback<F>(&mut self, callback: F)
-    where F: Fn(&str) -> bool + Send + Sync + 'static
+    where
+        F: Fn(&str) -> bool + Send + Sync + 'static,
     {
         self.scene_callback = Some(Box::new(callback));
     }
 
     /// Set object spawn callback
     pub fn set_spawn_callback<F>(&mut self, callback: F)
-    where F: Fn(&str) -> bool + Send + Sync + 'static
+    where
+        F: Fn(&str) -> bool + Send + Sync + 'static,
     {
         self.spawn_callback = Some(Box::new(callback));
+    }
+
+    /// Update FPS tracking - should be called every frame
+    pub fn update_fps(&mut self) {
+        let now = std::time::Instant::now();
+        self.frame_times.push_back(now);
+
+        // Keep only last 60 frames for FPS calculation
+        while self.frame_times.len() > 60 {
+            self.frame_times.pop_front();
+        }
+
+        self.last_frame_time = now;
+    }
+
+    /// Calculate current FPS based on recent frame times
+    fn calculate_fps(&self) -> f32 {
+        if self.frame_times.len() < 2 {
+            return 60.0; // Default fallback
+        }
+
+        let duration = self
+            .frame_times
+            .back()
+            .unwrap()
+            .duration_since(*self.frame_times.front().unwrap());
+
+        if duration.as_secs_f32() > 0.0 {
+            (self.frame_times.len() - 1) as f32 / duration.as_secs_f32()
+        } else {
+            60.0
+        }
+    }
+
+    /// Get current debug mode status
+    pub fn is_debug_mode(&self) -> bool {
+        self.debug_mode
+    }
+
+    /// Set debug mode and log the change
+    pub fn set_debug_mode(&mut self, enabled: bool) {
+        self.debug_mode = enabled;
+        if enabled {
+            self.log(LogLevel::Info, "Debug logging enabled", "System");
+            self.log(LogLevel::Debug, "This is a debug message", "System");
+        } else {
+            self.log(LogLevel::Info, "Debug logging disabled", "System");
+        }
     }
 }
 

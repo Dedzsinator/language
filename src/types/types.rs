@@ -56,6 +56,9 @@ pub enum TypeError {
         line: usize,
         column: usize,
     },
+
+    #[error("Circular import detected: module {module} is already being imported")]
+    CircularImport { module: String, chain: Vec<String> },
 }
 
 pub type TypeResult<T> = Result<T, TypeError>;

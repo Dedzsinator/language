@@ -9,7 +9,7 @@ pub mod lexer;
 pub mod parser;
 pub mod physics;
 pub mod runtime;
-// pub mod stdlib; // Temporarily disabled due to API mismatch
+pub mod stdlib; // Re-enabled after fixing API mismatch
 pub mod tests;
 pub mod types; // Add debug tests module
 

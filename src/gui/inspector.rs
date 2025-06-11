@@ -5,6 +5,11 @@ pub struct Inspector {
     // Component editing state
     editing_component: Option<usize>,
     temp_values: std::collections::HashMap<String, String>,
+    // Tags system
+    available_tags: Vec<String>,
+    new_tag_name: String,
+    show_script_dialog: bool,
+    show_script_editor: bool,
 }
 
 impl Inspector {
@@ -12,6 +17,17 @@ impl Inspector {
         Self {
             editing_component: None,
             temp_values: std::collections::HashMap::new(),
+            available_tags: vec![
+                "Untagged".to_string(),
+                "Player".to_string(),
+                "Enemy".to_string(),
+                "Environment".to_string(),
+                "UI".to_string(),
+                "Pickup".to_string(),
+            ],
+            new_tag_name: String::new(),
+            show_script_dialog: false,
+            show_script_editor: false,
         }
     }
 
@@ -30,12 +46,26 @@ impl Inspector {
                 } else {
                     ui.label("No object selected");
                 }
+
+                // Show dialogs if requested
+                if self.show_script_dialog {
+                    self.show_script_dialog(ui);
+                }
+
+                if self.show_script_editor {
+                    self.show_script_editor(ui);
+                }
             });
     }
 
-    pub fn show_ui(&mut self, ui: &mut egui::Ui, scene: &mut Scene, selected_object: Option<u32>) -> bool {
+    pub fn show_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        scene: &mut Scene,
+        selected_object: Option<u32>,
+    ) -> bool {
         ui.heading("Inspector");
-        
+
         let mut transform_changed = false;
 
         if let Some(object_id) = selected_object {
@@ -47,13 +77,13 @@ impl Inspector {
         } else {
             ui.label("No object selected");
         }
-        
+
         transform_changed
     }
 
     fn show_object_inspector(&mut self, ui: &mut egui::Ui, object: &mut GameObject) -> bool {
         let mut transform_changed = false;
-        
+
         egui::ScrollArea::vertical().show(ui, |ui| {
             // Object header
             ui.group(|ui| {
@@ -64,7 +94,25 @@ impl Inspector {
 
                 ui.horizontal(|ui| {
                     ui.label("Tag:");
-                    ui.text_edit_singleline(&mut String::from("Untagged")); // TODO: Add tags system
+                    egui::ComboBox::from_id_salt("tag_combo")
+                        .selected_text(&object.tag)
+                        .show_ui(ui, |ui| {
+                            for tag in &self.available_tags {
+                                ui.selectable_value(&mut object.tag, tag.clone(), tag);
+                            }
+
+                            ui.separator();
+                            ui.horizontal(|ui| {
+                                ui.text_edit_singleline(&mut self.new_tag_name);
+                                if ui.button("Add Tag").clicked() && !self.new_tag_name.is_empty() {
+                                    if !self.available_tags.contains(&self.new_tag_name) {
+                                        self.available_tags.push(self.new_tag_name.clone());
+                                    }
+                                    object.tag = self.new_tag_name.clone();
+                                    self.new_tag_name.clear();
+                                }
+                            });
+                        });
                 });
 
                 ui.horizontal(|ui| {
@@ -105,38 +153,47 @@ impl Inspector {
                 self.show_add_component_menu(ui, object);
             }
         });
-        
+
         transform_changed
     }
 
     fn show_transform_component(&mut self, ui: &mut egui::Ui, transform: &mut Transform) -> bool {
         let mut changed = false;
-        
+
         egui::CollapsingHeader::new("Transform")
             .default_open(true)
             .show(ui, |ui| {
                 ui.columns(2, |columns| {
                     columns[0].label("Position");
                     columns[1].horizontal(|ui| {
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.position.x)
-                                .prefix("X: ")
-                                .speed(0.1),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.position.x)
+                                    .prefix("X: ")
+                                    .speed(0.1),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.position.y)
-                                .prefix("Y: ")
-                                .speed(0.1),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.position.y)
+                                    .prefix("Y: ")
+                                    .speed(0.1),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.position.z)
-                                .prefix("Z: ")
-                                .speed(0.1),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.position.z)
+                                    .prefix("Z: ")
+                                    .speed(0.1),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
                     });
@@ -145,28 +202,37 @@ impl Inspector {
                 ui.columns(2, |columns| {
                     columns[0].label("Rotation");
                     columns[1].horizontal(|ui| {
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.rotation.x)
-                                .prefix("X: ")
-                                .speed(1.0)
-                                .suffix("°"),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.rotation.x)
+                                    .prefix("X: ")
+                                    .speed(1.0)
+                                    .suffix("°"),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.rotation.y)
-                                .prefix("Y: ")
-                                .speed(1.0)
-                                .suffix("°"),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.rotation.y)
+                                    .prefix("Y: ")
+                                    .speed(1.0)
+                                    .suffix("°"),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.rotation.z)
-                                .prefix("Z: ")
-                                .speed(1.0)
-                                .suffix("°"),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.rotation.z)
+                                    .prefix("Z: ")
+                                    .speed(1.0)
+                                    .suffix("°"),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
                     });
@@ -175,34 +241,43 @@ impl Inspector {
                 ui.columns(2, |columns| {
                     columns[0].label("Scale");
                     columns[1].horizontal(|ui| {
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.scale.x)
-                                .prefix("X: ")
-                                .speed(0.01)
-                                .range(0.001..=100.0),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.scale.x)
+                                    .prefix("X: ")
+                                    .speed(0.01)
+                                    .range(0.001..=100.0),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.scale.y)
-                                .prefix("Y: ")
-                                .speed(0.01)
-                                .range(0.001..=100.0),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.scale.y)
+                                    .prefix("Y: ")
+                                    .speed(0.01)
+                                    .range(0.001..=100.0),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
-                        if ui.add(
-                            egui::DragValue::new(&mut transform.scale.z)
-                                .prefix("Z: ")
-                                .speed(0.01)
-                                .range(0.001..=100.0),
-                        ).changed() {
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut transform.scale.z)
+                                    .prefix("Z: ")
+                                    .speed(0.01)
+                                    .range(0.001..=100.0),
+                            )
+                            .changed()
+                        {
                             changed = true;
                         }
                     });
                 });
             });
-        
+
         changed
     }
 
@@ -445,7 +520,7 @@ impl Inspector {
                             ui.label("Script:");
                             ui.text_edit_singleline(script_path);
                             if ui.button("Browse").clicked() {
-                                // TODO: Open file dialog
+                                self.show_script_dialog = true;
                             }
                             if ui.small_button("🗑").clicked() {
                                 should_remove = true;
@@ -460,7 +535,7 @@ impl Inspector {
                         );
 
                         if ui.button("Edit Script").clicked() {
-                            // TODO: Open script editor
+                            self.show_script_editor = true;
                         }
                     });
             }
@@ -609,6 +684,91 @@ impl Inspector {
                 ui.close_menu();
             }
         });
+    }
+
+    /// Show script file browser dialog
+    fn show_script_dialog(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Select Script File")
+            .collapsible(false)
+            .resizable(true)
+            .show(ui.ctx(), |ui| {
+                ui.label("Select a Matrix Language script file:");
+                ui.separator();
+
+                // Simple file browser for script files
+                if let Ok(entries) = std::fs::read_dir(".") {
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            for entry in entries.flatten() {
+                                if let Some(name) = entry.file_name().to_str() {
+                                    if name.ends_with(".matrix") || name.ends_with(".ml") {
+                                        if ui.selectable_label(false, name).clicked() {
+                                            // This would set the script path in the component
+                                            // For now, just close the dialog
+                                            self.show_script_dialog = false;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                }
+
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.button("Cancel").clicked() {
+                        self.show_script_dialog = false;
+                    }
+                });
+            });
+    }
+
+    /// Show script editor window
+    fn show_script_editor(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Script Editor")
+            .collapsible(false)
+            .resizable(true)
+            .default_width(600.0)
+            .default_height(400.0)
+            .show(ui.ctx(), |ui| {
+                ui.label("Matrix Language Script Editor");
+                ui.separator();
+
+                // Basic script editor interface
+                ui.horizontal(|ui| {
+                    if ui.button("💾 Save").clicked() {
+                        // Save script logic here
+                        println!("Save script");
+                    }
+                    if ui.button("▶ Run").clicked() {
+                        // Run script logic here
+                        println!("Run script");
+                    }
+                    if ui.button("🐛 Debug").clicked() {
+                        // Debug script logic here
+                        println!("Debug script");
+                    }
+                });
+
+                ui.separator();
+
+                // Script content area
+                let mut script_content =
+                    "// Matrix Language Script\nlet x = 5\nlet y = x * 2\nprint(y)".to_string();
+                ui.add(
+                    egui::TextEdit::multiline(&mut script_content)
+                        .desired_rows(20)
+                        .desired_width(f32::INFINITY)
+                        .font(egui::TextStyle::Monospace),
+                );
+
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.button("Close").clicked() {
+                        self.show_script_editor = false;
+                    }
+                });
+            });
     }
 }
 

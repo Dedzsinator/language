@@ -731,7 +731,194 @@ impl IrPrinter {
                     .join(", ");
                 format!("{}call @{}({})", result_str, function, args_str)
             }
-            _ => format!("TODO: {:#?}", instruction),
+            IrInstruction::Sub {
+                result,
+                left,
+                right,
+            } => {
+                format!(
+                    "{} = fsub {}, {}",
+                    self.value_to_string(result),
+                    self.value_to_string(left),
+                    self.value_to_string(right)
+                )
+            }
+            IrInstruction::Mul {
+                result,
+                left,
+                right,
+            } => {
+                format!(
+                    "{} = fmul {}, {}",
+                    self.value_to_string(result),
+                    self.value_to_string(left),
+                    self.value_to_string(right)
+                )
+            }
+            IrInstruction::Div {
+                result,
+                left,
+                right,
+            } => {
+                format!(
+                    "{} = fdiv {}, {}",
+                    self.value_to_string(result),
+                    self.value_to_string(left),
+                    self.value_to_string(right)
+                )
+            }
+            IrInstruction::Pow { result, base, exp } => {
+                format!(
+                    "{} = fpow {}, {}",
+                    self.value_to_string(result),
+                    self.value_to_string(base),
+                    self.value_to_string(exp)
+                )
+            }
+            IrInstruction::Alloca { result, alloc_type } => {
+                format!(
+                    "{} = alloca {}",
+                    self.value_to_string(result),
+                    self.type_to_string(alloc_type)
+                )
+            }
+            IrInstruction::VectorCreate { result, elements } => {
+                let elements_str = elements
+                    .iter()
+                    .map(|elem| self.value_to_string(elem))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "{} = vector_create [{}]",
+                    self.value_to_string(result),
+                    elements_str
+                )
+            }
+            IrInstruction::MatrixCreate {
+                result,
+                rows,
+                cols,
+                elements,
+            } => {
+                let elements_str = elements
+                    .iter()
+                    .map(|elem| self.value_to_string(elem))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "{} = matrix_create {}x{} [{}]",
+                    self.value_to_string(result),
+                    rows,
+                    cols,
+                    elements_str
+                )
+            }
+            IrInstruction::VectorIndex {
+                result,
+                vector,
+                index,
+            } => {
+                format!(
+                    "{} = vector_index {}, {}",
+                    self.value_to_string(result),
+                    self.value_to_string(vector),
+                    self.value_to_string(index)
+                )
+            }
+            IrInstruction::MatrixIndex {
+                result,
+                matrix,
+                row,
+                col,
+            } => {
+                format!(
+                    "{} = matrix_index {}, {}, {}",
+                    self.value_to_string(result),
+                    self.value_to_string(matrix),
+                    self.value_to_string(row),
+                    self.value_to_string(col)
+                )
+            }
+            IrInstruction::PhysicsStep { timestep } => {
+                format!("physics_step {}", self.value_to_string(timestep))
+            }
+            IrInstruction::ApplyForce { object, force } => {
+                format!(
+                    "apply_force {}, {}",
+                    self.value_to_string(object),
+                    self.value_to_string(force)
+                )
+            }
+            IrInstruction::GetPosition { result, object } => {
+                format!(
+                    "{} = get_position {}",
+                    self.value_to_string(result),
+                    self.value_to_string(object)
+                )
+            }
+            IrInstruction::SetPosition { object, position } => {
+                format!(
+                    "set_position {}, {}",
+                    self.value_to_string(object),
+                    self.value_to_string(position)
+                )
+            }
+            IrInstruction::Cast {
+                result,
+                value,
+                target_type,
+            } => {
+                format!(
+                    "{} = cast {} to {}",
+                    self.value_to_string(result),
+                    self.value_to_string(value),
+                    self.type_to_string(target_type)
+                )
+            }
+            IrInstruction::ICmp {
+                result,
+                predicate,
+                left,
+                right,
+            } => {
+                let pred_str = match predicate {
+                    IrPredicate::Equal => "eq",
+                    IrPredicate::NotEqual => "ne",
+                    IrPredicate::Less => "slt",
+                    IrPredicate::LessEqual => "sle",
+                    IrPredicate::Greater => "sgt",
+                    IrPredicate::GreaterEqual => "sge",
+                };
+                format!(
+                    "{} = icmp {} {}, {}",
+                    self.value_to_string(result),
+                    pred_str,
+                    self.value_to_string(left),
+                    self.value_to_string(right)
+                )
+            }
+            IrInstruction::FCmp {
+                result,
+                predicate,
+                left,
+                right,
+            } => {
+                let pred_str = match predicate {
+                    IrPredicate::Equal => "oeq",
+                    IrPredicate::NotEqual => "one",
+                    IrPredicate::Less => "olt",
+                    IrPredicate::LessEqual => "ole",
+                    IrPredicate::Greater => "ogt",
+                    IrPredicate::GreaterEqual => "oge",
+                };
+                format!(
+                    "{} = fcmp {} {}, {}",
+                    self.value_to_string(result),
+                    pred_str,
+                    self.value_to_string(left),
+                    self.value_to_string(right)
+                )
+            }
         }
     }
 
