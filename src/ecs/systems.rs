@@ -338,61 +338,34 @@ pub fn constraint_solving_system(
     _config: Res<PhysicsConfig>,
     time: Res<Time>,
     mut constraints_query: Query<&mut ConstraintComponent>,
-    _rigid_bodies: Query<(&mut PhysicsTransform, &mut VelocityComponent, &RigidBodyComponent)>,
+    mut transform_query: Query<&mut PhysicsTransform>,
 ) {
     if time.paused {
         return;
     }
 
-    // XPBD constraint solving between entities
+    let dt = time.delta;
+
+    // Basic constraint solving (simplified version)
     for mut constraint_comp in constraints_query.iter_mut() {
-        for constraint in &mut constraint_comp.constraints {
-            // Implement simplified XPBD constraint solving for entity-entity constraints
+        // Clone constraints to avoid borrowing issues
+        let constraints_clone = constraint_comp.constraints.clone();
+
+        for constraint in &constraints_clone {
+            // For now, just implement basic constraint solving
+            // In a real implementation, we'd use proper XPBD solver
             match constraint {
-                super::components::PhysicsConstraint::Distance { entity_a, entity_b, rest_length, stiffness } => {
-                    // Distance constraint between two entities
-                    if let (Ok(transform_a), Ok(transform_b)) = (transform_query.get(*entity_a), transform_query.get(*entity_b)) {
-                        let pos_a = transform_a.translation;
-                        let pos_b = transform_b.translation;
-
-                        let diff = pos_b - pos_a;
-                        let current_length = diff.magnitude();
-
-                        if current_length > 1e-6 {
-                            let constraint_value = current_length - rest_length;
-                            let direction = diff / current_length;
-
-                            // XPBD compliance approach
-                            let dt2 = dt * dt;
-                            let alpha = 1.0 / (stiffness * dt2);
-                            let correction_magnitude = -constraint_value / (2.0 + alpha); // Assuming equal masses
-
-                            let correction = direction * correction_magnitude * 0.5; // Split correction between bodies
-
-                            // Apply position corrections (would need mutable access to transforms)
-                            // This is a simplified version - in practice would need proper entity component access
-                        }
-                    }
+                crate::physics::constraints::Constraint::Distance { body_a: _, body_b: _, rest_length: _, stiffness: _, damping: _, lambda: _ } => {
+                    // Distance constraint solving would go here
+                    // This is a placeholder for the actual implementation
                 },
-                super::components::PhysicsConstraint::Fixed { entity_a, entity_b, anchor_offset, stiffness } => {
-                    // Fixed joint constraint between entities
-                    if let (Ok(transform_a), Ok(transform_b)) = (transform_query.get(*entity_a), transform_query.get(*entity_b)) {
-                        let target_pos = transform_a.translation + *anchor_offset;
-                        let current_pos = transform_b.translation;
-
-                        let constraint_vector = current_pos - target_pos;
-                        let constraint_magnitude = constraint_vector.magnitude();
-
-                        if constraint_magnitude > 1e-6 {
-                            let dt2 = dt * dt;
-                            let alpha = 1.0 / (stiffness * dt2);
-                            let correction_magnitude = -constraint_magnitude / (2.0 + alpha);
-                            let correction = constraint_vector.normalized() * correction_magnitude * 0.5;
-
-                            // Apply corrections (simplified)
-                        }
-                    }
+                crate::physics::constraints::Constraint::Fixed { body_a: _, body_b: _, anchor_a: _, anchor_b: _, stiffness: _, lambda: _ } => {
+                    // Fixed constraint solving would go here
+                    // This is a placeholder for the actual implementation
                 },
+                _ => {
+                    // Other constraint types
+                }
             }
         }
     }

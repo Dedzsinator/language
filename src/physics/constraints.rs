@@ -123,43 +123,151 @@ impl ConstraintSolver {
         }
     }
 
-    fn solve_constraint(&self, constraint: &mut Constraint, rigid_bodies: &mut [RigidBody],
-                       soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_constraint(
+        &self,
+        constraint: &mut Constraint,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         match constraint {
-            Constraint::Distance { body_a, body_b, rest_length, stiffness, damping, lambda } => {
-                self.solve_distance_constraint(*body_a, *body_b, *rest_length, *stiffness,
-                                             *damping, lambda, rigid_bodies, soft_bodies, dt2)
-            },
-            Constraint::Hinge { body_a, body_b, anchor_a, anchor_b, axis_a, axis_b, stiffness, lambda } => {
-                self.solve_hinge_constraint(*body_a, *body_b, *anchor_a, *anchor_b, *axis_a, *axis_b,
-                                          *stiffness, lambda, rigid_bodies, soft_bodies, dt2)
-            },
-            Constraint::Fixed { body_a, body_b, anchor_a, anchor_b, stiffness, lambda } => {
-                self.solve_fixed_constraint(*body_a, *body_b, *anchor_a, *anchor_b, *stiffness,
-                                          lambda, rigid_bodies, soft_bodies, dt2)
-            },
-            Constraint::Contact { body_a, body_b, contact_point, contact_normal, penetration_depth,
-                                friction, restitution, lambda_normal, lambda_tangent } => {
-                self.solve_contact_constraint(*body_a, *body_b, *contact_point, *contact_normal,
-                                            *penetration_depth, *friction, *restitution,
-                                            lambda_normal, lambda_tangent, rigid_bodies, soft_bodies, dt2)
-            },
-            Constraint::Spring { body_a, body_b, anchor_a, anchor_b, rest_length, spring_constant,
-                               damping_constant, lambda } => {
-                self.solve_spring_constraint(*body_a, *body_b, *anchor_a, *anchor_b, *rest_length,
-                                           *spring_constant, *damping_constant, lambda,
-                                           rigid_bodies, soft_bodies, dt2)
-            },
-            Constraint::Angular { body_a, body_b, rest_angle, axis, stiffness, lambda } => {
-                self.solve_angular_constraint(*body_a, *body_b, *rest_angle, *axis, *stiffness,
-                                            lambda, rigid_bodies, soft_bodies, dt2)
-            },
+            Constraint::Distance {
+                body_a,
+                body_b,
+                rest_length,
+                stiffness,
+                damping,
+                lambda,
+            } => self.solve_distance_constraint(
+                *body_a,
+                *body_b,
+                *rest_length,
+                *stiffness,
+                *damping,
+                lambda,
+                rigid_bodies,
+                soft_bodies,
+                dt2,
+            ),
+            Constraint::Hinge {
+                body_a,
+                body_b,
+                anchor_a,
+                anchor_b,
+                axis_a,
+                axis_b,
+                stiffness,
+                lambda,
+            } => self.solve_hinge_constraint(
+                *body_a,
+                *body_b,
+                *anchor_a,
+                *anchor_b,
+                *axis_a,
+                *axis_b,
+                *stiffness,
+                lambda,
+                rigid_bodies,
+                soft_bodies,
+                dt2,
+            ),
+            Constraint::Fixed {
+                body_a,
+                body_b,
+                anchor_a,
+                anchor_b,
+                stiffness,
+                lambda,
+            } => self.solve_fixed_constraint(
+                *body_a,
+                *body_b,
+                *anchor_a,
+                *anchor_b,
+                *stiffness,
+                lambda,
+                rigid_bodies,
+                soft_bodies,
+                dt2,
+            ),
+            Constraint::Contact {
+                body_a,
+                body_b,
+                contact_point,
+                contact_normal,
+                penetration_depth,
+                friction,
+                restitution,
+                lambda_normal,
+                lambda_tangent,
+            } => self.solve_contact_constraint(
+                *body_a,
+                *body_b,
+                *contact_point,
+                *contact_normal,
+                *penetration_depth,
+                *friction,
+                *restitution,
+                lambda_normal,
+                lambda_tangent,
+                rigid_bodies,
+                soft_bodies,
+                dt2,
+            ),
+            Constraint::Spring {
+                body_a,
+                body_b,
+                anchor_a,
+                anchor_b,
+                rest_length,
+                spring_constant,
+                damping_constant,
+                lambda,
+            } => self.solve_spring_constraint(
+                *body_a,
+                *body_b,
+                *anchor_a,
+                *anchor_b,
+                *rest_length,
+                *spring_constant,
+                *damping_constant,
+                lambda,
+                rigid_bodies,
+                soft_bodies,
+                dt2,
+            ),
+            Constraint::Angular {
+                body_a,
+                body_b,
+                rest_angle,
+                axis,
+                stiffness,
+                lambda,
+            } => self.solve_angular_constraint(
+                *body_a,
+                *body_b,
+                *rest_angle,
+                *axis,
+                *stiffness,
+                lambda,
+                rigid_bodies,
+                soft_bodies,
+                dt2,
+            ),
         }
     }
 
-    fn solve_distance_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                                rest_length: f64, stiffness: f64, _damping: f64, lambda: &mut f64,
-                                rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_distance_constraint(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        rest_length: f64,
+        stiffness: f64,
+        _damping: f64,
+        lambda: &mut f64,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         let (pos_a, mass_a) = self.get_position_and_mass(body_a, rigid_bodies, soft_bodies);
         let (pos_b, mass_b) = self.get_position_and_mass(body_b, rigid_bodies, soft_bodies);
 
@@ -201,16 +309,34 @@ impl ConstraintSolver {
         constraint_value.abs()
     }
 
-    fn solve_hinge_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                             anchor_a: Vec3, anchor_b: Vec3, _axis_a: Vec3, _axis_b: Vec3,
-                             stiffness: f64, lambda: &mut Vec3, rigid_bodies: &mut [RigidBody],
-                             soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_hinge_constraint(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        anchor_a: Vec3,
+        anchor_b: Vec3,
+        _axis_a: Vec3,
+        _axis_b: Vec3,
+        stiffness: f64,
+        lambda: &mut Vec3,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         // For simplicity, implementing as a fixed joint with angular constraint
         // Full hinge constraint would require more complex angular calculations
         let mut lambda_array = [lambda.x, lambda.y, lambda.z];
-        let fixed_error = self.solve_fixed_constraint_impl(body_a, body_b, anchor_a, anchor_b,
-                                                          stiffness, &mut lambda_array,
-                                                          rigid_bodies, soft_bodies, dt2);
+        let fixed_error = self.solve_fixed_constraint_impl(
+            body_a,
+            body_b,
+            anchor_a,
+            anchor_b,
+            stiffness,
+            &mut lambda_array,
+            rigid_bodies,
+            soft_bodies,
+            dt2,
+        );
         lambda.x = lambda_array[0];
         lambda.y = lambda_array[1];
         lambda.z = lambda_array[2];
@@ -225,31 +351,74 @@ impl ConstraintSolver {
         let mut angular_lambda1 = 0.0;
         let mut angular_lambda2 = 0.0;
 
-        let angular_error1 = self.solve_angular_constraint(body_a, body_b, 0.0, perp1,
-                                                          stiffness * 0.1, &mut angular_lambda1,
-                                                          rigid_bodies, soft_bodies, dt2);
-        let angular_error2 = self.solve_angular_constraint(body_a, body_b, 0.0, perp2,
-                                                          stiffness * 0.1, &mut angular_lambda2,
-                                                          rigid_bodies, soft_bodies, dt2);
+        let angular_error1 = self.solve_angular_constraint(
+            body_a,
+            body_b,
+            0.0,
+            perp1,
+            stiffness * 0.1,
+            &mut angular_lambda1,
+            rigid_bodies,
+            soft_bodies,
+            dt2,
+        );
+        let angular_error2 = self.solve_angular_constraint(
+            body_a,
+            body_b,
+            0.0,
+            perp2,
+            stiffness * 0.1,
+            &mut angular_lambda2,
+            rigid_bodies,
+            soft_bodies,
+            dt2,
+        );
 
         fixed_error + angular_error1 + angular_error2
     }
 
-    fn solve_fixed_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                             anchor_a: Vec3, anchor_b: Vec3, stiffness: f64, lambda: &mut Vec3,
-                             rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_fixed_constraint(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        anchor_a: Vec3,
+        anchor_b: Vec3,
+        stiffness: f64,
+        lambda: &mut Vec3,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         let mut lambda_array = [lambda.x, lambda.y, lambda.z];
-        let result = self.solve_fixed_constraint_impl(body_a, body_b, anchor_a, anchor_b, stiffness,
-                                       &mut lambda_array, rigid_bodies, soft_bodies, dt2);
+        let result = self.solve_fixed_constraint_impl(
+            body_a,
+            body_b,
+            anchor_a,
+            anchor_b,
+            stiffness,
+            &mut lambda_array,
+            rigid_bodies,
+            soft_bodies,
+            dt2,
+        );
         lambda.x = lambda_array[0];
         lambda.y = lambda_array[1];
         lambda.z = lambda_array[2];
         result
     }
 
-    fn solve_fixed_constraint_impl(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                                  anchor_a: Vec3, anchor_b: Vec3, stiffness: f64, lambda: &mut [f64; 3],
-                                  rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_fixed_constraint_impl(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        anchor_a: Vec3,
+        anchor_b: Vec3,
+        stiffness: f64,
+        lambda: &mut [f64; 3],
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         let world_anchor_a = self.get_world_point(body_a, anchor_a, rigid_bodies, soft_bodies);
         let world_anchor_b = self.get_world_point(body_b, anchor_b, rigid_bodies, soft_bodies);
 
@@ -271,7 +440,11 @@ impl ConstraintSolver {
         }
 
         // Solve for each axis separately
-        let constraint_components = [constraint_vector.x, constraint_vector.y, constraint_vector.z];
+        let constraint_components = [
+            constraint_vector.x,
+            constraint_vector.y,
+            constraint_vector.z,
+        ];
         for i in 0..3 {
             let constraint_value = constraint_components[i];
             let denominator = total_mass + alpha;
@@ -300,11 +473,21 @@ impl ConstraintSolver {
         constraint_magnitude
     }
 
-    fn solve_contact_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                               _contact_point: Vec3, contact_normal: Vec3, penetration_depth: f64,
-                               _friction: f64, _restitution: f64, lambda_normal: &mut f64,
-                               _lambda_tangent: &mut Vec3, rigid_bodies: &mut [RigidBody],
-                               soft_bodies: &mut [SoftBody], _dt2: f64) -> f64 {
+    fn solve_contact_constraint(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        _contact_point: Vec3,
+        contact_normal: Vec3,
+        penetration_depth: f64,
+        _friction: f64,
+        _restitution: f64,
+        lambda_normal: &mut f64,
+        _lambda_tangent: &mut Vec3,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        _dt2: f64,
+    ) -> f64 {
         if penetration_depth <= 0.0 {
             return 0.0;
         }
@@ -341,41 +524,65 @@ impl ConstraintSolver {
         }
 
         // Add friction constraint (tangential)
-        // Calculate relative velocity at contact point
+        // Calculate relative velocity at contact point using contact point as anchor
+        let world_anchor_a = self.get_world_point(body_a, Vec3::zero(), rigid_bodies, soft_bodies);
+        let world_anchor_b = self.get_world_point(body_b, Vec3::zero(), rigid_bodies, soft_bodies);
+
         let vel_a = self.get_velocity_at_point(body_a, world_anchor_a, rigid_bodies, soft_bodies);
         let vel_b = self.get_velocity_at_point(body_b, world_anchor_b, rigid_bodies, soft_bodies);
         let relative_velocity = vel_b - vel_a;
 
         // Calculate tangential velocity (perpendicular to contact normal)
-        let normal = contact_normal.normalize();
-        let normal_velocity = relative_velocity.dot(normal) * normal;
+        let normal = contact_normal.normalized();
+        let normal_velocity = normal * relative_velocity.dot(normal);
         let tangential_velocity = relative_velocity - normal_velocity;
 
         if tangential_velocity.magnitude() > 1e-6 {
             let friction_coefficient = 0.3; // Default friction coefficient
-            let max_friction_force = friction_coefficient * normal_impulse.abs();
+            let max_friction_force = friction_coefficient * normal_impulse.magnitude();
 
-            let tangent_direction = tangential_velocity.normalize();
-            let friction_impulse = -tangent_direction * max_friction_force.min(tangential_velocity.magnitude() * 0.1);
+            let tangent_direction = tangential_velocity.normalized();
+            let friction_impulse =
+                -tangent_direction * max_friction_force.min(tangential_velocity.magnitude() * 0.1);
 
             // Apply friction impulse
             if mass_a > 0.0 {
                 let friction_correction_a = friction_impulse * (1.0 / mass_a);
-                self.apply_velocity_correction(body_a, friction_correction_a, rigid_bodies, soft_bodies);
+                self.apply_velocity_correction(
+                    body_a,
+                    friction_correction_a,
+                    rigid_bodies,
+                    soft_bodies,
+                );
             }
             if mass_b > 0.0 {
                 let friction_correction_b = -friction_impulse * (1.0 / mass_b);
-                self.apply_velocity_correction(body_b, friction_correction_b, rigid_bodies, soft_bodies);
+                self.apply_velocity_correction(
+                    body_b,
+                    friction_correction_b,
+                    rigid_bodies,
+                    soft_bodies,
+                );
             }
         }
 
         constraint_value.abs()
     }
 
-    fn solve_spring_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                              anchor_a: Vec3, anchor_b: Vec3, rest_length: f64,
-                              spring_constant: f64, _damping_constant: f64, lambda: &mut f64,
-                              rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_spring_constraint(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        anchor_a: Vec3,
+        anchor_b: Vec3,
+        rest_length: f64,
+        spring_constant: f64,
+        _damping_constant: f64,
+        lambda: &mut f64,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         let world_anchor_a = self.get_world_point(body_a, anchor_a, rigid_bodies, soft_bodies);
         let world_anchor_b = self.get_world_point(body_b, anchor_b, rigid_bodies, soft_bodies);
 
@@ -421,12 +628,23 @@ impl ConstraintSolver {
         constraint_value.abs()
     }
 
-    fn solve_angular_constraint(&self, body_a: ConstraintBody, body_b: ConstraintBody,
-                               rest_angle: f64, axis: Vec3, stiffness: f64, lambda: &mut f64,
-                               rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt2: f64) -> f64 {
+    fn solve_angular_constraint(
+        &self,
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        rest_angle: f64,
+        axis: Vec3,
+        stiffness: f64,
+        lambda: &mut f64,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt2: f64,
+    ) -> f64 {
         // Implement proper angular constraint with quaternion differences
-        let (orientation_a, inertia_a) = self.get_orientation_and_inertia(body_a, rigid_bodies, soft_bodies);
-        let (orientation_b, inertia_b) = self.get_orientation_and_inertia(body_b, rigid_bodies, soft_bodies);
+        let (orientation_a, inertia_a) =
+            self.get_orientation_and_inertia(body_a, rigid_bodies, soft_bodies);
+        let (orientation_b, inertia_b) =
+            self.get_orientation_and_inertia(body_b, rigid_bodies, soft_bodies);
 
         // Calculate relative rotation between bodies
         let relative_rotation = orientation_b * orientation_a.conjugate();
@@ -436,7 +654,7 @@ impl ConstraintSolver {
 
         // Project the relative angle onto the constraint axis
         let projected_angle = if rel_axis.magnitude() > 1e-6 {
-            rel_angle * rel_axis.normalize().dot(axis.normalize())
+            rel_angle * rel_axis.normalized().dot(axis.normalized())
         } else {
             0.0
         };
@@ -449,9 +667,17 @@ impl ConstraintSolver {
         }
 
         // Calculate constraint impulse
-        let constraint_axis = axis.normalize();
-        let effective_inertia_a = if inertia_a > 0.0 { 1.0 / inertia_a } else { 0.0 };
-        let effective_inertia_b = if inertia_b > 0.0 { 1.0 / inertia_b } else { 0.0 };
+        let constraint_axis = axis.normalized();
+        let effective_inertia_a = if inertia_a > 0.0 {
+            1.0 / inertia_a
+        } else {
+            0.0
+        };
+        let effective_inertia_b = if inertia_b > 0.0 {
+            1.0 / inertia_b
+        } else {
+            0.0
+        };
         let total_inertia = effective_inertia_a + effective_inertia_b;
 
         if total_inertia > 1e-6 {
@@ -472,60 +698,77 @@ impl ConstraintSolver {
         angle_error.abs()
     }
 
-    fn get_position_and_mass(&self, body: ConstraintBody, rigid_bodies: &[RigidBody],
-                            soft_bodies: &[SoftBody]) -> (Vec3, f64) {
+    fn get_position_and_mass(
+        &self,
+        body: ConstraintBody,
+        rigid_bodies: &[RigidBody],
+        soft_bodies: &[SoftBody],
+    ) -> (Vec3, f64) {
         match body {
             ConstraintBody::RigidBody(index) => {
                 (rigid_bodies[index].position, rigid_bodies[index].mass)
-            },
+            }
             ConstraintBody::SoftBodyParticle(body_index, particle_index) => {
                 let particle = &soft_bodies[body_index].particles[particle_index];
                 (particle.position, particle.mass)
-            },
+            }
             ConstraintBody::StaticPoint(position) => {
                 (position, 0.0) // Static points have infinite mass (represented as 0)
-            },
+            }
         }
     }
 
-    fn get_world_point(&self, body: ConstraintBody, local_point: Vec3,
-                      rigid_bodies: &[RigidBody], soft_bodies: &[SoftBody]) -> Vec3 {
+    fn get_world_point(
+        &self,
+        body: ConstraintBody,
+        local_point: Vec3,
+        rigid_bodies: &[RigidBody],
+        soft_bodies: &[SoftBody],
+    ) -> Vec3 {
         match body {
             ConstraintBody::RigidBody(index) => {
                 let rigid_body = &rigid_bodies[index];
                 rigid_body.position + rigid_body.rotation.rotate_vector(local_point)
-            },
+            }
             ConstraintBody::SoftBodyParticle(body_index, particle_index) => {
                 // For particles, local_point is typically zero (particle center)
                 soft_bodies[body_index].particles[particle_index].position + local_point
-            },
-            ConstraintBody::StaticPoint(position) => {
-                position + local_point
-            },
+            }
+            ConstraintBody::StaticPoint(position) => position + local_point,
         }
     }
 
-    fn apply_position_correction(&self, body: ConstraintBody, correction: Vec3,
-                                rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody]) {
+    fn apply_position_correction(
+        &self,
+        body: ConstraintBody,
+        correction: Vec3,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+    ) {
         match body {
             ConstraintBody::RigidBody(index) => {
                 rigid_bodies[index].position = rigid_bodies[index].position + correction;
-            },
+            }
             ConstraintBody::SoftBodyParticle(body_index, particle_index) => {
                 if !soft_bodies[body_index].particles[particle_index].pinned {
                     soft_bodies[body_index].particles[particle_index].position =
                         soft_bodies[body_index].particles[particle_index].position + correction;
                 }
-            },
+            }
             ConstraintBody::StaticPoint(_) => {
                 // Static points don't move
-            },
+            }
         }
     }
 
     // Helper methods for physics constraints
-    fn get_velocity_at_point(&self, body: ConstraintBody, point: Vec3,
-                            rigid_bodies: &[RigidBody], soft_bodies: &[SoftBody]) -> Vec3 {
+    fn get_velocity_at_point(
+        &self,
+        body: ConstraintBody,
+        point: Vec3,
+        rigid_bodies: &[RigidBody],
+        soft_bodies: &[SoftBody],
+    ) -> Vec3 {
         match body {
             ConstraintBody::RigidBody(index) => {
                 if let Some(rb) = rigid_bodies.get(index) {
@@ -533,7 +776,7 @@ impl ConstraintSolver {
                 } else {
                     Vec3::zero()
                 }
-            },
+            }
             ConstraintBody::SoftBodyParticle(body_idx, particle_idx) => {
                 if let Some(sb) = soft_bodies.get(body_idx) {
                     if let Some(particle) = sb.particles.get(particle_idx) {
@@ -544,72 +787,89 @@ impl ConstraintSolver {
                 } else {
                     Vec3::zero()
                 }
-            },
+            }
             ConstraintBody::StaticPoint(_) => Vec3::zero(),
         }
     }
 
-    fn apply_velocity_correction(&self, body: ConstraintBody, correction: Vec3,
-                                rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody]) {
+    fn apply_velocity_correction(
+        &self,
+        body: ConstraintBody,
+        correction: Vec3,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+    ) {
         match body {
             ConstraintBody::RigidBody(index) => {
                 if let Some(rb) = rigid_bodies.get_mut(index) {
                     rb.velocity += correction;
                 }
-            },
+            }
             ConstraintBody::SoftBodyParticle(body_idx, particle_idx) => {
                 if let Some(sb) = soft_bodies.get_mut(body_idx) {
                     if let Some(particle) = sb.particles.get_mut(particle_idx) {
                         particle.velocity += correction;
                     }
                 }
-            },
-            ConstraintBody::StaticPoint(_) => {}, // Static points don't move
+            }
+            ConstraintBody::StaticPoint(_) => {} // Static points don't move
         }
     }
 
-    fn get_orientation_and_inertia(&self, body: ConstraintBody, rigid_bodies: &[RigidBody],
-                                  _soft_bodies: &[SoftBody]) -> (Quat, f64) {
+    fn get_orientation_and_inertia(
+        &self,
+        body: ConstraintBody,
+        rigid_bodies: &[RigidBody],
+        _soft_bodies: &[SoftBody],
+    ) -> (Quat, f64) {
         match body {
             ConstraintBody::RigidBody(index) => {
                 if let Some(rb) = rigid_bodies.get(index) {
-                    (rb.orientation, rb.inertia_tensor.x) // Simplified: use x component of inertia tensor
+                    (rb.rotation, rb.inertia_tensor.data[0][0]) // Use first diagonal element of inertia tensor
                 } else {
                     (Quat::identity(), 0.0)
                 }
-            },
+            }
             ConstraintBody::SoftBodyParticle(_, _) => {
                 // Soft body particles don't have orientation
                 (Quat::identity(), 0.0)
-            },
-            ConstraintBody::StaticPoint(_) => {
-                (Quat::identity(), 0.0)
-            },
+            }
+            ConstraintBody::StaticPoint(_) => (Quat::identity(), 0.0),
         }
     }
 
-    fn apply_angular_impulse(&self, body: ConstraintBody, impulse: Vec3,
-                            rigid_bodies: &mut [RigidBody], _soft_bodies: &mut [SoftBody]) {
+    fn apply_angular_impulse(
+        &self,
+        body: ConstraintBody,
+        impulse: Vec3,
+        rigid_bodies: &mut [RigidBody],
+        _soft_bodies: &mut [SoftBody],
+    ) {
         match body {
             ConstraintBody::RigidBody(index) => {
                 if let Some(rb) = rigid_bodies.get_mut(index) {
-                    if rb.inertia_tensor.x > 0.0 {
-                        rb.angular_velocity += impulse / rb.inertia_tensor.x;
+                    let inertia_x = rb.inertia_tensor.data[0][0];
+                    if inertia_x > 0.0 {
+                        rb.angular_velocity += impulse / inertia_x;
                     }
                 }
-            },
+            }
             ConstraintBody::SoftBodyParticle(_, _) => {
                 // Soft body particles don't have angular velocity
-            },
+            }
             ConstraintBody::StaticPoint(_) => {
                 // Static points don't move
-            },
+            }
         }
     }
 
     /// Create a distance constraint between two bodies
-    pub fn create_distance_constraint(body_a: ConstraintBody, body_b: ConstraintBody,
-                                     rest_length: f64, stiffness: f64) -> Constraint {
+    pub fn create_distance_constraint(
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        rest_length: f64,
+        stiffness: f64,
+    ) -> Constraint {
         Constraint::Distance {
             body_a,
             body_b,
@@ -621,8 +881,13 @@ impl ConstraintSolver {
     }
 
     /// Create a fixed joint constraint
-    pub fn create_fixed_constraint(body_a: ConstraintBody, body_b: ConstraintBody,
-                                  anchor_a: Vec3, anchor_b: Vec3, stiffness: f64) -> Constraint {
+    pub fn create_fixed_constraint(
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        anchor_a: Vec3,
+        anchor_b: Vec3,
+        stiffness: f64,
+    ) -> Constraint {
         Constraint::Fixed {
             body_a,
             body_b,
@@ -634,9 +899,15 @@ impl ConstraintSolver {
     }
 
     /// Create a contact constraint for collision resolution
-    pub fn create_contact_constraint(body_a: ConstraintBody, body_b: ConstraintBody,
-                                    contact_point: Vec3, contact_normal: Vec3,
-                                    penetration_depth: f64, friction: f64, restitution: f64) -> Constraint {
+    pub fn create_contact_constraint(
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        contact_point: Vec3,
+        contact_normal: Vec3,
+        penetration_depth: f64,
+        friction: f64,
+        restitution: f64,
+    ) -> Constraint {
         Constraint::Contact {
             body_a,
             body_b,
@@ -651,9 +922,15 @@ impl ConstraintSolver {
     }
 
     /// Create a spring constraint
-    pub fn create_spring_constraint(body_a: ConstraintBody, body_b: ConstraintBody,
-                                   anchor_a: Vec3, anchor_b: Vec3, rest_length: f64,
-                                   spring_constant: f64, damping_constant: f64) -> Constraint {
+    pub fn create_spring_constraint(
+        body_a: ConstraintBody,
+        body_b: ConstraintBody,
+        anchor_a: Vec3,
+        anchor_b: Vec3,
+        rest_length: f64,
+        spring_constant: f64,
+        damping_constant: f64,
+    ) -> Constraint {
         Constraint::Spring {
             body_a,
             body_b,
@@ -703,11 +980,21 @@ impl XPBDSolver {
             for constraint in &mut constraints {
                 match constraint {
                     Constraint::Contact { .. } => {
-                        Self::solve_contact_constraint_static(constraint, rigid_bodies, soft_bodies, dt2);
-                    },
+                        Self::solve_contact_constraint_static(
+                            constraint,
+                            rigid_bodies,
+                            soft_bodies,
+                            dt2,
+                        );
+                    }
                     Constraint::Distance { .. } => {
-                        Self::solve_distance_constraint_static(constraint, rigid_bodies, soft_bodies, dt2);
-                    },
+                        Self::solve_distance_constraint_static(
+                            constraint,
+                            rigid_bodies,
+                            soft_bodies,
+                            dt2,
+                        );
+                    }
                     _ => {
                         // Handle other constraint types
                     }
@@ -718,7 +1005,12 @@ impl XPBDSolver {
         }
     }
 
-    pub fn solve_iteration(&mut self, rigid_bodies: &mut [RigidBody], soft_bodies: &mut [SoftBody], dt: f64) {
+    pub fn solve_iteration(
+        &mut self,
+        rigid_bodies: &mut [RigidBody],
+        soft_bodies: &mut [SoftBody],
+        dt: f64,
+    ) {
         let dt2 = dt * dt;
 
         // Clone constraints to avoid borrowing conflicts
@@ -726,11 +1018,21 @@ impl XPBDSolver {
         for constraint in &mut constraints {
             match constraint {
                 Constraint::Contact { .. } => {
-                    Self::solve_contact_constraint_static(constraint, rigid_bodies, soft_bodies, dt2);
-                },
+                    Self::solve_contact_constraint_static(
+                        constraint,
+                        rigid_bodies,
+                        soft_bodies,
+                        dt2,
+                    );
+                }
                 Constraint::Distance { .. } => {
-                    Self::solve_distance_constraint_static(constraint, rigid_bodies, soft_bodies, dt2);
-                },
+                    Self::solve_distance_constraint_static(
+                        constraint,
+                        rigid_bodies,
+                        soft_bodies,
+                        dt2,
+                    );
+                }
                 _ => {
                     // Handle other constraint types
                 }
@@ -740,15 +1042,23 @@ impl XPBDSolver {
         self.constraints = constraints;
     }
 
-    fn solve_contact_constraint_static(_constraint: &mut Constraint, _rigid_bodies: &mut [RigidBody], _soft_bodies: &mut [SoftBody], _dt2: f64) {
+    fn solve_contact_constraint_static(
+        _constraint: &mut Constraint,
+        _rigid_bodies: &mut [RigidBody],
+        _soft_bodies: &mut [SoftBody],
+        _dt2: f64,
+    ) {
         // Implementation would go here
     }
 
-    fn solve_distance_constraint_static(_constraint: &mut Constraint, _rigid_bodies: &mut [RigidBody], _soft_bodies: &mut [SoftBody], _dt2: f64) {
+    fn solve_distance_constraint_static(
+        _constraint: &mut Constraint,
+        _rigid_bodies: &mut [RigidBody],
+        _soft_bodies: &mut [SoftBody],
+        _dt2: f64,
+    ) {
         // Implementation would go here
     }
-
-
 }
 
 #[cfg(test)]
@@ -773,7 +1083,7 @@ mod tests {
             ConstraintBody::RigidBody(0),
             ConstraintBody::RigidBody(1),
             1.0,
-            1000.0
+            1000.0,
         );
 
         solver.add_constraint(constraint);
@@ -788,7 +1098,7 @@ mod tests {
             ConstraintBody::RigidBody(0),
             ConstraintBody::RigidBody(1),
             1.0,
-            1000.0
+            1000.0,
         ));
 
         assert_eq!(solver.constraints.len(), 1);
@@ -803,10 +1113,15 @@ mod tests {
             ConstraintBody::RigidBody(0),
             ConstraintBody::RigidBody(1),
             2.0,
-            500.0
+            500.0,
         );
 
-        if let Constraint::Distance { rest_length, stiffness, .. } = constraint {
+        if let Constraint::Distance {
+            rest_length,
+            stiffness,
+            ..
+        } = constraint
+        {
             assert_eq!(rest_length, 2.0);
             assert_eq!(stiffness, 500.0);
         } else {
@@ -821,10 +1136,16 @@ mod tests {
             ConstraintBody::StaticPoint(Vec3::zero()),
             Vec3::new(1.0, 0.0, 0.0),
             Vec3::zero(),
-            1000.0
+            1000.0,
         );
 
-        if let Constraint::Fixed { anchor_a, anchor_b, stiffness, .. } = constraint {
+        if let Constraint::Fixed {
+            anchor_a,
+            anchor_b,
+            stiffness,
+            ..
+        } = constraint
+        {
             assert_eq!(anchor_a, Vec3::new(1.0, 0.0, 0.0));
             assert_eq!(anchor_b, Vec3::zero());
             assert_eq!(stiffness, 1000.0);
@@ -842,10 +1163,17 @@ mod tests {
             Vec3::new(0.0, 1.0, 0.0),
             0.1,
             0.5,
-            0.8
+            0.8,
         );
 
-        if let Constraint::Contact { contact_normal, penetration_depth, friction, restitution, .. } = constraint {
+        if let Constraint::Contact {
+            contact_normal,
+            penetration_depth,
+            friction,
+            restitution,
+            ..
+        } = constraint
+        {
             assert_eq!(contact_normal, Vec3::new(0.0, 1.0, 0.0));
             assert_eq!(penetration_depth, 0.1);
             assert_eq!(friction, 0.5);
@@ -864,10 +1192,16 @@ mod tests {
             Vec3::zero(),
             1.0,
             100.0,
-            5.0
+            5.0,
         );
 
-        if let Constraint::Spring { rest_length, spring_constant, damping_constant, .. } = constraint {
+        if let Constraint::Spring {
+            rest_length,
+            spring_constant,
+            damping_constant,
+            ..
+        } = constraint
+        {
             assert_eq!(rest_length, 1.0);
             assert_eq!(spring_constant, 100.0);
             assert_eq!(damping_constant, 5.0);
@@ -891,7 +1225,7 @@ mod tests {
             ConstraintBody::SoftBodyParticle(body_idx, particle_idx) => {
                 assert_eq!(body_idx, 2);
                 assert_eq!(particle_idx, 10);
-            },
+            }
             _ => panic!("Expected SoftBodyParticle"),
         }
 

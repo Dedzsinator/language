@@ -1,0 +1,4 @@
+-- Simple test for the interpreter
+let x = 42
+let y = 3.14
+let z = x + 1

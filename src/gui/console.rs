@@ -18,6 +18,10 @@ pub struct Console {
     debug_mode: bool,
     frame_times: std::collections::VecDeque<std::time::Instant>,
     last_frame_time: std::time::Instant,
+
+    // Command communication - for real message passing
+    pub pending_scene_command: Option<String>,
+    pub pending_spawn_command: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +85,8 @@ impl Console {
             debug_mode: false,
             frame_times: std::collections::VecDeque::with_capacity(60),
             last_frame_time: std::time::Instant::now(),
+            pending_scene_command: None,
+            pending_spawn_command: None,
         };
 
         // Add some initial messages
@@ -338,23 +344,13 @@ impl Console {
             "scene" => {
                 if parts.len() > 1 {
                     let scene_name = parts[1];
-                    if let Some(ref callback) = self.scene_callback {
-                        if callback(scene_name) {
-                            self.log(
-                                LogLevel::Info,
-                                &format!("Switched to scene: {}", scene_name),
-                                "System",
-                            );
-                        } else {
-                            self.log(
-                                LogLevel::Warning,
-                                &format!("Failed to switch to scene: {}", scene_name),
-                                "System",
-                            );
-                        }
-                    } else {
-                        self.log(LogLevel::Warning, "Scene switching not available", "System");
-                    }
+                    // Store the command for processing by the main editor
+                    self.pending_scene_command = Some(scene_name.to_string());
+                    self.log(
+                        LogLevel::Info,
+                        &format!("Scene switch requested: {}", scene_name),
+                        "System",
+                    );
                 } else {
                     self.log(LogLevel::Warning, "scene requires a scene name", "System");
                 }
@@ -363,23 +359,13 @@ impl Console {
             "spawn" => {
                 if parts.len() > 1 {
                     let object_type = parts[1];
-                    if let Some(ref callback) = self.spawn_callback {
-                        if callback(object_type) {
-                            self.log(
-                                LogLevel::Info,
-                                &format!("Spawned object: {}", object_type),
-                                "System",
-                            );
-                        } else {
-                            self.log(
-                                LogLevel::Warning,
-                                &format!("Failed to spawn object: {}", object_type),
-                                "System",
-                            );
-                        }
-                    } else {
-                        self.log(LogLevel::Warning, "Object spawning not available", "System");
-                    }
+                    // Store the command for processing by the main editor
+                    self.pending_spawn_command = Some(object_type.to_string());
+                    self.log(
+                        LogLevel::Info,
+                        &format!("Object spawn requested: {}", object_type),
+                        "System",
+                    );
                 } else {
                     self.log(LogLevel::Warning, "spawn requires an object type", "System");
                 }
@@ -672,6 +658,16 @@ impl Console {
         } else {
             self.log(LogLevel::Info, "Debug logging disabled", "System");
         }
+    }
+
+    /// Check and consume pending scene switch command
+    pub fn take_pending_scene_command(&mut self) -> Option<String> {
+        self.pending_scene_command.take()
+    }
+
+    /// Check and consume pending object spawn command
+    pub fn take_pending_spawn_command(&mut self) -> Option<String> {
+        self.pending_spawn_command.take()
     }
 }
 

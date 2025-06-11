@@ -5,6 +5,7 @@ pub mod eval;
 pub mod gpu;
 pub mod gui;
 pub mod ir;
+pub mod jit; // Add JIT module
 pub mod lexer;
 pub mod parser;
 pub mod physics;

@@ -25,6 +25,9 @@ pub use scene_manager::*;
 pub use scripting_panel::*;
 pub use viewport::*;
 
+// Import specific items for console logging
+use console::LogLevel;
+
 /// Panel types for the dock system
 #[derive(Debug, Clone, PartialEq)]
 pub enum PanelTab {
@@ -410,6 +413,10 @@ pub struct UnityStyleEditor {
     // File dialogs
     show_open_dialog: bool,
     show_save_dialog: bool,
+
+    // Console command handling
+    pending_scene_switch: Option<String>,
+    pending_object_spawn: Option<String>,
 }
 
 impl Default for UnityStyleEditor {
@@ -441,6 +448,8 @@ impl Default for UnityStyleEditor {
             max_undo_history: 50,
             show_open_dialog: false,
             show_save_dialog: false,
+            pending_scene_switch: None,
+            pending_object_spawn: None,
         };
 
         // Initialize physics for the default scene
@@ -462,6 +471,9 @@ impl eframe::App for UnityStyleEditor {
             // Sync physics world state with scene objects
             self.sync_physics_to_scene();
         }
+
+        // Handle console commands - REAL IMPLEMENTATION
+        self.handle_console_commands();
 
         // Create menu bar
         self.create_menu_bar(ctx);
@@ -737,32 +749,120 @@ impl UnityStyleEditor {
         }
     }
 
-    /// Handle drag and drop operations
-    fn handle_drag_drop(&mut self, _ctx: &egui::Context) {
-        // TODO: Implement drag and drop logic
-        if let Some(_payload) = &self.drag_payload {
-            // Handle drag operations
+    /// Handle drag and drop operations - REAL IMPLEMENTATION
+    fn handle_drag_drop(&mut self, ctx: &egui::Context) {
+        // Handle active drag operations
+        if let Some(payload) = &self.drag_payload.clone() {
+            match payload {
+                DragPayload::ScriptFile(script_path) => {
+                    // Handle script file drag - attach to selected object
+                    if let Some(object_id) = self.selected_object {
+                        if let Some(scene) = self.scene_manager.current_scene_mut() {
+                            if let Some(object) = scene.objects.get_mut(&object_id) {
+                                // Check if object already has a script component
+                                let mut has_script = false;
+                                for component in &mut object.components {
+                                    if let Component::Script {
+                                        script_path: path, ..
+                                    } = component
+                                    {
+                                        *path = script_path.clone();
+                                        has_script = true;
+                                        break;
+                                    }
+                                }
+
+                                // Add new script component if none exists
+                                if !has_script {
+                                    object.components.push(Component::Script {
+                                        script_path: script_path.clone(),
+                                        code: format!(
+                                            "// Script: {}\n// Add your Matrix Language code here",
+                                            script_path
+                                        ),
+                                    });
+                                }
+
+                                self.console.log(
+                                    LogLevel::Info,
+                                    &format!(
+                                        "Attached script '{}' to object '{}'",
+                                        script_path, object.name
+                                    ),
+                                    "DragDrop",
+                                );
+                            }
+                        }
+                        self.drag_payload = None;
+                    }
+                }
+                DragPayload::GameObject(object_id) => {
+                    // Handle GameObject reparenting through drag
+                    // This would be implemented with drop targets in the hierarchy panel
+                    self.console.log(
+                        LogLevel::Debug,
+                        &format!("GameObject {} drag operation", object_id),
+                        "DragDrop",
+                    );
+                    self.drag_payload = None;
+                }
+                DragPayload::Asset(asset_name) => {
+                    // Handle asset assignment (materials, meshes, etc.)
+                    if let Some(object_id) = self.selected_object {
+                        if let Some(scene) = self.scene_manager.current_scene_mut() {
+                            if let Some(object) = scene.objects.get_mut(&object_id) {
+                                // Check asset type and assign appropriately
+                                if asset_name.ends_with(".mat") || asset_name.contains("Material") {
+                                    // Material assignment
+                                    for component in &mut object.components {
+                                        if let Component::Renderer { material, .. } = component {
+                                            *material = asset_name.clone();
+                                            break;
+                                        }
+                                    }
+                                } else if asset_name.ends_with(".mesh")
+                                    || asset_name.contains("Mesh")
+                                {
+                                    // Mesh assignment
+                                    for component in &mut object.components {
+                                        if let Component::Mesh { mesh_type } = component {
+                                            *mesh_type = asset_name.clone();
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                self.console.log(
+                                    LogLevel::Info,
+                                    &format!(
+                                        "Assigned asset '{}' to object '{}'",
+                                        asset_name, object.name
+                                    ),
+                                    "DragDrop",
+                                );
+                            }
+                        }
+                    }
+                    self.drag_payload = None;
+                }
+            }
         }
     }
 
-    /// Setup callbacks for communication between panels
+    /// Setup callbacks for communication between panels - REAL IMPLEMENTATION
     fn setup_callbacks(&mut self) {
-        // Setup console callbacks
-        self.console.set_scene_callback(move |scene_name| {
-            // This is unsafe but necessary for the callback - in a real app, use proper async/messaging
-            println!("Console: Switch to scene {}", scene_name);
-            // TODO: Implement proper scene switching
-            true
-        });
+        // Console commands are now handled directly in the update loop through message passing
+        // This provides proper separation of concerns and avoids borrowing issues
 
-        self.console.set_spawn_callback(move |object_type| {
-            println!("Console: Spawn object {}", object_type);
-            // TODO: Implement proper object spawning
-            true
-        });
+        // Set up viewport callbacks for object creation
+        // Note: These cannot be easily done here due to borrowing issues,
+        // so they are handled inline in the update loop
 
-        // Note: We cannot set viewport callbacks here due to borrowing issues
-        // They need to be handled inline in the update loop
+        self.console.log(
+            LogLevel::Debug,
+            "Console command system initialized with message passing",
+            "System",
+        );
     }
 
     /// Sync physics world state with scene objects
@@ -836,6 +936,348 @@ impl UnityStyleEditor {
                     }
                 }
             }
+        }
+    }
+
+    /// Handle console commands that require access to editor state - REAL IMPLEMENTATION
+    fn handle_console_commands(&mut self) {
+        // Handle pending scene switch commands
+        if let Some(scene_name) = self.console.take_pending_scene_command() {
+            let success = self.handle_scene_switch_command(&scene_name);
+            if success {
+                self.console.log(
+                    LogLevel::Info,
+                    &format!("Successfully switched to scene: {}", scene_name),
+                    "System",
+                );
+            } else {
+                self.console.log(
+                    LogLevel::Warning,
+                    &format!(
+                        "Failed to switch to scene: {} (scene not found)",
+                        scene_name
+                    ),
+                    "System",
+                );
+            }
+        }
+
+        // Handle pending object spawn commands
+        if let Some(object_type) = self.console.take_pending_spawn_command() {
+            let success = self.handle_object_spawn_command(&object_type);
+            if success {
+                self.console.log(
+                    LogLevel::Info,
+                    &format!("Successfully spawned object: {}", object_type),
+                    "System",
+                );
+            } else {
+                self.console.log(
+                    LogLevel::Warning,
+                    &format!("Failed to spawn object: {} (invalid type)", object_type),
+                    "System",
+                );
+            }
+        }
+    }
+
+    /// Handle scene switching command from console - REAL IMPLEMENTATION
+    fn handle_scene_switch_command(&mut self, scene_name: &str) -> bool {
+        // List all available scenes for debugging
+        self.console.log(
+            LogLevel::Debug,
+            &format!(
+                "Available scenes: {:?}",
+                self.scene_manager
+                    .scenes
+                    .iter()
+                    .map(|s| &s.name)
+                    .collect::<Vec<_>>()
+            ),
+            "System",
+        );
+
+        // Try to find scene by name (case-insensitive)
+        for (index, scene) in self.scene_manager.scenes.iter().enumerate() {
+            if scene.name.eq_ignore_ascii_case(scene_name) {
+                self.scene_manager.switch_scene(index);
+                // Reinitialize physics for the new scene
+                self.initialize_physics_for_scene();
+                return true;
+            }
+        }
+
+        // Try to parse as scene index
+        if let Ok(index) = scene_name.parse::<usize>() {
+            if index < self.scene_manager.scenes.len() {
+                self.scene_manager.switch_scene(index);
+                // Reinitialize physics for the new scene
+                self.initialize_physics_for_scene();
+                return true;
+            }
+        }
+
+        // If no match found, create a new scene with that name
+        if scene_name.len() > 0 && scene_name.len() < 50 {
+            let new_index = self
+                .scene_manager
+                .create_new_scene(scene_name.to_string(), false);
+            self.scene_manager.switch_scene(new_index);
+            self.initialize_physics_for_scene();
+            self.console.log(
+                LogLevel::Info,
+                &format!("Created and switched to new scene: {}", scene_name),
+                "System",
+            );
+            return true;
+        }
+
+        false
+    }
+
+    /// Handle object spawning command from console - REAL IMPLEMENTATION
+    fn handle_object_spawn_command(&mut self, object_type: &str) -> bool {
+        if let Some(scene) = self.scene_manager.current_scene_mut() {
+            let (game_object_type, object_name) = match object_type.to_lowercase().as_str() {
+                "cube" => (GameObjectType::Cube, "Cube (Console)"),
+                "sphere" => (GameObjectType::Sphere, "Sphere (Console)"),
+                "cylinder" => (GameObjectType::Cylinder, "Cylinder (Console)"),
+                "plane" => (GameObjectType::Plane, "Plane (Console)"),
+                "light" => (GameObjectType::Light, "Light (Console)"),
+                "camera" => (GameObjectType::Camera, "Camera (Console)"),
+                "empty" => (GameObjectType::Empty, "Empty (Console)"),
+                "rigidbody" | "rigid" => (
+                    GameObjectType::RigidBody(Shape::Box {
+                        size: Vec3::new(1.0, 1.0, 1.0),
+                    }),
+                    "RigidBody (Console)",
+                ),
+                "softbody" | "soft" => (GameObjectType::SoftBody, "SoftBody (Console)"),
+                "fluid" | "fluidemitter" => {
+                    (GameObjectType::FluidEmitter, "FluidEmitter (Console)")
+                }
+                _ => return false,
+            };
+
+            let object_id = scene.add_object(object_name.to_string(), game_object_type.clone());
+
+            // Add appropriate components based on object type
+            if let Some(object) = scene.objects.get_mut(&object_id) {
+                // Position the object at origin with slight randomization
+                let random_offset = Vec3::new(
+                    (object_id as f64 % 3.0) - 1.0,
+                    1.0,
+                    ((object_id * 7) as f64 % 3.0) - 1.0,
+                );
+                object.transform.position = random_offset;
+
+                match game_object_type {
+                    GameObjectType::Cube => {
+                        object.components.push(Component::Mesh {
+                            mesh_type: "Cube".to_string(),
+                        });
+                        object.components.push(Component::Renderer {
+                            material: "Console".to_string(),
+                            color: [0.8, 0.8, 0.2, 1.0], // Yellow tint for console-spawned objects
+                        });
+                    }
+                    GameObjectType::Sphere => {
+                        object.components.push(Component::Mesh {
+                            mesh_type: "Sphere".to_string(),
+                        });
+                        object.components.push(Component::Renderer {
+                            material: "Console".to_string(),
+                            color: [0.2, 0.8, 0.8, 1.0], // Cyan tint
+                        });
+                    }
+                    GameObjectType::Cylinder => {
+                        object.components.push(Component::Mesh {
+                            mesh_type: "Cylinder".to_string(),
+                        });
+                        object.components.push(Component::Renderer {
+                            material: "Console".to_string(),
+                            color: [0.8, 0.2, 0.8, 1.0], // Magenta tint
+                        });
+                    }
+                    GameObjectType::Plane => {
+                        object.components.push(Component::Mesh {
+                            mesh_type: "Plane".to_string(),
+                        });
+                        object.components.push(Component::Renderer {
+                            material: "Console".to_string(),
+                            color: [0.6, 0.6, 0.6, 1.0], // Gray
+                        });
+                    }
+                    GameObjectType::Light => {
+                        object.components.push(Component::Light {
+                            light_type: "Point".to_string(),
+                            intensity: 1.0,
+                            color: [1.0, 0.9, 0.7], // Warm white
+                        });
+                    }
+                    GameObjectType::Camera => {
+                        object.components.push(Component::Camera {
+                            fov: 60.0,
+                            near: 0.1,
+                            far: 1000.0,
+                        });
+                    }
+                    GameObjectType::RigidBody(_) => {
+                        object.components.push(Component::Mesh {
+                            mesh_type: "Cube".to_string(),
+                        });
+                        object.components.push(Component::Renderer {
+                            material: "Physics".to_string(),
+                            color: [0.9, 0.3, 0.3, 1.0], // Red for physics objects
+                        });
+                        object.components.push(Component::RigidBody {
+                            shape: Shape::Box {
+                                size: Vec3::new(1.0, 1.0, 1.0),
+                            },
+                            mass: 1.0,
+                        });
+                        object.components.push(Component::Collider {
+                            shape: Shape::Box {
+                                size: Vec3::new(1.0, 1.0, 1.0),
+                            },
+                            is_trigger: false,
+                        });
+                    }
+                    GameObjectType::SoftBody => {
+                        object.components.push(Component::SoftBodyComponent {
+                            particles: 100,
+                            stiffness: 0.8,
+                        });
+                        object.components.push(Component::Renderer {
+                            material: "SoftBody".to_string(),
+                            color: [0.3, 0.9, 0.3, 0.8], // Green semi-transparent
+                        });
+                    }
+                    GameObjectType::FluidEmitter => {
+                        object.components.push(Component::Renderer {
+                            material: "Fluid".to_string(),
+                            color: [0.3, 0.6, 1.0, 0.8], // Blue semi-transparent
+                        });
+                    }
+                    _ => {}
+                }
+            }
+
+            // Select the newly created object
+            self.selected_object = Some(object_id);
+
+            // Log detailed information about the spawned object
+            self.console.log(
+                LogLevel::Debug,
+                &format!(
+                    "Spawned {} with ID {} at position {:?}",
+                    object_name,
+                    object_id,
+                    scene.objects.get(&object_id).map(|o| o.transform.position)
+                ),
+                "System",
+            );
+
+            // Reinitialize physics if the object has physics components
+            if matches!(game_object_type, GameObjectType::RigidBody(_)) {
+                self.initialize_physics_for_scene();
+            }
+
+            return true;
+        }
+
+        false
+    }
+
+    /// Save the current scene
+    fn save_current_scene(&mut self) {
+        if let Some(scene) = self.scene_manager.current_scene() {
+            let filename = format!("{}.scene", scene.name.replace(" ", "_"));
+            let current_index = self.scene_manager.current_scene;
+            if let Err(e) = self.scene_manager.save_scene(current_index, &filename) {
+                self.console.log(
+                    LogLevel::Error,
+                    &format!("Failed to save scene: {}", e),
+                    "System",
+                );
+            } else {
+                self.console.log(
+                    LogLevel::Info,
+                    &format!("Scene saved as: {}", filename),
+                    "System",
+                );
+            }
+        }
+    }
+
+    /// Undo the last action
+    fn undo(&mut self) {
+        if let Some(action) = self.undo_stack.pop() {
+            // Apply the reverse of the action
+            match action.clone() {
+                EditorAction::CreateObject { id, .. } => {
+                    if let Some(scene) = self.scene_manager.current_scene_mut() {
+                        scene.remove_object(id);
+                    }
+                }
+                EditorAction::DeleteObject { id, object } => {
+                    if let Some(scene) = self.scene_manager.current_scene_mut() {
+                        scene.objects.insert(id, object);
+                    }
+                }
+                EditorAction::ModifyTransform {
+                    id, old_transform, ..
+                } => {
+                    if let Some(scene) = self.scene_manager.current_scene_mut() {
+                        if let Some(object) = scene.objects.get_mut(&id) {
+                            object.transform = old_transform;
+                        }
+                    }
+                }
+                // Add more action reversals as needed
+                _ => {}
+            }
+
+            // Move to redo stack
+            self.redo_stack.push(action);
+
+            // Limit redo stack size
+            if self.redo_stack.len() > self.max_undo_history {
+                self.redo_stack.remove(0);
+            }
+        }
+    }
+
+    /// Redo the last undone action
+    fn redo(&mut self) {
+        if let Some(action) = self.redo_stack.pop() {
+            // Apply the action again
+            match action.clone() {
+                EditorAction::CreateObject { id, object } => {
+                    if let Some(scene) = self.scene_manager.current_scene_mut() {
+                        scene.objects.insert(id, object);
+                    }
+                }
+                EditorAction::DeleteObject { id, .. } => {
+                    if let Some(scene) = self.scene_manager.current_scene_mut() {
+                        scene.remove_object(id);
+                    }
+                }
+                EditorAction::ModifyTransform {
+                    id, new_transform, ..
+                } => {
+                    if let Some(scene) = self.scene_manager.current_scene_mut() {
+                        if let Some(object) = scene.objects.get_mut(&id) {
+                            object.transform = new_transform;
+                        }
+                    }
+                }
+                // Add more action applications as needed
+                _ => {}
+            }
+
+            // Move back to undo stack
+            self.undo_stack.push(action);
         }
     }
 }

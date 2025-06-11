@@ -200,7 +200,8 @@ fn stdlib_sqrt(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_cbrt(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("cbrt expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -209,7 +210,8 @@ fn stdlib_cbrt(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Cannot get cube root of {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -220,7 +222,8 @@ fn stdlib_cbrt(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_pow(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("pow expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -229,28 +232,31 @@ fn stdlib_pow(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid base type for pow, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
-    let exp = match &args[1] {
+    let exponent = match &args[1] {
         Value::Int(n) => *n as f64,
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid exponent type for pow, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
-    Ok(Value::Float(base.powf(exp)))
+    Ok(Value::Float(base.powf(exponent)))
 }
 
 fn stdlib_exp(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("exp expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -259,7 +265,8 @@ fn stdlib_exp(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for exp, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -270,7 +277,8 @@ fn stdlib_exp(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_ln(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("ln expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -279,13 +287,14 @@ fn stdlib_ln(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for ln, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
     if num <= 0.0 {
-        return Err(RuntimeError::Generic {
+        return Err(RuntimeError::Generic { 
             message: "ln of non-positive number".to_string(),
         });
     }
@@ -296,7 +305,8 @@ fn stdlib_ln(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_log10(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("log10 expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -305,13 +315,14 @@ fn stdlib_log10(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for log10, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
     if num <= 0.0 {
-        return Err(RuntimeError::Generic {
+        return Err(RuntimeError::Generic { 
             message: "log10 of non-positive number".to_string(),
         });
     }
@@ -322,7 +333,8 @@ fn stdlib_log10(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_log2(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("log2 expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -331,13 +343,14 @@ fn stdlib_log2(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for log2, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
     if num <= 0.0 {
-        return Err(RuntimeError::Generic {
+        return Err(RuntimeError::Generic { 
             message: "log2 of non-positive number".to_string(),
         });
     }
@@ -349,7 +362,8 @@ fn stdlib_log2(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_sin(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("sin expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -358,7 +372,8 @@ fn stdlib_sin(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for sin, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -369,7 +384,8 @@ fn stdlib_sin(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_cos(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("cos expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -378,7 +394,8 @@ fn stdlib_cos(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for cos, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -389,7 +406,8 @@ fn stdlib_cos(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_tan(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("tan expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -398,7 +416,8 @@ fn stdlib_tan(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for tan, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -409,7 +428,8 @@ fn stdlib_tan(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_asin(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("asin expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -418,14 +438,16 @@ fn stdlib_asin(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for asin, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
     if num < -1.0 || num > 1.0 {
         return Err(RuntimeError::Generic {
-            message: "asin input must be in [-1, 1]".to_string(),
+            message:
+            "asin input must be in [-1, 1]".to_string(),
         });
     }
 
@@ -435,7 +457,8 @@ fn stdlib_asin(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_acos(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("acos expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -444,14 +467,16 @@ fn stdlib_acos(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for acos, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
     if num < -1.0 || num > 1.0 {
         return Err(RuntimeError::Generic {
-            message: "acos input must be in [-1, 1]".to_string(),
+            message:
+            "acos input must be in [-1, 1]".to_string(),
         });
     }
 
@@ -461,7 +486,8 @@ fn stdlib_acos(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_atan(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("atan expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -470,7 +496,8 @@ fn stdlib_atan(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for atan, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -481,7 +508,8 @@ fn stdlib_atan(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_atan2(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("atan2 expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -490,7 +518,8 @@ fn stdlib_atan2(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for atan2, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -500,7 +529,8 @@ fn stdlib_atan2(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for atan2, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -512,7 +542,8 @@ fn stdlib_atan2(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_sinh(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("sinh expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -521,7 +552,8 @@ fn stdlib_sinh(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for sinh, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -532,7 +564,8 @@ fn stdlib_sinh(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_cosh(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("cosh expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -541,7 +574,8 @@ fn stdlib_cosh(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for cosh, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -552,7 +586,8 @@ fn stdlib_cosh(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_tanh(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("tanh expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -561,7 +596,8 @@ fn stdlib_tanh(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for tanh, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -573,7 +609,8 @@ fn stdlib_tanh(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_floor(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("floor expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -582,7 +619,8 @@ fn stdlib_floor(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for floor, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -593,7 +631,8 @@ fn stdlib_floor(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_ceil(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("ceil expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -602,7 +641,8 @@ fn stdlib_ceil(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for ceil, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -613,7 +653,8 @@ fn stdlib_ceil(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_round(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("round expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -622,7 +663,8 @@ fn stdlib_round(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for round, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -633,7 +675,8 @@ fn stdlib_round(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_min(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("min expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -643,7 +686,8 @@ fn stdlib_min(args: &[Value]) -> RuntimeResult<Value> {
         (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).min(*b))),
         (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.min(*b as f64))),
         _ => Err(RuntimeError::TypeError {
-            message: "Invalid argument types for min, expected numbers".to_string(),
+            message: format!("Invalid argument types for function, expected numbers"),
+
         }),
     }
 }
@@ -651,7 +695,8 @@ fn stdlib_min(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_max(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("max expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -661,7 +706,8 @@ fn stdlib_max(args: &[Value]) -> RuntimeResult<Value> {
         (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).max(*b))),
         (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.max(*b as f64))),
         _ => Err(RuntimeError::TypeError {
-            message: "Invalid argument types for max, expected numbers".to_string(),
+            message: format!("Invalid argument types for function, expected numbers"),
+
         }),
     }
 }
@@ -669,7 +715,8 @@ fn stdlib_max(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_clamp(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 3 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("clamp expects 3 arguments, got {}", args.len()),
+            message: format!("function expects 3 arguments, got {}", args.len()),
+
         });
     }
 
@@ -678,7 +725,8 @@ fn stdlib_clamp(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for clamp, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -688,7 +736,8 @@ fn stdlib_clamp(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for clamp, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -698,7 +747,8 @@ fn stdlib_clamp(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for clamp, expected number, got {}", args[2].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -706,11 +756,12 @@ fn stdlib_clamp(args: &[Value]) -> RuntimeResult<Value> {
     Ok(Value::Float(value.clamp(min_val, max_val)))
 }
 
-// Physics and vector functions
+// Vector and physics functions
 fn stdlib_vec3(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 3 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("vec3 expects 3 arguments, got {}", args.len()),
+            message: format!("function expects 3 arguments, got {}", args.len()),
+
         });
     }
 
@@ -719,7 +770,8 @@ fn stdlib_vec3(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for vec3, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -729,7 +781,8 @@ fn stdlib_vec3(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for vec3, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -739,7 +792,8 @@ fn stdlib_vec3(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for vec3, expected number, got {}", args[2].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -751,11 +805,11 @@ fn stdlib_vec3(args: &[Value]) -> RuntimeResult<Value> {
     ]))
 }
 
-// Placeholder implementations for physics functions
 fn stdlib_magnitude(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("magnitude expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -766,7 +820,8 @@ fn stdlib_magnitude(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_normalize(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("normalize expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -782,7 +837,8 @@ fn stdlib_normalize(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_dot(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("dot expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -794,7 +850,8 @@ fn stdlib_dot(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_cross(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("cross expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -811,36 +868,38 @@ fn stdlib_cross(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_distance(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("distance expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
     let vec1 = extract_vec3(&args[0])?;
     let vec2 = extract_vec3(&args[1])?;
-    let diff = vec1 - vec2;
-    Ok(Value::Float(diff.magnitude()))
+    Ok(Value::Float(vec1.distance_to(vec2)))
 }
 
 fn stdlib_lerp(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 3 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("lerp expects 3 arguments, got {}", args.len()),
+            message: format!("function expects 3 arguments, got {}", args.len()),
+
         });
     }
 
-    let start = extract_vec3(&args[0])?;
-    let end = extract_vec3(&args[1])?;
+    let vec1 = extract_vec3(&args[0])?;
+    let vec2 = extract_vec3(&args[1])?;
     let t = match &args[2] {
         Value::Int(n) => *n as f64,
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for lerp, expected number, got {}", args[2].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
-    let result = start.lerp(end, t);
+    let result = vec1.lerp(vec2, t);
     Ok(Value::Array(vec![
         Value::Float(result.x),
         Value::Float(result.y),
@@ -851,7 +910,8 @@ fn stdlib_lerp(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_reflect(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("reflect expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -869,7 +929,8 @@ fn stdlib_reflect(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_kinetic_energy(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("kinetic_energy expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -878,7 +939,8 @@ fn stdlib_kinetic_energy(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for kinetic_energy, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -891,7 +953,8 @@ fn stdlib_kinetic_energy(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_potential_energy(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("potential_energy expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -900,7 +963,8 @@ fn stdlib_potential_energy(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for potential_energy, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -910,7 +974,8 @@ fn stdlib_potential_energy(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for potential_energy, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -922,7 +987,8 @@ fn stdlib_potential_energy(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_momentum(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("momentum expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -931,7 +997,8 @@ fn stdlib_momentum(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for momentum, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -948,7 +1015,8 @@ fn stdlib_momentum(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_force(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("force expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -957,13 +1025,14 @@ fn stdlib_force(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for force, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
     let acceleration = extract_vec3(&args[1])?;
-    let result = acceleration * mass;
+    let result = acceleration.force_from_acceleration(mass);
     Ok(Value::Array(vec![
         Value::Float(result.x),
         Value::Float(result.y),
@@ -974,7 +1043,8 @@ fn stdlib_force(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_acceleration(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("acceleration expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -984,7 +1054,8 @@ fn stdlib_acceleration(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for acceleration, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -1004,23 +1075,35 @@ fn stdlib_acceleration(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_velocity_from_acceleration(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 3 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("velocity_from_acceleration expects 3 arguments, got {}", args.len()),
+            message: format!("function expects 3 arguments, got {}", args.len()),
+
         });
     }
 
-    let initial_velocity = extract_vec3(&args[0])?;
-    let acceleration = extract_vec3(&args[1])?;
-    let time = match &args[2] {
+    let acceleration = extract_vec3(&args[0])?;
+    let mass = match &args[1] {
         Value::Int(n) => *n as f64,
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for velocity_from_acceleration, expected number, got {}", args[2].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
-    let result = initial_velocity + (acceleration * time);
+    let dt = match &args[2] {
+        Value::Int(n) => *n as f64,
+        Value::Float(f) => *f,
+        _ => {
+            return Err(RuntimeError::TypeError {
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
+            })
+        }
+    };
+
+    let result = acceleration.velocity_from_force(mass, dt);
     Ok(Value::Array(vec![
         Value::Float(result.x),
         Value::Float(result.y),
@@ -1028,11 +1111,11 @@ fn stdlib_velocity_from_acceleration(args: &[Value]) -> RuntimeResult<Value> {
     ]))
 }
 
-// Gravitational functions
 fn stdlib_gravitational_force(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 3 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("gravitational_force expects 3 arguments, got {}", args.len()),
+            message: format!("function expects 3 arguments, got {}", args.len()),
+
         });
     }
 
@@ -1041,7 +1124,8 @@ fn stdlib_gravitational_force(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for gravitational_force, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -1051,7 +1135,8 @@ fn stdlib_gravitational_force(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for gravitational_force, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -1061,14 +1146,11 @@ fn stdlib_gravitational_force(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for gravitational_force, expected number, got {}", args[2].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
-
-    if distance == 0.0 {
-        return Err(RuntimeError::DivisionByZero);
-    }
 
     const G: f64 = 6.67430e-11; // Gravitational constant
     let force = G * mass1 * mass2 / (distance * distance);
@@ -1078,7 +1160,8 @@ fn stdlib_gravitational_force(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_escape_velocity(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("escape_velocity expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -1087,7 +1170,8 @@ fn stdlib_escape_velocity(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for escape_velocity, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -1097,14 +1181,11 @@ fn stdlib_escape_velocity(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for escape_velocity, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
-
-    if radius == 0.0 {
-        return Err(RuntimeError::DivisionByZero);
-    }
 
     const G: f64 = 6.67430e-11;
     let escape_vel = (2.0 * G * mass / radius).sqrt();
@@ -1114,7 +1195,8 @@ fn stdlib_escape_velocity(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_orbital_velocity(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("orbital_velocity expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -1123,7 +1205,8 @@ fn stdlib_orbital_velocity(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for orbital_velocity, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
@@ -1133,14 +1216,11 @@ fn stdlib_orbital_velocity(args: &[Value]) -> RuntimeResult<Value> {
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for orbital_velocity, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
-
-    if radius == 0.0 {
-        return Err(RuntimeError::DivisionByZero);
-    }
 
     const G: f64 = 6.67430e-11;
     let orbital_vel = (G * mass / radius).sqrt();
@@ -1153,7 +1233,29 @@ fn stdlib_print(args: &[Value]) -> RuntimeResult<Value> {
         if i > 0 {
             print!(" ");
         }
-        print!("{}", arg.to_string());
+        match arg {
+            Value::Int(n) => print!("{}", n),
+            Value::Float(f) => print!("{}", f),
+            Value::String(s) => print!("{}", s),
+            Value::Boolean(b) => print!("{}", b),
+            Value::Array(arr) => {
+                print!("[");
+                for (j, item) in arr.iter().enumerate() {
+                    if j > 0 {
+                        print!(", ");
+                    }
+                    match item {
+                        Value::Int(n) => print!("{}", n),
+                        Value::Float(f) => print!("{}", f),
+                        Value::String(s) => print!("\"{}\"", s),
+                        Value::Boolean(b) => print!("{}", b),
+                        _ => print!("{:?}", item),
+                    }
+                }
+                print!("]");
+            }
+            _ => print!("{:?}", arg),
+        }
     }
     Ok(Value::String("".to_string()))
 }
@@ -1167,7 +1269,8 @@ fn stdlib_println(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_type_of(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("type_of expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1175,11 +1278,10 @@ fn stdlib_type_of(args: &[Value]) -> RuntimeResult<Value> {
         Value::Int(_) => "integer",
         Value::Float(_) => "float",
         Value::String(_) => "string",
-        Value::Bool(_) => "boolean",
+        Value::Boolean(_) => "boolean",
         Value::Array(_) => "array",
         Value::Function { .. } => "function",
         Value::Unit => "unit",
-        _ => "unknown",
     };
 
     Ok(Value::String(type_name.to_string()))
@@ -1188,49 +1290,79 @@ fn stdlib_type_of(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_to_string(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("to_string expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
-    Ok(Value::String(args[0].to_string()))
+    let string_repr = match &args[0] {
+        Value::Int(n) => n.to_string(),
+        Value::Float(f) => f.to_string(),
+        Value::String(s) => s.clone(),
+        Value::Boolean(b) => b.to_string(),
+        Value::Array(arr) => format!("{:?}", arr),
+        Value::Function { .. } => "<function>".to_string(),
+        Value::Unit => "()".to_string(),
+    };
+
+    Ok(Value::String(string_repr))
 }
 
 fn stdlib_random(_args: &[Value]) -> RuntimeResult<Value> {
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-    Ok(Value::Float(rng.gen::<f64>()))
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Simple pseudo-random number generator
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+
+    let mut hasher = DefaultHasher::new();
+    now.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let random_val = (hash as f64) / (u64::MAX as f64);
+    Ok(Value::Float(random_val))
 }
 
 fn stdlib_random_range(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("random_range expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
-    let min = match &args[0] {
+    let min_val = match &args[0] {
         Value::Int(n) => *n as f64,
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for random_range, expected number, got {}", args[0].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
-    let max = match &args[1] {
+    let max_val = match &args[1] {
         Value::Int(n) => *n as f64,
         Value::Float(f) => *f,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: format!("Invalid argument type for random_range, expected number, got {}", args[1].type_name()),
+                message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
             })
         }
     };
 
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-    Ok(Value::Float(rng.gen_range(min..max)))
+    let random_val = stdlib_random(&[])?;
+    if let Value::Float(r) = random_val {
+        Ok(Value::Float(min_val + r * (max_val - min_val)))
+    } else {
+        unreachable!()
+    }
 }
 
 fn stdlib_time(_args: &[Value]) -> RuntimeResult<Value> {
@@ -1245,7 +1377,8 @@ fn stdlib_time(_args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_array_sum(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_sum expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1277,7 +1410,8 @@ fn stdlib_array_sum(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_array_avg(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_avg expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1285,28 +1419,29 @@ fn stdlib_array_avg(args: &[Value]) -> RuntimeResult<Value> {
         Value::Array(a) => a,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: "Expected array".to_string(),
+                expected: "array".to_string(),
+
             })
         }
     };
 
     if arr.is_empty() {
-        return Err(RuntimeError::Generic {
-            message: "Cannot get average of empty array".to_string(),
-        });
+        return Err(RuntimeError::DivisionByZero);
     }
 
     let sum = stdlib_array_sum(args)?;
-    match sum {
-        Value::Float(s) => Ok(Value::Float(s / arr.len() as f64)),
-        _ => unreachable!(),
+    if let Value::Float(s) = sum {
+        Ok(Value::Float(s / arr.len() as f64))
+    } else {
+        unreachable!()
     }
 }
 
 fn stdlib_array_length(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_length expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1314,7 +1449,8 @@ fn stdlib_array_length(args: &[Value]) -> RuntimeResult<Value> {
         Value::Array(a) => a,
         _ => {
             return Err(RuntimeError::TypeError {
-                message: "Expected array".to_string(),
+                expected: "array".to_string(),
+
             })
         }
     };
@@ -1325,7 +1461,8 @@ fn stdlib_array_length(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_array_push(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 2 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_push expects 2 arguments, got {}", args.len()),
+            message: format!("function expects 2 arguments, got {}", args.len()),
+
         });
     }
 
@@ -1333,7 +1470,8 @@ fn stdlib_array_push(args: &[Value]) -> RuntimeResult<Value> {
         Value::Array(a) => a.clone(),
         _ => {
             return Err(RuntimeError::TypeError {
-                message: "Expected array".to_string(),
+                expected: "array".to_string(),
+
             })
         }
     };
@@ -1345,7 +1483,8 @@ fn stdlib_array_push(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_array_pop(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_pop expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1353,7 +1492,8 @@ fn stdlib_array_pop(args: &[Value]) -> RuntimeResult<Value> {
         Value::Array(a) => a.clone(),
         _ => {
             return Err(RuntimeError::TypeError {
-                message: "Expected array".to_string(),
+                expected: "array".to_string(),
+
             })
         }
     };
@@ -1371,7 +1511,8 @@ fn stdlib_array_pop(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_array_reverse(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_reverse expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1379,7 +1520,8 @@ fn stdlib_array_reverse(args: &[Value]) -> RuntimeResult<Value> {
         Value::Array(a) => a.clone(),
         _ => {
             return Err(RuntimeError::TypeError {
-                message: "Expected array".to_string(),
+                expected: "array".to_string(),
+
             })
         }
     };
@@ -1391,7 +1533,8 @@ fn stdlib_array_reverse(args: &[Value]) -> RuntimeResult<Value> {
 fn stdlib_array_sort(args: &[Value]) -> RuntimeResult<Value> {
     if args.len() != 1 {
         return Err(RuntimeError::FunctionCallError {
-            message: format!("array_sort expects 1 argument, got {}", args.len()),
+            message: format!("function expects 1 argument, got {}", args.len()),
+
         });
     }
 
@@ -1399,20 +1542,23 @@ fn stdlib_array_sort(args: &[Value]) -> RuntimeResult<Value> {
         Value::Array(a) => a.clone(),
         _ => {
             return Err(RuntimeError::TypeError {
-                message: "Expected array".to_string(),
+                expected: "array".to_string(),
+
             })
         }
     };
 
-    // Simple sorting for numbers
-    arr.sort_by(|a, b| {
-        match (a, b) {
-            (Value::Int(a), Value::Int(b)) => a.cmp(b),
-            (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
-            (Value::Int(a), Value::Float(b)) => (*a as f64).partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
-            (Value::Float(a), Value::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(std::cmp::Ordering::Equal),
-            _ => std::cmp::Ordering::Equal,
-        }
+    arr.sort_by(|a, b| match (a, b) {
+        (Value::Int(x), Value::Int(y)) => x.cmp(y),
+        (Value::Float(x), Value::Float(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Int(x), Value::Float(y)) => (*x as f64)
+            .partial_cmp(y)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Float(x), Value::Int(y)) => x
+            .partial_cmp(&(*y as f64))
+            .unwrap_or(std::cmp::Ordering::Equal),
+        (Value::String(x), Value::String(y)) => x.cmp(y),
+        _ => std::cmp::Ordering::Equal,
     });
 
     Ok(Value::Array(arr))
@@ -1424,7 +1570,8 @@ fn extract_vec3(value: &Value) -> RuntimeResult<Vec3> {
         Value::Array(arr) => {
             if arr.len() != 3 {
                 return Err(RuntimeError::TypeError {
-                    message: "Expected 3-element array (Vec3)".to_string(),
+                    expected: "3-element array (Vec3)".to_string(),
+
                 });
             }
 
@@ -1433,7 +1580,8 @@ fn extract_vec3(value: &Value) -> RuntimeResult<Vec3> {
                 Value::Float(f) => *f,
                 _ => {
                     return Err(RuntimeError::TypeError {
-                        message: "Invalid array element type, expected number".to_string(),
+                        message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
                     })
                 }
             };
@@ -1443,7 +1591,8 @@ fn extract_vec3(value: &Value) -> RuntimeResult<Vec3> {
                 Value::Float(f) => *f,
                 _ => {
                     return Err(RuntimeError::TypeError {
-                        message: "Invalid array element type, expected number".to_string(),
+                        message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
                     })
                 }
             };
@@ -1453,7 +1602,8 @@ fn extract_vec3(value: &Value) -> RuntimeResult<Vec3> {
                 Value::Float(f) => *f,
                 _ => {
                     return Err(RuntimeError::TypeError {
-                        message: "Invalid array element type, expected number".to_string(),
+                        message: format!("Invalid argument type for function, expected number, got {}", args[0].type_name()),
+
                     })
                 }
             };
@@ -1461,7 +1611,14 @@ fn extract_vec3(value: &Value) -> RuntimeResult<Vec3> {
             Ok(Vec3::new(x, y, z))
         }
         _ => Err(RuntimeError::TypeError {
-            message: "Expected Vec3 (3-element array)".to_string(),
+            expected: "Vec3 (3-element array)".to_string(),
+
         }),
+    }
+}
+
+impl Default for StandardLibrary {
+    fn default() -> Self {
+        Self::new()
     }
 }

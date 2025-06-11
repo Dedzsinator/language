@@ -38,12 +38,13 @@ tokio = { version = "1.35", features = ["full"] }
 # Optional dependencies (disabled for now due to linker issues)
 # nom = "7.1"
 
-# Optional JIT compilation
-# inkwell = { version = "0.4", features = ["llvm17-0"], optional = true }
+# JIT compilation with LLVM
+inkwell = { version = "0.4", features = ["llvm17-0"], optional = true }
+llvm-sys = { version = "170", optional = true }
 
 [features]
 default = []
-jit = []  # Enable when LLVM bindings are ready
+jit = ["inkwell", "llvm-sys"]
 
 [[bin]]
 name = "matrix-lang"

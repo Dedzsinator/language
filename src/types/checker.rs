@@ -532,7 +532,7 @@ impl TypeChecker {
                 span: _,
             } => {
                 // Check optional field access with fallback
-                let _obj_type = self.check_expression(object)?;
+                let obj_type = self.check_expression(object)?;
                 let fallback_type = self.check_expression(fallback)?;
 
                 // Implement proper optional type checking
@@ -540,7 +540,7 @@ impl TypeChecker {
                 match &obj_type.ty {
                     Type::Option(inner_type) => {
                         // Ensure fallback type matches the inner type of the option
-                        self.unifier.unify(&fallback_type.ty, inner_type)?;
+                        self.unifier.unify(&fallback_type.ty, &inner_type)?;
                         Ok(InferredType {
                             ty: (**inner_type).clone(),
                             constraints: [obj_type.constraints, fallback_type.constraints].concat(),

@@ -232,7 +232,8 @@ impl ScriptingPanel {
                 egui::ScrollArea::vertical()
                     .max_height(100.0)
                     .show(ui, |ui| {
-                        for (i, result) in self.search_results.iter().enumerate() {
+                        let search_results = self.search_results.clone(); // Clone to avoid borrowing issues
+                        for (i, result) in search_results.iter().enumerate() {
                             if ui.selectable_label(false, format!("{}:{} - {}",
                                 result.script_name, result.line, result.match_text)).clicked() {
                                 self.goto_search_result(i);
@@ -560,8 +561,8 @@ impl ScriptingPanel {
     }
 
     fn save_active_script(&mut self) {
-        if let Some(active_name) = &self.active_script {
-            self.save_script(active_name);
+        if let Some(active_name) = self.active_script.clone() {
+            self.save_script(&active_name);
         }
     }
 
@@ -667,10 +668,13 @@ impl ScriptingPanel {
             match Parser::new(lexer) {
                 Ok(mut parser) => {
                     if let Err(e) = parser.parse_program() {
+                        let error_msg = format!("{:?}", e);
+                        // Extract line number before borrowing script mutably again
+                        let line_num = ScriptingPanel::extract_line_number_from_error_static(&error_msg);
                         script.syntax_errors.push(SyntaxError {
-                            line: self.extract_line_number_from_error(&format!("{:?}", e)),
+                            line: line_num,
                             column: 1,
-                            message: format!("{:?}", e),
+                            message: error_msg,
                             error_type: ErrorType::Parser,
                         });
                     }
@@ -835,6 +839,11 @@ impl ScriptingPanel {
 
     /// Extract line number from error message
     fn extract_line_number_from_error(&self, error_message: &str) -> usize {
+        Self::extract_line_number_from_error_static(error_message)
+    }
+
+    /// Static version to avoid borrowing conflicts
+    fn extract_line_number_from_error_static(error_message: &str) -> usize {
         // Simple line number extraction without regex
 
         // Look for "line " followed by a number
@@ -849,36 +858,17 @@ impl ScriptingPanel {
             }
         }
 
-        // Look for ":" pattern (line:column)
-        let parts: Vec<&str> = error_message.split(':').collect();
-        for part in parts {
-            if let Ok(line_num) = part.trim().parse::<usize>() {
-                return line_num;
-            }
-        }
-
-        // Look for any number in the message
-        let mut current_number = String::new();
-        for ch in error_message.chars() {
-            if ch.is_ascii_digit() {
-                current_number.push(ch);
-            } else if !current_number.is_empty() {
-                if let Ok(line_num) = current_number.parse::<usize>() {
+        // Look for ":line_number:" pattern
+        if let Some(colon_pos) = error_message.find(':') {
+            let after_colon = &error_message[colon_pos + 1..];
+            if let Some(end_colon) = after_colon.find(':') {
+                if let Ok(line_num) = after_colon[..end_colon].parse::<usize>() {
                     return line_num;
                 }
-                current_number.clear();
             }
         }
 
-        // Check final number if string ends with digits
-        if !current_number.is_empty() {
-            if let Ok(line_num) = current_number.parse::<usize>() {
-                return line_num;
-            }
-        }
-
-        // Fallback: return line 1
-        1
+        1 // Default to line 1 if no line number found
     }
 }
 

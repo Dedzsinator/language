@@ -139,7 +139,7 @@ impl SoftBodyComponent {
         if particle_a < self.particles.len() && particle_b < self.particles.len() {
             let rest_length = self.particles[particle_a].position
                 .distance_to(self.particles[particle_b].position);
-            
+
             self.constraints.push(SoftBodyConstraint::Distance {
                 particle_a,
                 particle_b,
@@ -250,6 +250,23 @@ pub enum PhysicsObject {
     SoftBody,
     Fluid,
     Static,
+}
+
+/// Physics constraint for connecting entities
+#[derive(Debug, Clone)]
+pub enum PhysicsConstraint {
+    Distance {
+        entity_a: Entity,
+        entity_b: Entity,
+        rest_length: f64,
+        stiffness: f64,
+    },
+    Fixed {
+        entity_a: Entity,
+        entity_b: Entity,
+        anchor_offset: Vec3,
+        stiffness: f64,
+    },
 }
 
 /// Collision shape component
