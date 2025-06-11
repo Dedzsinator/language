@@ -344,7 +344,7 @@ impl ConstraintSolver {
         // Add angular constraint for hinge axis
         // For a hinge joint, we need to constrain rotation around two axes perpendicular to the hinge axis
         let hinge_axis = Vec3::new(0.0, 1.0, 0.0); // Default Y-axis hinge
-
+        
         // Calculate perpendicular axes to the hinge axis for angular constraints
         let perp1 = if hinge_axis.cross(Vec3::new(1.0, 0.0, 0.0)).magnitude() > 0.1 {
             hinge_axis.cross(Vec3::new(1.0, 0.0, 0.0)).normalized()
@@ -671,11 +671,65 @@ impl ConstraintSolver {
         *lambda += delta_lambda;
 
         // Apply angular impulse
-        let impulse = axis * delta_lambda;
+        let impulse = delta_lambda * axis;
         self.apply_angular_impulse(body_a, -impulse, rigid_bodies, soft_bodies);
         self.apply_angular_impulse(body_b, impulse, rigid_bodies, soft_bodies);
 
         constraint_violation.abs()
+    }
+        let (orientation_b, inertia_b) =
+            self.get_orientation_and_inertia(body_b, rigid_bodies, soft_bodies);
+
+        // Calculate relative rotation between bodies
+        let relative_rotation = orientation_b * orientation_a.conjugate();
+
+        // Convert to axis-angle representation
+        let (rel_axis, rel_angle) = relative_rotation.to_axis_angle();
+
+        // Project the relative angle onto the constraint axis
+        let projected_angle = if rel_axis.magnitude() > 1e-6 {
+            rel_angle * rel_axis.normalized().dot(axis.normalized())
+        } else {
+            0.0
+        };
+
+        // Calculate constraint violation
+        let angle_error = projected_angle - rest_angle;
+
+        if angle_error.abs() < 1e-6 {
+            return 0.0;
+        }
+
+        // Calculate constraint impulse
+        let constraint_axis = axis.normalized();
+        let effective_inertia_a = if inertia_a > 0.0 {
+            1.0 / inertia_a
+        } else {
+            0.0
+        };
+        let effective_inertia_b = if inertia_b > 0.0 {
+            1.0 / inertia_b
+        } else {
+            0.0
+        };
+        let total_inertia = effective_inertia_a + effective_inertia_b;
+
+        if total_inertia > 1e-6 {
+            let impulse_magnitude = -stiffness * angle_error / total_inertia;
+            let angular_impulse = constraint_axis * impulse_magnitude;
+
+            // Apply angular impulses
+            if inertia_a > 0.0 {
+                self.apply_angular_impulse(body_a, angular_impulse, rigid_bodies, soft_bodies);
+            }
+            if inertia_b > 0.0 {
+                self.apply_angular_impulse(body_b, -angular_impulse, rigid_bodies, soft_bodies);
+            }
+
+            *lambda += impulse_magnitude;
+        }
+
+        angle_error.abs()
     }
 
     fn get_position_and_mass(

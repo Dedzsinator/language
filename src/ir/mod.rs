@@ -262,18 +262,34 @@ impl IrGenerator {
         let mut instructions = Vec::new();
 
         for item in items {
-            if let Item::LetBinding(binding) = item {
-                // Convert let binding to assignment-like instruction
-                let mut item_instructions = self.generate_let_binding(binding);
-                instructions.append(&mut item_instructions);
+            match item {
+                Item::LetBinding(binding) => {
+                    // Create a statement and generate IR for it
+                    let stmt = Statement::LetBinding(binding.clone());
+                    let mut stmt_instructions = self.generate_statement(&stmt);
+                    instructions.append(&mut stmt_instructions);
+                }
+                // Handle other item types here as needed
+                _ => {
+                    // For other items, we might want to generate different IR
+                    // For now, we'll skip them
+                }
             }
         }
 
-        basic_blocks.push(BasicBlock {
+        // Create the entry block using the new method
+        let entry_block = BasicBlock {
             label: "entry".to_string(),
             instructions,
             terminator: IrTerminator::Return(None),
-        });
+        };
+        basic_blocks.push(entry_block);
+
+        // Example: Create additional blocks for more complex control flow
+        if items.len() > 1 {
+            let additional_block = self.create_new_block("additional");
+            basic_blocks.push(additional_block);
+        }
 
         IrFunction {
             name: "main".to_string(),
@@ -490,6 +506,16 @@ impl IrGenerator {
         let id = self.block_counter;
         self.block_counter += 1;
         id
+    }
+
+    /// Create a new basic block with a unique ID
+    fn create_new_block(&mut self, prefix: &str) -> BasicBlock {
+        let block_id = self.next_block_id();
+        BasicBlock {
+            label: format!("{}_{}", prefix, block_id),
+            instructions: Vec::new(),
+            terminator: IrTerminator::Return(None),
+        }
     }
 
     fn add_stdlib_functions(&mut self, module: &mut IrModule) {

@@ -1,0 +1,12 @@
+-- Test struct creation syntax
+struct GameObject {
+    name: String,
+    position: Vec3,
+    color: [Float; 4]
+}
+
+let cube = GameObject {
+    name: "Cube",
+    position: Vec3::new(0.0, 0.0, 0.0),
+    color: [1.0, 0.0, 0.0, 1.0]
+}

@@ -358,6 +358,16 @@ impl GpuManager {
         Ok(())
     }
 
+    /// Get buffer information for debugging
+    pub fn get_buffer_info(&self, name: &str) -> Option<(usize, BufferUsage)> {
+        self.buffers.get(name).map(|buffer| (buffer.size(), buffer.usage()))
+    }
+
+    /// Get pipeline information for debugging
+    pub fn get_pipeline_info(&self, name: &str) -> Option<(&str, &str)> {
+        self.compute_pipelines.get(name).map(|pipeline| (pipeline.name(), pipeline.shader_code()))
+    }
+
     // Helper methods
     fn parse_matrix_from_buffer(&self, data: &[u8]) -> Result<GpuMatrix, GpuError> {
         if data.len() < std::mem::size_of::<GpuMatrix>() {
@@ -381,6 +391,35 @@ impl GpuManager {
         };
 
         Ok(vector)
+    }
+}
+
+impl GpuBuffer {
+    /// Get the size of the buffer
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    /// Get the usage of the buffer
+    pub fn usage(&self) -> BufferUsage {
+        self.usage
+    }
+
+    /// Get buffer data
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+impl ComputePipeline {
+    /// Get the name of the pipeline
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get the shader code
+    pub fn shader_code(&self) -> &str {
+        &self.shader_code
     }
 }
 

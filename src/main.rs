@@ -291,18 +291,18 @@ fn print_help() {
     println!("  @gpu let compute = (data: Matrix) => ...");
 }
 
-fn format_result(value: &crate::eval::Value) -> String {
+fn format_result(value: &crate::eval::interpreter::Value) -> String {
     match value {
-        crate::eval::Value::Int(i) => i.to_string(),
-        crate::eval::Value::Float(f) => f.to_string(),
-        crate::eval::Value::Bool(b) => b.to_string(),
-        crate::eval::Value::String(s) => format!("\"{}\"", s),
-        crate::eval::Value::Unit => "()".to_string(),
-        crate::eval::Value::Array(arr) => {
+        crate::eval::interpreter::Value::Int(i) => i.to_string(),
+        crate::eval::interpreter::Value::Float(f) => f.to_string(),
+        crate::eval::interpreter::Value::Bool(b) => b.to_string(),
+        crate::eval::interpreter::Value::String(s) => format!("\"{}\"", s),
+        crate::eval::interpreter::Value::Unit => "()".to_string(),
+        crate::eval::interpreter::Value::Array(arr) => {
             let elements: Vec<String> = arr.iter().map(format_result).collect();
             format!("[{}]", elements.join(", "))
         }
-        crate::eval::Value::Matrix(mat) => {
+        crate::eval::interpreter::Value::Matrix(mat) => {
             let rows: Vec<String> = mat
                 .iter()
                 .map(|row| {
@@ -312,15 +312,24 @@ fn format_result(value: &crate::eval::Value) -> String {
                 .collect();
             format!("[{}]", rows.join(", "))
         }
-        crate::eval::Value::Struct { name, fields } => {
+        crate::eval::interpreter::Value::Struct { name, fields } => {
             let field_strs: Vec<String> = fields
                 .iter()
                 .map(|(k, v)| format!("{}: {}", k, format_result(v)))
                 .collect();
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
-        crate::eval::Value::Function { .. } => "<function>".to_string(),
-        crate::eval::Value::BuiltinFunction { name, .. } => format!("<builtin: {}>", name),
-        crate::eval::Value::PhysicsWorldHandle(_) => "<physics_world>".to_string(),
+        crate::eval::interpreter::Value::Function { .. } => "<function>".to_string(),
+        crate::eval::interpreter::Value::BuiltinFunction { name, .. } => {
+            format!("<builtin: {}>", name)
+        }
+        crate::eval::interpreter::Value::PhysicsWorldHandle(_) => "<physics_world>".to_string(),
+        crate::eval::interpreter::Value::AsyncHandle(task) => {
+            if task.is_complete() {
+                format!("<async_handle:completed:{}>", task.id)
+            } else {
+                format!("<async_handle:pending:{}>", task.id)
+            }
+        }
     }
 }

@@ -517,6 +517,11 @@ impl Console {
         }
     }
 
+    /// Get the last executed command
+    pub fn get_last_command(&self) -> Option<String> {
+        self.command_history.last().cloned()
+    }
+
     pub fn log(&mut self, level: LogLevel, message: &str, source: &str) {
         // Skip debug messages when debug mode is disabled
         if level == LogLevel::Debug && !self.debug_mode {

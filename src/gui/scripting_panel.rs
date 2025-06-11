@@ -12,8 +12,13 @@ pub struct ScriptingPanel {
     search_results: Vec<SearchResult>,
     show_search_results: bool,
     replace_text: String,
+    show_replace_dialog: bool,
     case_sensitive: bool,
     regex_search: bool,
+    // Callback for script execution results
+    pub script_execution_callback: Option<Box<dyn Fn(&str, &crate::ast::Program) + Send + Sync>>,
+    // Track last executed script for integration with viewport
+    last_executed_script: Option<crate::ast::Program>,
 }
 
 #[derive(Debug, Clone)]
@@ -64,11 +69,14 @@ impl ScriptingPanel {
             search_results: Vec::new(),
             show_search_results: false,
             replace_text: String::new(),
+            show_replace_dialog: false,
             case_sensitive: false,
             regex_search: false,
+            script_execution_callback: None,
+            last_executed_script: None,
         };
 
-        // Create a default script
+        // Create a default script with proper 3D object creation
         panel.create_new_script("Main".to_string(), get_default_script_template());
         panel.active_script = Some("Main".to_string());
 
@@ -88,6 +96,19 @@ impl ScriptingPanel {
         self.show_ui_content(ui);
     }
 
+    /// Set callback for script execution results
+    pub fn set_script_execution_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&str, &crate::ast::Program) + Send + Sync + 'static,
+    {
+        self.script_execution_callback = Some(Box::new(callback));
+    }
+
+    /// Get the AST of the last executed script for integration with viewport
+    pub fn get_last_executed_script(&mut self) -> Option<crate::ast::Program> {
+        self.last_executed_script.take()
+    }
+
     fn show_ui_content(&mut self, ui: &mut egui::Ui) {
         ui.heading("Script Editor");
         self.show_toolbar(ui);
@@ -101,6 +122,11 @@ impl ScriptingPanel {
         // Show file dialog if requested
         if self.show_file_dialog {
             self.show_open_file_dialog(ui);
+        }
+
+        // Show replace dialog if requested
+        if self.show_replace_dialog {
+            self.show_replace_dialog_ui(ui);
         }
     }
 
@@ -221,7 +247,7 @@ impl ScriptingPanel {
                 }
 
                 if ui.button("Replace").clicked() {
-                    self.show_replace_dialog();
+                    self.show_replace_dialog = true;
                 }
             });
 
@@ -429,7 +455,7 @@ impl ScriptingPanel {
                             ui.group(|ui| {
                                 ui.label("Code Templates");
                                 if ui.button("Function Template").clicked() {
-                                    let template = "let myFunction = (param: Type) -> ReturnType => {\n    // Function body\n    return result\n}";
+                                    let template = "let myFunction = (param: Type) -> ReturnType => {\n    -- Function body\n    return result\n}";
                                     code.push_str(template);
                                     is_dirty = true;
                                     code_changed = true;
@@ -441,7 +467,7 @@ impl ScriptingPanel {
                                     code_changed = true;
                                 }
                                 if ui.button("Physics Object").clicked() {
-                                    let template = "// Create a physics object\nlet physicsObject = {\n    position: Vec3::new(0.0, 0.0, 0.0),\n    velocity: Vec3::new(0.0, 0.0, 0.0),\n    mass: 1.0\n}";
+                                    let template = "-- Create a physics object\nlet physicsObject = {\n    position: Vec3::new(0.0, 0.0, 0.0),\n    velocity: Vec3::new(0.0, 0.0, 0.0),\n    mass: 1.0\n}";
                                     code.push_str(template);
                                     is_dirty = true;
                                     code_changed = true;
@@ -611,15 +637,33 @@ impl ScriptingPanel {
                 match Parser::new(lexer) {
                     Ok(mut parser) => match parser.parse_program() {
                         Ok(ast) => {
+                            // Store AST for integration with viewport
+                            self.last_executed_script = Some(ast.clone());
+
+                            // Call callback with AST for 3D object creation
+                            if let Some(ref callback) = self.script_execution_callback {
+                                callback(&script.name, &ast);
+                            }
+
+                            // Execute script in interpreter
                             let mut interpreter = Interpreter::new();
                             match interpreter.eval_program(&ast) {
-                                Ok(result) => println!("Script result: {:?}", result),
-                                Err(e) => println!("Runtime error: {:?}", e),
+                                Ok(result) => {
+                                    println!("✅ Script executed successfully");
+                                    println!("Result: {:?}", result);
+                                }
+                                Err(e) => {
+                                    println!("❌ Runtime error: {:?}", e);
+                                }
                             }
                         }
-                        Err(e) => println!("Parse error: {:?}", e),
+                        Err(e) => {
+                            println!("❌ Parse error: {:?}", e);
+                        }
                     },
-                    Err(e) => println!("Parser creation error: {:?}", e),
+                    Err(e) => {
+                        println!("❌ Parser creation error: {:?}", e);
+                    }
                 }
             }
         }
@@ -690,10 +734,12 @@ impl ScriptingPanel {
                     }
                 }
                 Err(e) => {
+                    let error_message = format!("{:?}", e);
+                    let line_number = Self::extract_line_number_from_error_static(&error_message);
                     script.syntax_errors.push(SyntaxError {
-                        line: 1,
+                        line: line_number,
                         column: 1,
-                        message: format!("{:?}", e),
+                        message: error_message,
                         error_type: ErrorType::Parser,
                     });
                 }
@@ -734,7 +780,7 @@ impl ScriptingPanel {
 
             for (i, line) in script.code.lines().enumerate() {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") {
+                if trimmed.starts_with("--") {
                     docs.push_str(&format!("Line {}: {}\n", i + 1, trimmed));
                 } else if trimmed.starts_with("let") && trimmed.contains("=>") {
                     docs.push_str(&format!("Function found at line {}: {}\n", i + 1, trimmed));
@@ -851,18 +897,76 @@ impl ScriptingPanel {
         }
     }
 
-    /// Show replace dialog
-    fn show_replace_dialog(&mut self) {
-        // In a real implementation, this would show a modal dialog
-        // For now, we'll implement a simple replace functionality
+    /// Show replace dialog UI
+    fn show_replace_dialog_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Find and Replace")
+            .collapsible(false)
+            .resizable(true)
+            .show(ui.ctx(), |ui| {
+                ui.label("Find:");
+                ui.text_edit_singleline(&mut self.search_text);
+
+                ui.label("Replace with:");
+                ui.text_edit_singleline(&mut self.replace_text);
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.case_sensitive, "Case sensitive");
+                    ui.checkbox(&mut self.regex_search, "Regex");
+                });
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    if ui.button("Find All").clicked() {
+                        self.perform_search();
+                    }
+
+                    if ui.button("Replace All").clicked() && !self.search_text.is_empty() {
+                        self.perform_replace_all();
+                        self.show_replace_dialog = false;
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        self.show_replace_dialog = false;
+                    }
+                });
+            });
     }
 
-    /// Extract line number from error message
-    fn extract_line_number_from_error(&self, error_message: &str) -> usize {
-        Self::extract_line_number_from_error_static(error_message)
+    /// Perform replace all operation
+    fn perform_replace_all(&mut self) {
+        if let Some(active_name) = &self.active_script.clone() {
+            if let Some(script) = self.scripts.get_mut(active_name) {
+                if self.regex_search {
+                    // Simple regex replacement (basic implementation)
+                    script.code = script.code.replace(&self.search_text, &self.replace_text);
+                } else {
+                    // Simple text replacement
+                    if self.case_sensitive {
+                        script.code = script.code.replace(&self.search_text, &self.replace_text);
+                    } else {
+                        // Case-insensitive replacement (simple approach)
+                        let lower_search = self.search_text.to_lowercase();
+                        let mut result = String::new();
+                        let mut remaining = &script.code[..];
+
+                        while let Some(pos) = remaining.to_lowercase().find(&lower_search) {
+                            result.push_str(&remaining[..pos]);
+                            result.push_str(&self.replace_text);
+                            remaining = &remaining[pos + self.search_text.len()..];
+                        }
+                        result.push_str(remaining);
+                        script.code = result;
+                    }
+                }
+                script.is_dirty = true;
+            }
+        }
     }
 
-    /// Static version to avoid borrowing conflicts
+    /// Extract line number from error message (static version)
     fn extract_line_number_from_error_static(error_message: &str) -> usize {
         // Simple line number extraction without regex
 
@@ -893,31 +997,78 @@ impl ScriptingPanel {
 }
 
 fn get_default_script_template() -> String {
-    r#"// Matrix Language Script
-// Welcome to the Matrix Language scripting environment!
+    r#"-- Matrix Language Script
+-- Welcome to the Matrix Language scripting environment!
 
-// Basic variable declaration
+-- Basic variables
 let x = 5
 let y = 10.5
 let message = "Hello, Matrix!"
 
-// Function definition
-let add = (a: Int, b: Int) -> Int => a + b
+-- Function definition
+let add = (a: Int, b: Int) => a + b
 
-// Physics example
-let physicsObject = {
-    position: Vec3::new(0.0, 0.0, 0.0),
-    velocity: Vec3::new(1.0, 0.0, 0.0),
+-- Define a 3D game object structure
+struct GameObject {
+    name: String,
+    x: Float,
+    y: Float,
+    z: Float,
+    r: Float,
+    g: Float,
+    b: Float,
+    a: Float
+}
+
+-- Create a 3D cube object in the viewport
+let cube = GameObject {
+    name: "Cube",
+    x: 0.0,
+    y: 0.0,
+    z: 0.0,
+    r: 1.0,
+    g: 0.0,
+    b: 0.0,
+    a: 1.0
+}
+
+-- Create a plane object
+let plane = GameObject {
+    name: "Plane",
+    x: 0.0,
+    y: -1.0,
+    z: 0.0,
+    r: 0.0,
+    g: 1.0,
+    b: 0.0,
+    a: 1.0
+}
+
+-- Define physics object structure
+struct PhysicsObject {
+    name: String,
+    x: Float,
+    y: Float,
+    z: Float,
+    vx: Float,
+    vy: Float,
+    vz: Float,
+    mass: Float
+}
+
+-- Physics object with mass and velocity
+let physicsObject = PhysicsObject {
+    name: "PhysicsObject",
+    x: 3.0,
+    y: 5.0,
+    z: 0.0,
+    vx: 0.0,
+    vy: -1.0,
+    vz: 0.0,
     mass: 1.0
 }
 
-// Matrix operations
-let matrix = Mat3::identity()
-
-// Array operations
-let numbers = [1, 2, 3, 4, 5]
-
-// Main execution
+-- Calculate result
 let result = add(x, 3)
 "#
     .to_string()

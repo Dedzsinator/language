@@ -483,16 +483,39 @@ impl Viewport {
     ) {
         let center = rect.center();
 
-        for (object_id, object) in &scene.objects {
-            if !object.visible {
-                continue;
-            }
+        // Collect objects with their screen positions and depths for proper sorting
+        let mut objects_to_draw: Vec<_> = scene
+            .objects
+            .iter()
+            .filter(|(_, object)| object.visible)
+            .map(|(object_id, object)| {
+                let (screen_pos, depth) = match self.view_mode {
+                    ViewMode::Scene2D | ViewMode::Game2D => {
+                        let pos = self.world_to_screen(object.transform.position, center);
+                        (pos, 0.0)
+                    }
+                    ViewMode::Scene3D | ViewMode::Game3D => {
+                        let pos = self.world_to_screen(object.transform.position, center);
+                        let depth = (object.transform.position - self.camera_position).magnitude();
+                        (pos, depth)
+                    }
+                };
 
-            // Convert 3D position to 2D screen position (simple orthographic projection)
-            let screen_pos = self.world_to_screen(object.transform.position, center);
+                (object_id, object, screen_pos, depth)
+            })
+            .collect();
 
-            // Skip if outside viewport
-            if !rect.contains(screen_pos) {
+        // Sort by depth (back to front for proper rendering)
+        objects_to_draw.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+
+        for (object_id, object, screen_pos, _depth) in objects_to_draw {
+            // Skip if outside viewport (with some margin)
+            let margin = 50.0;
+            if screen_pos.x < rect.min.x - margin
+                || screen_pos.x > rect.max.x + margin
+                || screen_pos.y < rect.min.y - margin
+                || screen_pos.y > rect.max.y + margin
+            {
                 continue;
             }
 
@@ -514,10 +537,22 @@ impl Viewport {
                 }
             };
 
+            // Calculate size based on distance and scale for 3D perspective
+            let base_size = object.transform.scale.x;
+            let size_factor = match self.view_mode {
+                ViewMode::Scene2D | ViewMode::Game2D => self.zoom_level as f64 * 10.0,
+                ViewMode::Scene3D | ViewMode::Game3D => {
+                    // Apply perspective scaling
+                    let distance = (object.transform.position - self.camera_position).magnitude();
+                    let perspective_scale = 50.0 / (distance.max(1.0)); // Prevent division by zero
+                    self.zoom_level as f64 * perspective_scale
+                }
+            };
+
             // Draw object representation based on type
             match &object.object_type {
                 GameObjectType::Cube | GameObjectType::RigidBody(_) => {
-                    let size = (object.transform.scale.x * (self.zoom_level as f64) * 10.0) as f32;
+                    let size = (base_size * size_factor) as f32;
                     painter.rect_filled(
                         egui::Rect::from_center_size(screen_pos, egui::Vec2::splat(size)),
                         egui::CornerRadius::ZERO,
@@ -525,8 +560,7 @@ impl Viewport {
                     );
                 }
                 GameObjectType::Sphere => {
-                    let radius =
-                        (object.transform.scale.x * (self.zoom_level as f64) * 10.0) as f32;
+                    let radius = (base_size * size_factor) as f32;
                     painter.circle_filled(screen_pos, radius, object_color);
                 }
                 GameObjectType::Light => {
@@ -632,14 +666,28 @@ impl Viewport {
                         as f32,
             ),
             ViewMode::Scene3D | ViewMode::Game3D => {
-                // Simple orthographic projection for now
+                // Transform to camera space
+                let camera_pos = self.transform_world_to_camera(world_pos);
+
+                // Check if behind camera
+                if camera_pos.z <= 0.1 {
+                    return egui::pos2(-10000.0, -10000.0); // Off-screen
+                }
+
+                // Apply perspective projection with proper field of view
+                let fov = 60.0_f64.to_radians();
+                let tan_half_fov = (fov / 2.0).tan();
+                let aspect_ratio = 1.0; // Square viewport
+
+                // Project to normalized device coordinates
+                let ndc_x = camera_pos.x / (camera_pos.z * tan_half_fov * aspect_ratio);
+                let ndc_y = camera_pos.y / (camera_pos.z * tan_half_fov);
+
+                // Convert to screen coordinates with proper scaling
+                let scale_factor = self.zoom_level as f64 * 150.0;
                 egui::pos2(
-                    screen_center.x
-                        + ((world_pos.x - self.camera_position.x) * (self.zoom_level as f64) * 20.0)
-                            as f32,
-                    screen_center.y
-                        - ((world_pos.y - self.camera_position.y) * (self.zoom_level as f64) * 20.0)
-                            as f32,
+                    screen_center.x + (ndc_x * scale_factor) as f32,
+                    screen_center.y - (ndc_y * scale_factor) as f32, // Flip Y for screen coordinates
                 )
             }
         }
@@ -655,14 +703,27 @@ impl Viewport {
                 0.0,
             ),
             ViewMode::Scene3D | ViewMode::Game3D => {
-                // Simple orthographic unprojection for now
-                Vec3::new(
-                    self.camera_position.x
-                        + ((screen_pos.x - screen_center.x) / (self.zoom_level * 20.0)) as f64,
-                    self.camera_position.y
-                        - ((screen_pos.y - screen_center.y) / (self.zoom_level * 20.0)) as f64,
-                    self.camera_position.z,
-                )
+                // Convert screen coordinates to normalized device coordinates
+                let ndc_x = (screen_pos.x - screen_center.x) / (self.zoom_level * 200.0);
+                let ndc_y = -(screen_pos.y - screen_center.y) / (self.zoom_level * 200.0);
+
+                // Unproject to world space (assuming depth = 5.0 units from camera)
+                let depth = 5.0;
+                let fov = 60.0_f64.to_radians();
+                let tan_half_fov = (fov / 2.0).tan();
+
+                // Convert NDC to camera space
+                let camera_x = ndc_x as f64 * depth * tan_half_fov;
+                let camera_y = ndc_y as f64 * depth * tan_half_fov;
+                let camera_z = depth;
+
+                // Transform from camera space to world space
+                let forward = self.get_forward_vector();
+                let right = self.get_right_vector();
+                let up = self.get_up_vector();
+
+                let world_offset = right * camera_x + up * camera_y + forward * camera_z;
+                self.camera_position + world_offset
             }
         }
     }
@@ -705,6 +766,46 @@ impl Viewport {
         self.get_right_vector()
             .cross(self.get_forward_vector())
             .normalized()
+    }
+
+    /// Transform world position to camera space
+    fn transform_world_to_camera(&self, world_pos: Vec3) -> Vec3 {
+        // Translate relative to camera
+        let relative_pos = world_pos - self.camera_position;
+
+        // Create camera basis vectors
+        let forward = self.get_forward_vector();
+        let right = self.get_right_vector();
+        let up = self.get_up_vector();
+
+        // Transform to camera space
+        Vec3::new(
+            relative_pos.dot(right),    // X in camera space
+            relative_pos.dot(up),       // Y in camera space
+            -relative_pos.dot(forward), // Z in camera space (negative because we look down -Z)
+        )
+    }
+
+    /// Apply perspective projection to camera space position
+    fn apply_perspective_projection(&self, camera_pos: Vec3) -> Vec3 {
+        let fov = 60.0_f64.to_radians(); // Field of view
+        let near = 0.1;
+        let far = 1000.0;
+
+        // Avoid division by zero for points at camera
+        if camera_pos.z.abs() < 0.001 {
+            return Vec3::new(0.0, 0.0, camera_pos.z);
+        }
+
+        // Perspective division
+        let aspect = 1.0; // Assume square viewport for simplicity
+        let tan_half_fov = (fov / 2.0).tan();
+
+        Vec3::new(
+            camera_pos.x / (camera_pos.z * tan_half_fov * aspect),
+            camera_pos.y / (camera_pos.z * tan_half_fov),
+            camera_pos.z,
+        )
     }
 
     /// Draw camera information overlay

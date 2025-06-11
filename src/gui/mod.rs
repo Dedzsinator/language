@@ -2,7 +2,7 @@ use crate::eval::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::physics::math::*;
-use crate::physics::rigid_body::*;
+use crate::physics::rigid_body::{Shape, *};
 use crate::physics::*;
 use eframe::egui;
 use egui_dock::{DockState, TabViewer};
@@ -24,9 +24,6 @@ pub use project_browser::*;
 pub use scene_manager::*;
 pub use scripting_panel::*;
 pub use viewport::*;
-
-// Import specific items for console logging
-use console::LogLevel;
 
 /// Panel types for the dock system
 #[derive(Debug, Clone, PartialEq)]
@@ -417,6 +414,7 @@ pub struct UnityStyleEditor {
     // Console command handling
     pending_scene_switch: Option<String>,
     pending_object_spawn: Option<String>,
+    pending_script_execution: Option<crate::ast::Program>,
 }
 
 impl Default for UnityStyleEditor {
@@ -450,6 +448,7 @@ impl Default for UnityStyleEditor {
             show_save_dialog: false,
             pending_scene_switch: None,
             pending_object_spawn: None,
+            pending_script_execution: None,
         };
 
         // Initialize physics for the default scene
@@ -463,6 +462,9 @@ impl eframe::App for UnityStyleEditor {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Request continuous repaints for smooth animation
         ctx.request_repaint();
+
+        // Setup callbacks on first update
+        self.setup_callbacks();
 
         // Update physics simulation
         if self.is_simulating {
@@ -487,12 +489,18 @@ impl eframe::App for UnityStyleEditor {
         // Handle drag and drop
         self.handle_drag_drop(ctx);
 
+        // Handle dialogs
+        self.handle_dialogs(ctx);
+
+        // Handle pending operations
+        self.handle_pending_operations();
+
         // Update viewport selection when object is selected
         if let Some(selected_id) = self.selected_object {
             if let Some(scene) = self.scene_manager.current_scene() {
-                if let Some(object) = scene.objects.get(&selected_id) {
+                if let Some(_object) = scene.objects.get(&selected_id) {
                     // Update viewport selection callback
-                    if let Some(ref callback) = self.viewport.selection_callback {
+                    if let Some(ref _callback) = self.viewport.selection_callback {
                         // This will be handled by the viewport internally
                     }
                 }
@@ -533,7 +541,7 @@ impl UnityStyleEditor {
                         ui.close_menu();
                     }
                     if ui.button("Save Scene").clicked() {
-                        self.save_current_scene();
+                        self.show_save_dialog = true;
                         ui.close_menu();
                     }
                     ui.separator();
@@ -750,7 +758,7 @@ impl UnityStyleEditor {
     }
 
     /// Handle drag and drop operations - REAL IMPLEMENTATION
-    fn handle_drag_drop(&mut self, ctx: &egui::Context) {
+    fn handle_drag_drop(&mut self, _ctx: &egui::Context) {
         // Handle active drag operations
         if let Some(payload) = &self.drag_payload.clone() {
             match payload {
@@ -851,12 +859,24 @@ impl UnityStyleEditor {
 
     /// Setup callbacks for communication between panels - REAL IMPLEMENTATION
     fn setup_callbacks(&mut self) {
-        // Console commands are now handled directly in the update loop through message passing
-        // This provides proper separation of concerns and avoids borrowing issues
+        // Note: We can't use closures that capture self due to borrowing rules
+        // Instead, we'll check for script execution requests in handle_pending_operations
 
-        // Set up viewport callbacks for object creation
-        // Note: These cannot be easily done here due to borrowing issues,
-        // so they are handled inline in the update loop
+        // Console commands can set pending operations
+        if let Some(command) = self.console.get_last_command() {
+            if command.starts_with("spawn ") {
+                let object_type = command.strip_prefix("spawn ").unwrap_or("empty");
+                self.pending_object_spawn = Some(object_type.to_string());
+            } else if command.starts_with("scene ") {
+                let scene_name = command.strip_prefix("scene ").unwrap_or("default");
+                self.pending_scene_switch = Some(scene_name.to_string());
+            }
+        }
+
+        // Check if scripting panel has executed a script
+        if let Some(executed_ast) = self.scripting_panel.get_last_executed_script() {
+            self.pending_script_execution = Some(executed_ast);
+        }
 
         self.console.log(
             LogLevel::Debug,
@@ -865,11 +885,81 @@ impl UnityStyleEditor {
         );
     }
 
+    /// Handle dialogs (save, open, etc.)
+    fn handle_dialogs(&mut self, ctx: &egui::Context) {
+        // Handle save dialog
+        if self.show_save_dialog {
+            egui::Window::new("Save Scene")
+                .collapsible(false)
+                .resizable(true)
+                .show(ctx, |ui| {
+                    ui.label("Enter scene name:");
+
+                    let mut scene_name = String::new();
+                    if let Some(scene) = self.scene_manager.current_scene() {
+                        scene_name = scene.name.clone();
+                    }
+
+                    let mut temp_name = scene_name.clone();
+                    ui.text_edit_singleline(&mut temp_name);
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Save").clicked() {
+                            // Save the scene with the given name
+                            if let Some(scene) = self.scene_manager.current_scene_mut() {
+                                scene.name = temp_name.clone();
+                            }
+                            self.save_current_scene();
+                            self.show_save_dialog = false;
+                        }
+
+                        if ui.button("Cancel").clicked() {
+                            self.show_save_dialog = false;
+                        }
+                    });
+                });
+        }
+    }
+
+    /// Handle pending operations from console commands or other sources
+    fn handle_pending_operations(&mut self) {
+        // Handle pending scene switch
+        if let Some(scene_name) = self.pending_scene_switch.take() {
+            // Find and switch to the scene by name
+            for (index, scene) in self.scene_manager.scenes.iter().enumerate() {
+                if scene.name == scene_name {
+                    self.scene_manager.switch_scene(index);
+                    break;
+                }
+            }
+        }
+
+        // Handle pending object spawn
+        if let Some(object_type) = self.pending_object_spawn.take() {
+            if let Some(scene) = self.scene_manager.current_scene_mut() {
+                let _object_id = match object_type.as_str() {
+                    "cube" => scene.add_object("Cube".to_string(), GameObjectType::Cube),
+                    "sphere" => scene.add_object("Sphere".to_string(), GameObjectType::Sphere),
+                    "light" => scene.add_object("Light".to_string(), GameObjectType::Light),
+                    "camera" => scene.add_object("Camera".to_string(), GameObjectType::Camera),
+                    _ => scene.add_object("Empty".to_string(), GameObjectType::Empty),
+                };
+            }
+        }
+
+        // Handle pending script execution - create 3D objects from script AST
+        if let Some(script_ast) = self.pending_script_execution.take() {
+            self.process_script_for_3d_objects(script_ast);
+        }
+    }
+
     /// Sync physics world state with scene objects
     fn sync_physics_to_scene(&mut self) {
         if let Some(scene) = self.scene_manager.current_scene_mut() {
             // Update positions of physics-enabled objects
-            for (object_id, object) in &mut scene.objects {
+            for (_object_id, object) in &mut scene.objects {
                 // Check if object has a rigid body component
                 let mut has_rigid_body = false;
                 let mut physics_body_id = None;
@@ -900,7 +990,7 @@ impl UnityStyleEditor {
     /// Sync scene objects to physics world (when objects are moved in editor)
     fn sync_scene_to_physics(&mut self) {
         if let Some(scene) = self.scene_manager.current_scene() {
-            for (object_id, object) in &scene.objects {
+            for (_object_id, object) in &scene.objects {
                 for (idx, component) in object.components.iter().enumerate() {
                     if let Component::RigidBody { .. } = component {
                         // Update physics body position
@@ -921,11 +1011,11 @@ impl UnityStyleEditor {
             // Clear existing physics bodies
             self.physics_world.rigid_bodies.clear();
 
-            for (object_id, object) in &scene.objects {
+            for (_object_id, object) in &scene.objects {
                 for component in &object.components {
                     if let Component::RigidBody { shape, mass } = component {
                         // Add rigid body to physics world
-                        let body_id = self.physics_world.add_rigid_body(
+                        let _body_id = self.physics_world.add_rigid_body(
                             shape.clone(),
                             *mass,
                             object.transform.position,
@@ -1278,6 +1368,277 @@ impl UnityStyleEditor {
 
             // Move back to undo stack
             self.undo_stack.push(action);
+        }
+    }
+
+    /// Get dock state for future use (currently using simpler layout)
+    pub fn _get_dock_state(&self) -> &DockState<PanelTab> {
+        &self.dock_state
+    }
+
+    /// Process script AST to create 3D objects in the viewport
+    fn process_script_for_3d_objects(&mut self, script_ast: crate::ast::Program) {
+        self.console.log(
+            LogLevel::Info,
+            "Processing script for 3D object creation...",
+            "ScriptEngine",
+        );
+
+        // Collect objects to create first, then create them
+        let mut objects_to_create = Vec::new();
+
+        // Analyze the AST to find object creation patterns
+        for item in &script_ast.items {
+            self.collect_3d_objects_from_item(item, &mut objects_to_create);
+        }
+
+        // Create the objects in the scene
+        if let Some(scene) = self.scene_manager.current_scene_mut() {
+            for (object_name, game_object_type, transform, components) in objects_to_create {
+                let object_id = scene.add_object(object_name.clone(), game_object_type);
+
+                if let Some(obj) = scene.objects.get_mut(&object_id) {
+                    obj.transform = transform;
+                    obj.components = components;
+                }
+
+                self.console.log(
+                    LogLevel::Info,
+                    &format!("Created 3D object: {}", object_name),
+                    "ScriptEngine",
+                );
+            }
+        }
+
+        self.console.log(
+            LogLevel::Info,
+            "Script processing completed",
+            "ScriptEngine",
+        );
+    }
+
+    /// Collect 3D object definitions from AST items
+    fn collect_3d_objects_from_item(
+        &self,
+        item: &crate::ast::Item,
+        objects_to_create: &mut Vec<(String, GameObjectType, Transform, Vec<Component>)>,
+    ) {
+        match item {
+            crate::ast::Item::LetBinding(let_binding) => {
+                self.collect_3d_objects_from_let_binding(let_binding, objects_to_create);
+            }
+            crate::ast::Item::FunctionDef(func_def) => {
+                // Check function body for object creation
+                self.collect_3d_objects_from_expression(
+                    &func_def.body,
+                    &func_def.name,
+                    objects_to_create,
+                );
+            }
+            _ => {
+                // Other item types don't typically create 3D objects directly
+            }
+        }
+    }
+
+    /// Collect 3D objects from let bindings
+    fn collect_3d_objects_from_let_binding(
+        &self,
+        let_binding: &crate::ast::LetBinding,
+        objects_to_create: &mut Vec<(String, GameObjectType, Transform, Vec<Component>)>,
+    ) {
+        let object_name = &let_binding.name;
+        self.collect_3d_objects_from_expression(&let_binding.value, object_name, objects_to_create);
+    }
+
+    /// Collect 3D objects from expressions
+    fn collect_3d_objects_from_expression(
+        &self,
+        expr: &crate::ast::Expression,
+        object_name: &str,
+        objects_to_create: &mut Vec<(String, GameObjectType, Transform, Vec<Component>)>,
+    ) {
+        match expr {
+            crate::ast::Expression::StructCreation { name, fields, .. } => {
+                if self.is_3d_object_struct(name) {
+                    let game_object =
+                        self.create_game_object_from_struct(name, fields, object_name);
+                    objects_to_create.push((
+                        game_object.name,
+                        game_object.object_type,
+                        game_object.transform,
+                        game_object.components,
+                    ));
+                }
+            }
+            crate::ast::Expression::Block {
+                statements, result, ..
+            } => {
+                // Process block statements
+                for statement in statements {
+                    if let crate::ast::Statement::LetBinding(let_binding) = statement {
+                        self.collect_3d_objects_from_let_binding(let_binding, objects_to_create);
+                    }
+                }
+                // Process block result
+                if let Some(result_expr) = result {
+                    self.collect_3d_objects_from_expression(
+                        result_expr,
+                        object_name,
+                        objects_to_create,
+                    );
+                }
+            }
+            _ => {
+                // Other expression types don't create 3D objects directly
+            }
+        }
+    }
+
+    /// Check if a struct name represents a 3D object type
+    fn is_3d_object_struct(&self, struct_name: &str) -> bool {
+        matches!(
+            struct_name.to_lowercase().as_str(),
+            "cube"
+                | "sphere"
+                | "cylinder"
+                | "plane"
+                | "light"
+                | "camera"
+                | "rigidbody"
+                | "physicsobject"
+                | "mesh"
+                | "gameobject"
+        )
+    }
+
+    /// Create a GameObject from struct creation expression
+    fn create_game_object_from_struct(
+        &self,
+        struct_name: &str,
+        fields: &std::collections::HashMap<String, crate::ast::Expression>,
+        object_name: &str,
+    ) -> GameObject {
+        let mut game_object = GameObject::new(
+            0, // ID will be assigned by scene
+            object_name.to_string(),
+            self.map_struct_to_game_object_type(struct_name),
+        );
+
+        // Process struct fields to set object properties
+        for (field_name, field_expr) in fields {
+            match field_name.as_str() {
+                "position" => {
+                    if let Some(pos) = self.extract_vec3_from_expression(field_expr) {
+                        game_object.transform.position = pos;
+                    }
+                }
+                "rotation" => {
+                    if let Some(rot) = self.extract_vec3_from_expression(field_expr) {
+                        game_object.transform.rotation = rot;
+                    }
+                }
+                "scale" => {
+                    if let Some(scale) = self.extract_vec3_from_expression(field_expr) {
+                        game_object.transform.scale = scale;
+                    }
+                }
+                "color" => {
+                    if let Some(color) = self.extract_color_from_expression(field_expr) {
+                        game_object.components.push(Component::Renderer {
+                            material: "Default".to_string(),
+                            color,
+                        });
+                    }
+                }
+                "mass" => {
+                    if let Some(mass) = self.extract_float_from_expression(field_expr) {
+                        game_object.components.push(Component::RigidBody {
+                            shape: Shape::Sphere { radius: 1.0 },
+                            mass,
+                        });
+                    }
+                }
+                _ => {
+                    // Other fields are not directly mapped to GameObject properties
+                }
+            }
+        }
+
+        game_object
+    }
+
+    /// Map struct name to GameObjectType
+    fn map_struct_to_game_object_type(&self, struct_name: &str) -> GameObjectType {
+        match struct_name.to_lowercase().as_str() {
+            "cube" => GameObjectType::Cube,
+            "sphere" => GameObjectType::Sphere,
+            "cylinder" => GameObjectType::Cylinder,
+            "plane" => GameObjectType::Plane,
+            "light" => GameObjectType::Light,
+            "camera" => GameObjectType::Camera,
+            "rigidbody" | "physicsobject" => {
+                GameObjectType::RigidBody(Shape::Sphere { radius: 1.0 })
+            }
+            _ => GameObjectType::Empty,
+        }
+    }
+
+    /// Extract Vec3 from expression (simplified for common patterns)
+    fn extract_vec3_from_expression(
+        &self,
+        expr: &crate::ast::Expression,
+    ) -> Option<crate::physics::math::Vec3> {
+        match expr {
+            crate::ast::Expression::FunctionCall { function, args, .. } => {
+                if let crate::ast::Expression::FieldAccess { object, field, .. } = function.as_ref()
+                {
+                    if let crate::ast::Expression::Identifier(type_name, _) = object.as_ref() {
+                        if type_name == "Vec3" && field == "new" && args.len() == 3 {
+                            let x = self.extract_float_from_expression(&args[0]).unwrap_or(0.0);
+                            let y = self.extract_float_from_expression(&args[1]).unwrap_or(0.0);
+                            let z = self.extract_float_from_expression(&args[2]).unwrap_or(0.0);
+                            return Some(crate::physics::math::Vec3::new(x, y, z));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        None
+    }
+
+    /// Extract color array from expression
+    fn extract_color_from_expression(&self, expr: &crate::ast::Expression) -> Option<[f32; 4]> {
+        match expr {
+            crate::ast::Expression::ArrayLiteral(elements, _) => {
+                if elements.len() == 4 {
+                    let r = self
+                        .extract_float_from_expression(&elements[0])
+                        .unwrap_or(1.0) as f32;
+                    let g = self
+                        .extract_float_from_expression(&elements[1])
+                        .unwrap_or(1.0) as f32;
+                    let b = self
+                        .extract_float_from_expression(&elements[2])
+                        .unwrap_or(1.0) as f32;
+                    let a = self
+                        .extract_float_from_expression(&elements[3])
+                        .unwrap_or(1.0) as f32;
+                    return Some([r, g, b, a]);
+                }
+            }
+            _ => {}
+        }
+        None
+    }
+
+    /// Extract float value from expression
+    fn extract_float_from_expression(&self, expr: &crate::ast::Expression) -> Option<f64> {
+        match expr {
+            crate::ast::Expression::FloatLiteral(value, _) => Some(*value),
+            crate::ast::Expression::IntLiteral(value, _) => Some(*value as f64),
+            _ => None,
         }
     }
 }

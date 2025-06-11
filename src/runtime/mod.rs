@@ -148,7 +148,14 @@ impl Runtime {
             }
             Expression::FunctionCall { function, args, .. } => {
                 if let Expression::Identifier(name, _) = function.as_ref() {
-                    self.call_function(name, args)
+                    // Special handling for index access function
+                    if name == "index" && args.len() == 2 {
+                        let object = self.evaluate_expression(&args[0])?;
+                        let index = self.evaluate_expression(&args[1])?;
+                        self.index_access(&object, &index)
+                    } else {
+                        self.call_function(name, args)
+                    }
                 } else {
                     Err(RuntimeError::TypeError(
                         "Function calls must use identifiers".to_string(),
@@ -578,19 +585,33 @@ impl ThreadPool {
         let job = Box::new(f);
         self.sender.send(job).unwrap();
     }
+
+    /// Get information about all workers
+    pub fn worker_info(&self) -> Vec<usize> {
+        self.workers.iter().map(|worker| worker.id()).collect()
+    }
 }
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        let thread = thread::spawn(move || loop {
-            let job = receiver.lock().unwrap().recv().unwrap();
-            job();
+        let worker_id = id; // Store for use in closure
+        let thread = thread::spawn(move || {
+            println!("Worker {} started", worker_id);
+            loop {
+                let job = receiver.lock().unwrap().recv().unwrap();
+                job();
+            }
         });
 
         Worker {
             id,
             thread: Some(thread),
         }
+    }
+
+    /// Get the worker's ID
+    pub fn id(&self) -> usize {
+        self.id
     }
 }
 

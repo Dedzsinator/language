@@ -326,7 +326,18 @@ impl<'input> Parser<'input> {
             return_type = Some(self.parse_type()?);
         }
 
-        self.expect(Token::Arrow)?;
+        // Accept both => and -> for function body
+        if self.check(&Token::Arrow) {
+            self.advance();
+        } else if self.check(&Token::ThinArrow) {
+            self.advance();
+        } else {
+            return Err(ParseError::unexpected_token(
+                "=> or ->",
+                &self.current_token.token.to_string(),
+                &self.current_token.span,
+            ));
+        }
         let body = self.parse_expression()?;
         let end_span = body.span().clone();
 
@@ -1060,7 +1071,19 @@ impl<'input> Parser<'input> {
         }
 
         self.expect(Token::RightParen)?;
-        self.expect(Token::Arrow)?;
+
+        // Accept both => and -> for lambda body
+        if self.check(&Token::Arrow) {
+            self.advance();
+        } else if self.check(&Token::ThinArrow) {
+            self.advance();
+        } else {
+            return Err(ParseError::unexpected_token(
+                "=> or ->",
+                &self.current_token.token.to_string(),
+                &self.current_token.span,
+            ));
+        }
 
         let body = self.parse_expression()?;
         let end_span = body.span().clone();

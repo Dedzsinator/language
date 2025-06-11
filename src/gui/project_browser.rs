@@ -76,6 +76,11 @@ impl ProjectBrowser {
 
         // File tree
         self.show_file_tree(ui);
+
+        // Show create dialog if requested
+        if self.show_create_dialog {
+            self.show_create_dialog_ui(ui);
+        }
     }
 
     fn show_toolbar(&mut self, ui: &mut egui::Ui) {
@@ -339,8 +344,8 @@ impl ProjectBrowser {
         let mut nodes = Vec::new();
 
         // Implement actual file system scanning
-        if let Some(ref project_path) = self.project_path {
-            self.scan_directory_recursive(project_path, &mut nodes);
+        if self.project_path.is_some() {
+            self.scan_directory_recursive(path, &mut nodes);
         } else {
             // No project path set, use mock data for demo
             self.add_mock_data(&mut nodes);
@@ -667,6 +672,66 @@ impl ProjectBrowser {
         F: Fn(&str) + Send + Sync + 'static,
     {
         self.text_editor_callback = Some(Box::new(callback));
+    }
+
+    /// Show create file/folder dialog
+    fn show_create_dialog_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Create New")
+            .collapsible(false)
+            .resizable(false)
+            .show(ui.ctx(), |ui| {
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut self.create_dialog_is_folder, false, "File");
+                    ui.radio_value(&mut self.create_dialog_is_folder, true, "Folder");
+                });
+
+                ui.separator();
+
+                ui.label(format!("{}:", if self.create_dialog_is_folder { "Folder name" } else { "File name" }));
+                ui.text_edit_singleline(&mut self.create_dialog_name);
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    if ui.button("Create").clicked() && !self.create_dialog_name.is_empty() {
+                        // Create the file or folder
+                        self.create_file_or_folder();
+                        self.show_create_dialog = false;
+                        self.create_dialog_name.clear();
+                        self.create_dialog_is_folder = false;
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        self.show_create_dialog = false;
+                        self.create_dialog_name.clear();
+                        self.create_dialog_is_folder = false;
+                    }
+                });
+            });
+    }
+
+    /// Create a file or folder based on dialog settings
+    fn create_file_or_folder(&mut self) {
+        let path = format!("{}/{}", self.current_directory, self.create_dialog_name);
+
+        if self.create_dialog_is_folder {
+            // Create folder
+            if let Err(e) = std::fs::create_dir_all(&path) {
+                eprintln!("Failed to create folder {}: {}", path, e);
+            } else {
+                println!("Created folder: {}", path);
+            }
+        } else {
+            // Create file
+            if let Err(e) = std::fs::write(&path, "") {
+                eprintln!("Failed to create file {}: {}", path, e);
+            } else {
+                println!("Created file: {}", path);
+            }
+        }
+
+        // Refresh file tree to show new item
+        self.refresh_file_tree();
     }
 }
 

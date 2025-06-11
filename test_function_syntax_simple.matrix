@@ -1,0 +1,3 @@
+-- Test the fixed function syntax - only declarations
+let add = (a: Int, b: Int) => a + b
+let result = add(5, 3)
