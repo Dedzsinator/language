@@ -1,0 +1,4 @@
+-- Test function definitions and JIT compilation
+let add = (a: Int, b: Int) => a + b
+let multiply = (x: Int, y: Int) => x * y
+let compute = (n: Int) => add(n, multiply(n, 2))

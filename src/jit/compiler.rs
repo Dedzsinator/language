@@ -33,7 +33,7 @@ impl<'ctx> JitCompiler<'ctx> {
     }
 
     /// Compile a function declaration to LLVM IR
-    pub fn compile_function(&self, func: &FunctionDeclaration) -> Result<(), JitError> {
+    pub fn compile_function(&self, func: &FunctionDef) -> Result<(), JitError> {
         // Implementation would go here
         Ok(())
     }

@@ -1,0 +1,15 @@
+-- Simple JIT compilation test
+-- Test basic arithmetic functions suitable for JIT
+
+-- Simple arithmetic functions
+let add_ints = (a: Int, b: Int) => a + b
+let multiply = (x: Int, y: Int) => x * y
+let power_func = (base: Int, exp: Int) => base ^ exp
+
+-- Test JIT-compiled function calls
+let result1 = add_ints(5, 10)
+let result2 = multiply(3, 4)
+let result3 = power_func(2, 3)
+
+-- Final computation
+let final_result = result1 + result2 + result3

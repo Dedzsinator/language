@@ -3,29 +3,14 @@ use crate::ast::*;
 use crate::jit::{JitContext, JitError, JitStats}; // Add JIT import conditionally
 use crate::physics;
 use crate::types::*;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::rc::Rc;
+use std::thread;
 use thiserror::Error;
-
-// Stub JitError when JIT feature is not enabled
-#[cfg(not(feature = "jit"))]
-#[derive(Debug, Clone)]
-pub enum JitError {
-    NotAvailable,
-}
-
-#[cfg(not(feature = "jit"))]
-impl std::fmt::Display for JitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JitError::NotAvailable => write!(f, "JIT compilation not available"),
-        }
-    }
-}
-
-#[cfg(not(feature = "jit"))]
-impl std::error::Error for JitError {}
 
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum RuntimeError {
@@ -673,27 +658,6 @@ impl Interpreter {
             BinaryOperator::Sub => left_val.subtract(&right_val),
             BinaryOperator::Mul => left_val.multiply(&right_val),
             BinaryOperator::Div => left_val.divide(&right_val),
-            BinaryOperator::Pow => match (&left_val, &right_val) {
-                (Value::Int(base), Value::Int(exp)) => {
-                    if *exp >= 0 {
-                        Ok(Value::Int((*base as f64).powf(*exp as f64) as i64))
-                    } else {
-                        Ok(Value::Float((*base as f64).powf(*exp as f64)))
-                    }
-                }
-                (Value::Float(base), Value::Float(exp)) => Ok(Value::Float(base.powf(*exp))),
-                (Value::Int(base), Value::Float(exp)) => {
-                    Ok(Value::Float((*base as f64).powf(*exp)))
-                }
-                (Value::Float(base), Value::Int(exp)) => Ok(Value::Float(base.powf(*exp as f64))),
-                _ => Err(RuntimeError::TypeError {
-                    message: format!(
-                        "Cannot compute power of {} and {}",
-                        left_val.type_name(),
-                        right_val.type_name()
-                    ),
-                }),
-            },
             BinaryOperator::MatMul => left_val.matrix_multiply(&right_val),
             BinaryOperator::Eq => left_val.equals(&right_val),
             BinaryOperator::Ne => {
@@ -833,11 +797,11 @@ impl Interpreter {
                 }
 
                 // Try JIT execution first if function name is available
-                if let Expression::Identifier(_func_name, _) = func {
+                if let Expression::Identifier(func_name, _) = func {
                     #[cfg(feature = "jit")]
                     if let Some(ref jit) = self.jit_context {
                         // Check if function is JIT compiled
-                        if let Ok(result) = jit.execute_function(_func_name, &arg_values) {
+                        if let Ok(result) = jit.execute_function(func_name, &arg_values) {
                             return Ok(result);
                         }
                     }
@@ -933,7 +897,7 @@ impl Interpreter {
     /// Evaluate import statement
     fn eval_import(&mut self, import: &Import) -> RuntimeResult<Value> {
         // For now, just return Unit - full module system would be implemented here
-        match import.module_path.as_str() {
+        match import.module.as_str() {
             "std" => {
                 // Load standard library
                 Ok(Value::Unit)
@@ -968,7 +932,7 @@ impl Interpreter {
     fn eval_matrix_comprehension(
         &mut self,
         element: &Expression,
-        _generators: &[Generator],
+        generators: &[Generator],
     ) -> RuntimeResult<Value> {
         // Simplified implementation - just create a 2x2 matrix for now
         let value = self.eval_expression(element)?;
@@ -992,10 +956,10 @@ impl Interpreter {
                 if let Some(ref guard) = arm.guard {
                     let guard_result = self.eval_expression(guard)?;
                     if let Value::Bool(true) = guard_result {
-                        return self.eval_expression(&arm.body);
+                        return self.eval_expression(&arm.expression);
                     }
                 } else {
-                    return self.eval_expression(&arm.body);
+                    return self.eval_expression(&arm.expression);
                 }
             }
         }
@@ -1082,17 +1046,6 @@ impl Interpreter {
         // Evaluate and bind all let bindings
         for binding in bindings {
             let value = self.eval_expression(&binding.value)?;
-
-            // Check if this is a lambda function that can be JIT compiled
-            if let Expression::Lambda {
-                params,
-                body: lambda_body,
-                ..
-            } = &binding.value
-            {
-                self.try_jit_compile_lambda(&binding.name, params, lambda_body);
-            }
-
             new_env.define(binding.name.clone(), value);
         }
 
@@ -1104,202 +1057,163 @@ impl Interpreter {
         result
     }
 
-    /// Try to JIT compile a lambda function
-    #[cfg(feature = "jit")]
-    fn try_jit_compile_lambda(&mut self, name: &str, params: &[Parameter], body: &Expression) {
-        // Create a temporary FunctionDef from the lambda
-        let func_def = FunctionDef {
-            name: name.to_string(),
-            params: params.to_vec(),
-            return_type: None, // Type inference would handle this
-            body: body.clone(),
-            attributes: Vec::new(),
-            span: Span::new(0, 0, 0, 0), // Dummy span
-        };
-
-        // Try to JIT compile if suitable
-        if self.can_jit_compile(&func_def) {
-            match self.jit_compile_function(&func_def) {
-                Ok(compiled_name) => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("✓ JIT compiled lambda function '{}'", compiled_name);
-                }
-                Err(e) => {
-                    #[cfg(debug_assertions)]
-                    eprintln!("⚠ JIT compilation failed for lambda '{}': {}", name, e);
-                }
-            }
-        }
-    }
-
-    #[cfg(not(feature = "jit"))]
-    fn try_jit_compile_lambda(&mut self, _name: &str, _params: &[Parameter], _body: &Expression) {
-        // JIT compilation not available
-    }
-
-    /// Evaluate a block with statements and optional result expression
+    /// Evaluate block expression
     fn eval_block(
         &mut self,
         statements: &[Statement],
         result: &Option<Box<Expression>>,
     ) -> RuntimeResult<Value> {
-        let mut last_value = Value::Unit;
-
-        // Execute all statements in sequence
-        for statement in statements {
-            match statement {
-                Statement::Expression(expr) => {
-                    last_value = self.eval_expression(expr)?;
-                }
-                Statement::LetBinding(let_binding) => {
-                    let value = self.eval_expression(&let_binding.value)?;
-                    self.environment
-                        .define(let_binding.name.clone(), value.clone());
-                    last_value = value;
-                }
-            }
+        // Execute all statements
+        for stmt in statements {
+            self.eval_statement(stmt)?;
         }
 
-        // If there's a result expression, evaluate it; otherwise return last statement value
+        // Evaluate result expression if present
         if let Some(result_expr) = result {
             self.eval_expression(result_expr)
         } else {
-            Ok(last_value)
+            Ok(Value::Unit)
         }
     }
 
-    /// Evaluate parallel expressions (for now, execute sequentially)
-    fn eval_parallel_block(&mut self, expressions: &[Expression]) -> RuntimeResult<Value> {
-        // TODO: Implement true parallel execution when we have proper async support
-        // For now, execute sequentially and return the last value
-        let mut results = Vec::new();
-
-        for expr in expressions {
-            let value = self.eval_expression(expr)?;
-            results.push(value);
+    /// Evaluate statement
+    fn eval_statement(&mut self, stmt: &Statement) -> RuntimeResult<Value> {
+        match stmt {
+            Statement::Expression(expr) => self.eval_expression(expr),
+            Statement::Let(let_binding) => {
+                let value = self.eval_expression(&let_binding.value)?;
+                self.environment
+                    .define(let_binding.name.clone(), value.clone());
+                Ok(value)
+            }
+            Statement::Assignment { target, value, .. } => {
+                let val = self.eval_expression(value)?;
+                // For now, only support simple variable assignment
+                if let Expression::Identifier(name, _) = target {
+                    self.environment.set(name, val.clone())?;
+                }
+                Ok(val)
+            }
+            Statement::Return(expr) => {
+                // TODO: Implement proper return handling
+                self.eval_expression(expr)
+            }
+            Statement::Break => {
+                // TODO: Implement proper break handling
+                Ok(Value::Unit)
+            }
+            Statement::Continue => {
+                // TODO: Implement proper continue handling
+                Ok(Value::Unit)
+            }
         }
+    }
 
-        // Return array of results for parallel execution
+    /// Evaluate parallel block (simplified - just evaluate sequentially for now)
+    fn eval_parallel_block(&mut self, expressions: &[Expression]) -> RuntimeResult<Value> {
+        let mut results = Vec::new();
+        for expr in expressions {
+            results.push(self.eval_expression(expr)?);
+        }
         Ok(Value::Array(results))
     }
 
-    /// Evaluate async spawn expression (placeholder implementation)
+    /// Evaluate async spawn (simplified - just evaluate immediately for now)
     fn eval_async_spawn(&mut self, expression: &Expression) -> RuntimeResult<Value> {
-        // TODO: Implement actual async spawning
-        // For now, just evaluate the expression synchronously
-        #[cfg(debug_assertions)]
-        eprintln!("Warning: async spawn not yet implemented, executing synchronously");
-
         self.eval_expression(expression)
     }
 
-    /// Evaluate async wait expression (placeholder implementation)
+    /// Evaluate async wait (simplified - just evaluate immediately for now)
     fn eval_async_wait(&mut self, expression: &Expression) -> RuntimeResult<Value> {
-        // TODO: Implement actual async waiting
-        // For now, just evaluate the expression synchronously
-        #[cfg(debug_assertions)]
-        eprintln!("Warning: async wait not yet implemented, executing synchronously");
-
         self.eval_expression(expression)
     }
 
-    /// Evaluate GPU directive expression (placeholder implementation)
+    /// Evaluate GPU directive (simplified - just evaluate the inner expression for now)
     fn eval_gpu_directive(&mut self, expression: &Expression) -> RuntimeResult<Value> {
-        // TODO: Implement GPU computation
-        // For now, just evaluate on CPU
-        #[cfg(debug_assertions)]
-        eprintln!("Warning: GPU directives not yet implemented, executing on CPU");
-
         self.eval_expression(expression)
+    }
+
+    // JIT compilation methods (conditional)
+
+    /// Enable JIT compilation for performance-critical functions
+    #[cfg(feature = "jit")]
+    pub fn enable_jit(&mut self) -> Result<(), JitError> {
+        if self.jit_context.is_none() {
+            self.jit_context = Some(JitContext::new()?);
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "jit"))]
+    pub fn enable_jit(&mut self) -> Result<(), String> {
+        Err("JIT compilation not enabled".to_string())
+    }
+
+    /// Compile a function to native code using JIT
+    #[cfg(feature = "jit")]
+    pub fn jit_compile_function(&mut self, func: &FunctionDef) -> Result<String, JitError> {
+        if let Some(ref mut jit) = self.jit_context {
+            jit.compile_function(func)
+        } else {
+            Err(JitError::CompilationFailed(
+                "JIT context not initialized".to_string(),
+            ))
+        }
+    }
+
+    #[cfg(not(feature = "jit"))]
+    pub fn jit_compile_function(&mut self, _func: &FunctionDef) -> Result<String, String> {
+        Err("JIT compilation not enabled".to_string())
     }
 
     /// Check if a function can be JIT compiled
     #[cfg(feature = "jit")]
-    fn can_jit_compile(&self, func_def: &FunctionDef) -> bool {
-        // Only JIT compile if we have a JIT context
-        if self.jit_context.is_none() {
-            return false;
+    pub fn can_jit_compile(&self, func: &FunctionDef) -> bool {
+        if let Some(ref jit) = self.jit_context {
+            jit.can_jit_compile(func)
+        } else {
+            false
         }
-
-        // Simple heuristics for JIT compilation suitability
-        // For now, JIT compile functions with mathematical operations
-        self.is_jit_suitable_function(func_def)
     }
 
     #[cfg(not(feature = "jit"))]
-    fn can_jit_compile(&self, _func_def: &FunctionDef) -> bool {
+    pub fn can_jit_compile(&self, _func: &FunctionDef) -> bool {
         false
     }
 
-    /// Check if function is suitable for JIT compilation
+    /// Execute a JIT compiled function
     #[cfg(feature = "jit")]
-    fn is_jit_suitable_function(&self, func_def: &FunctionDef) -> bool {
-        // Check if function contains operations that benefit from JIT compilation
-        self.contains_mathematical_operations(&func_def.body)
-    }
-
-    /// Recursively check if expression tree contains mathematical operations
-    #[cfg(feature = "jit")]
-    fn contains_mathematical_operations(&self, expr: &Expression) -> bool {
-        match expr {
-            Expression::Binary {
-                op, left, right, ..
-            } => {
-                matches!(
-                    op,
-                    BinaryOperator::Add
-                        | BinaryOperator::Subtract
-                        | BinaryOperator::Multiply
-                        | BinaryOperator::Divide
-                        | BinaryOperator::Modulo
-                        | BinaryOperator::Power
-                ) || self.contains_mathematical_operations(left)
-                    || self.contains_mathematical_operations(right)
-            }
-            Expression::Unary { op, expr, .. } => {
-                matches!(op, UnaryOperator::Minus | UnaryOperator::Plus)
-                    || self.contains_mathematical_operations(expr)
-            }
-            Expression::FunctionCall { .. } => true, // Function calls can benefit from JIT
-            Expression::If {
-                condition,
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                self.contains_mathematical_operations(condition)
-                    || self.contains_mathematical_operations(then_branch)
-                    || else_branch
-                        .as_ref()
-                        .map_or(false, |e| self.contains_mathematical_operations(e))
-            }
-            Expression::Block {
-                statements, result, ..
-            } => {
-                statements
-                    .iter()
-                    .any(|s| self.contains_mathematical_operations(s))
-                    || result
-                        .as_ref()
-                        .map_or(false, |r| self.contains_mathematical_operations(r))
-            }
-            _ => false,
-        }
-    }
-
-    /// JIT compile a function
-    #[cfg(feature = "jit")]
-    fn jit_compile_function(&mut self, func_def: &FunctionDef) -> Result<String, JitError> {
-        if let Some(ref mut jit_context) = self.jit_context {
-            jit_context.compile_function(func_def)
+    pub fn jit_execute_function(&self, name: &str, args: &[Value]) -> RuntimeResult<Value> {
+        if let Some(ref jit) = self.jit_context {
+            jit.execute_function(name, args)
         } else {
-            Err(JitError::NotInitialized)
+            Err(RuntimeError::Generic {
+                message: "JIT context not available".to_string(),
+            })
         }
     }
 
     #[cfg(not(feature = "jit"))]
-    fn jit_compile_function(&mut self, _func_def: &FunctionDef) -> Result<String, JitError> {
-        Err(JitError::NotAvailable)
+    pub fn jit_execute_function(&self, _name: &str, _args: &[Value]) -> RuntimeResult<Value> {
+        Err(RuntimeError::Generic {
+            message: "JIT compilation not enabled".to_string(),
+        })
+    }
+
+    /// Get JIT compilation statistics
+    #[cfg(feature = "jit")]
+    pub fn get_jit_stats(&self) -> Option<crate::jit::JitStats> {
+        self.jit_context.as_ref().map(|jit| jit.get_stats())
+    }
+
+    #[cfg(not(feature = "jit"))]
+    pub fn get_jit_stats(&self) -> Option<()> {
+        None
+    }
+
+    /// Main interpretation entry point that delegates to eval_program
+    pub fn interpret(&mut self, program: &Program) -> RuntimeResult<Value> {
+        self.eval_program(program)
     }
 }
 

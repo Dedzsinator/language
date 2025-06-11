@@ -144,7 +144,8 @@ impl ScriptingPanel {
     fn open_script_file(&mut self, path: std::path::PathBuf) {
         match std::fs::read_to_string(&path) {
             Ok(content) => {
-                let name = path.file_stem()
+                let name = path
+                    .file_stem()
                     .and_then(|s| s.to_str())
                     .unwrap_or("Untitled")
                     .to_string();
@@ -234,8 +235,16 @@ impl ScriptingPanel {
                     .show(ui, |ui| {
                         let search_results = self.search_results.clone(); // Clone to avoid borrowing issues
                         for (i, result) in search_results.iter().enumerate() {
-                            if ui.selectable_label(false, format!("{}:{} - {}",
-                                result.script_name, result.line, result.match_text)).clicked() {
+                            if ui
+                                .selectable_label(
+                                    false,
+                                    format!(
+                                        "{}:{} - {}",
+                                        result.script_name, result.line, result.match_text
+                                    ),
+                                )
+                                .clicked()
+                            {
                                 self.goto_search_result(i);
                             }
                         }
@@ -670,7 +679,8 @@ impl ScriptingPanel {
                     if let Err(e) = parser.parse_program() {
                         let error_msg = format!("{:?}", e);
                         // Extract line number before borrowing script mutably again
-                        let line_num = ScriptingPanel::extract_line_number_from_error_static(&error_msg);
+                        let line_num =
+                            ScriptingPanel::extract_line_number_from_error_static(&error_msg);
                         script.syntax_errors.push(SyntaxError {
                             line: line_num,
                             column: 1,
@@ -776,7 +786,12 @@ impl ScriptingPanel {
     }
 
     /// Find text matches in a line
-    fn find_text_matches(&self, line: &str, line_num: usize, script_name: &str) -> Vec<SearchResult> {
+    fn find_text_matches(
+        &self,
+        line: &str,
+        line_num: usize,
+        script_name: &str,
+    ) -> Vec<SearchResult> {
         let mut matches = Vec::new();
         let search_text = if self.case_sensitive {
             self.search_text.clone()
@@ -814,7 +829,12 @@ impl ScriptingPanel {
     }
 
     /// Find regex matches in a line
-    fn find_regex_matches(&self, line: &str, line_num: usize, script_name: &str) -> Vec<SearchResult> {
+    fn find_regex_matches(
+        &self,
+        line: &str,
+        line_num: usize,
+        script_name: &str,
+    ) -> Vec<SearchResult> {
         // Simple regex implementation - in a real implementation, use regex crate
         // For now, fall back to text search
         self.find_text_matches(line, line_num, script_name)
