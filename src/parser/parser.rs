@@ -816,7 +816,8 @@ impl<'input> Parser<'input> {
                     };
                 }
                 Token::Dot => {
-                    // Field access                    self.advance();
+                    // Field access
+                    self.advance();
                     let field = self.expect_identifier()?;
                     let end_span = self.previous_span();
                     let start_span = expr.span().clone();
@@ -831,6 +832,32 @@ impl<'input> Parser<'input> {
                             end_span.column,
                         ),
                     };
+                }
+                Token::DoubleColon => {
+                    // Static method call: Type::method
+                    self.advance();
+                    let method = self.expect_identifier()?;
+                    let end_span = self.previous_span();
+                    let start_span = expr.span().clone();
+
+                    // Create a static method access expression
+                    if let Expression::Identifier(type_name, _) = expr {
+                        expr = Expression::Identifier(
+                            format!("{}::{}", type_name, method),
+                            Span::new(
+                                start_span.start,
+                                end_span.end,
+                                start_span.line,
+                                end_span.column,
+                            ),
+                        );
+                    } else {
+                        return Err(ParseError::unexpected_token(
+                            "type identifier",
+                            "complex expression",
+                            expr.span(),
+                        ));
+                    }
                 }
                 Token::QuestionQuestion => {
                     // Optional access with fallback
@@ -884,15 +911,20 @@ impl<'input> Parser<'input> {
                     };
                 }
                 Token::LeftBrace => {
+                    // Check if this might be a block rather than struct creation
+                    // This can happen in contexts like: if true { ... }
+                    if let Expression::BoolLiteral(_, _) = expr {
+                        // Boolean literals followed by { are likely part of control flow
+                        break;
+                    }
                     // Struct creation with brace syntax: Vector2 { x: 1, y: 2 }
                     if let Expression::Identifier(name, start_span) = expr {
                         expr = self.parse_struct_creation(name, start_span)?;
                     } else {
-                        return Err(ParseError::unexpected_token(
-                            "identifier",
-                            "complex expression",
-                            expr.span(),
-                        ));
+                        // For other expression types, break instead of erroring
+                        // This allows things like function calls or other expressions
+                        // to be followed by blocks in control structures
+                        break;
                     }
                 }
                 _ => break,
@@ -1043,6 +1075,14 @@ impl<'input> Parser<'input> {
     }
 
     fn check_lambda_start(&self) -> bool {
+        // Look for empty parameter list: )
+        if let Token::RightParen = self.current_token.token {
+            // Check if this is followed by => or ->
+            if let Token::Arrow | Token::ThinArrow = self.peek_token.token {
+                return true;
+            }
+        }
+
         // Look for parameter pattern: identifier : type
         if let Token::Identifier(_) = self.current_token.token {
             if let Token::Colon = self.peek_token.token {
@@ -1285,18 +1325,40 @@ impl<'input> Parser<'input> {
             ),
         })
     }
-
     fn parse_if_expression(&mut self) -> ParseResult<Expression> {
         let start_span = self.current_token.span.clone();
         self.advance(); // consume if
 
+        // Parse condition - use full expression parsing
         let condition = self.parse_expression()?;
-        let then_branch = self.parse_expression()?;
+
+        // Expect explicit block for then branch
+        if !self.check(&Token::LeftBrace) {
+            return Err(ParseError::unexpected_token(
+                "{",
+                &self.current_token.token.to_string(),
+                &self.current_token.span,
+            ));
+        }
+        let then_branch = self.parse_block()?;
 
         let mut else_branch = None;
         if self.check(&Token::Else) {
             self.advance();
-            else_branch = Some(Box::new(self.parse_expression()?));
+            // Check if this is an else-if or else block
+            if self.check(&Token::If) {
+                // else if - recursively parse
+                else_branch = Some(Box::new(self.parse_if_expression()?));
+            } else if self.check(&Token::LeftBrace) {
+                // else block
+                else_branch = Some(Box::new(self.parse_block()?));
+            } else {
+                return Err(ParseError::unexpected_token(
+                    "if or {",
+                    &self.current_token.token.to_string(),
+                    &self.current_token.span,
+                ));
+            }
         }
 
         let end_span = else_branch
@@ -1653,6 +1715,10 @@ impl<'input> Parser<'input> {
                 let name = name.clone();
                 self.advance();
                 Ok(name)
+            }
+            Token::Underscore => {
+                self.advance();
+                Ok("_".to_string())
             }
             _ => Err(ParseError::unexpected_token(
                 "identifier",

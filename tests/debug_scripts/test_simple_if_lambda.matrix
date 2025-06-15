@@ -1,0 +1,6 @@
+-- Simple if in lambda test
+let test = () => {
+    if true {
+        let x = 1
+    }
+}

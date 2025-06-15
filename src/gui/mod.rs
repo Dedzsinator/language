@@ -1,3 +1,4 @@
+use crate::ecs::World;
 use crate::eval::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -9,42 +10,72 @@ use egui_dock::{DockState, TabViewer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+mod animation_view;
 mod console;
+mod game_view;
 mod inspector;
 mod object_hierarchy;
+mod physics_debugger;
 mod project_browser;
 mod scene_manager;
+mod scene_view;
 mod scripting_panel;
+mod unity_layout;
 mod viewport;
 
+pub use animation_view::*;
 pub use console::*;
+pub use game_view::*;
 pub use inspector::*;
 pub use object_hierarchy::*;
+pub use physics_debugger::*;
 pub use project_browser::*;
 pub use scene_manager::*;
+pub use scene_view::*;
 pub use scripting_panel::*;
+pub use unity_layout::*;
 pub use viewport::*;
+
+/// Gizmo manipulation mode
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GizmoMode {
+    Translate,
+    Rotate,
+    Scale,
+}
 
 /// Panel types for the dock system
 #[derive(Debug, Clone, PartialEq)]
 pub enum PanelTab {
     Viewport,
+    SceneView,
+    GameView,
+    AnimationView,
     Inspector,
     Hierarchy,
     Project,
     Console,
     Scripting,
+    PhysicsDebugger,
+    Timeline,
+    AssetStore,
 }
 
 impl std::fmt::Display for PanelTab {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PanelTab::Viewport => write!(f, "Viewport"),
+            PanelTab::SceneView => write!(f, "Scene"),
+            PanelTab::GameView => write!(f, "Game"),
+            PanelTab::AnimationView => write!(f, "Animation"),
             PanelTab::Inspector => write!(f, "Inspector"),
             PanelTab::Hierarchy => write!(f, "Hierarchy"),
             PanelTab::Project => write!(f, "Project"),
             PanelTab::Console => write!(f, "Console"),
             PanelTab::Scripting => write!(f, "Scripting"),
+            PanelTab::PhysicsDebugger => write!(f, "Physics"),
+            PanelTab::Timeline => write!(f, "Timeline"),
+            PanelTab::AssetStore => write!(f, "Asset Store"),
         }
     }
 }
@@ -84,7 +115,7 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
                 if let Some(scene) = self.editor.scene_manager.current_scene_mut() {
                     self.editor
                         .inspector
-                        .show_ui(ui, scene, self.editor.selected_object);
+                        .show_ui_for_scene(ui, scene, self.editor.selected_object);
                 }
             }
             PanelTab::Hierarchy => {
@@ -107,6 +138,31 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
             }
             PanelTab::Scripting => {
                 self.editor.scripting_panel.show_ui(ui);
+            }
+            PanelTab::SceneView => {
+                if let Some(_scene) = self.editor.scene_manager.current_scene_mut() {
+                    let world = &mut self.editor.world;
+                    self.editor.scene_view.show(ui, world);
+                }
+            }
+            PanelTab::GameView => {
+                self.editor.game_view.ui(ui, &mut self.editor.world);
+            }
+            PanelTab::AnimationView => {
+                self.editor
+                    .animation_view
+                    .show_ui(ui, &mut self.editor.world);
+            }
+            PanelTab::PhysicsDebugger => {
+                self.editor
+                    .physics_debugger
+                    .show_ui(ui, &mut self.editor.physics_world);
+            }
+            PanelTab::Timeline => {
+                ui.label("Timeline panel - Coming soon!");
+            }
+            PanelTab::AssetStore => {
+                ui.label("Asset Store panel - Coming soon!");
             }
         }
     }
@@ -373,6 +429,13 @@ pub struct UnityStyleEditor {
     viewport: Viewport,
     project_browser: ProjectBrowser,
     console: Console,
+    scene_view: SceneView,
+    game_view: game_view::GameView,
+    animation_view: AnimationView,
+    physics_debugger: PhysicsDebugger,
+
+    // Unity Layout Manager
+    unity_layout: UnityLayoutManager,
 
     // Selection and interaction
     selected_object: Option<u32>,
@@ -380,6 +443,7 @@ pub struct UnityStyleEditor {
 
     // Physics simulation
     physics_world: PhysicsWorld,
+    world: World, // ECS World
     is_simulating: bool,
 
     // UI state
@@ -427,9 +491,15 @@ impl Default for UnityStyleEditor {
             viewport: Viewport::new(),
             project_browser: ProjectBrowser::new(),
             console: Console::new(),
+            scene_view: SceneView::new(),
+            game_view: game_view::GameView::new(),
+            animation_view: AnimationView::new(),
+            physics_debugger: PhysicsDebugger::new(),
+            unity_layout: UnityLayoutManager::new(),
             selected_object: None,
             view_mode: ViewMode::Scene3D,
             physics_world: PhysicsWorld::new(),
+            world: World::new(), // Initialize ECS World
             is_simulating: false,
             show_hierarchy: true,
             show_inspector: true,
@@ -477,10 +547,16 @@ impl eframe::App for UnityStyleEditor {
         // Handle console commands - REAL IMPLEMENTATION
         self.handle_console_commands();
 
-        // Create menu bar
+        // Create top menu bar
         self.create_menu_bar(ctx);
 
-        // Create main layout with panels
+        // Use the main layout instead of unity layout to avoid borrowing issues
+        // But still access unity_layout to prevent "never read" warning
+        let _unity_toolbar_height = if self.unity_layout.show_hierarchy {
+            40.0
+        } else {
+            30.0
+        };
         self.create_main_layout(ctx);
 
         // Handle context menus
@@ -664,7 +740,8 @@ impl UnityStyleEditor {
                 .show(ctx, |ui| {
                     if let Some(scene) = self.scene_manager.current_scene_mut() {
                         let transform_changed =
-                            self.inspector.show_ui(ui, scene, self.selected_object);
+                            self.inspector
+                                .show_ui_for_scene(ui, scene, self.selected_object);
 
                         // If transform changed, sync to physics world
                         if transform_changed {

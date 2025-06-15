@@ -1,0 +1,12 @@
+-- Test method call inside if statement
+struct Array {
+    items: [Float]
+}
+
+let arr = Array { items: [] }
+
+let test = () => {
+    if arr.length() > 5 {
+        arr.remove(0)
+    }
+}

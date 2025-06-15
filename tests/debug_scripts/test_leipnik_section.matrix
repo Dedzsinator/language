@@ -1,0 +1,22 @@
+-- Test just the problematic section
+struct AttractorPoint {
+    x: Float,
+    y: Float,
+    z: Float,
+    trail_positions: [Float]
+}
+
+let point = AttractorPoint {
+    x: 1.0,
+    y: 2.0,
+    z: 3.0,
+    trail_positions: []
+}
+
+let max_trail_length = 10
+
+let updateAttractor = (point: AttractorPoint) => {
+    let new_trail = point.trail_positions
+    let result = new_trail.length()
+    result
+}

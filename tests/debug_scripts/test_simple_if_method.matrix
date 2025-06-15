@@ -1,0 +1,7 @@
+-- Test simple method call inside if
+let test = () => {
+    if 1 > 0 {
+        let x = 42
+        x
+    }
+}

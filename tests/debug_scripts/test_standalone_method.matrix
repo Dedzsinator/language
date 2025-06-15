@@ -1,0 +1,7 @@
+-- Test standalone method call in if statement
+let test = () => {
+    let arr = [1, 2, 3]
+    if arr.length > 2 {
+        arr.pop()  -- This is a standalone method call
+    }
+}

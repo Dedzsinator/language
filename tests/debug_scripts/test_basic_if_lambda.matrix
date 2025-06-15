@@ -1,0 +1,8 @@
+-- Test basic scenario that should work
+let test = (x: Int) => {
+    if x > 0 {
+        x + 1
+    } else {
+        x - 1
+    }
+}

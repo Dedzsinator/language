@@ -5,6 +5,22 @@ use crate::eval::interpreter::{Value, RuntimeResult};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
+/// Body type for rigid body physics
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BodyType {
+    Dynamic,
+    Static,
+    Kinematic,
+}
+
+/// Collision detection mode for rigid bodies
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum CollisionDetectionMode {
+    Discrete,
+    Continuous,
+    ContinuousDynamic,
+}
+
 /// Rigid body shapes for collision detection
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Shape {
@@ -211,6 +227,12 @@ pub struct RigidBody {
     // For constraint solving
     pub constraint_force: Vec3,
     pub constraint_torque: Vec3,
+
+    // Body type
+    pub body_type: BodyType,
+
+    // Collision detection mode
+    pub collision_detection_mode: CollisionDetectionMode,
 }
 
 impl RigidBody {
@@ -251,6 +273,8 @@ impl RigidBody {
             angular_damping: 0.05,
             constraint_force: Vec3::zero(),
             constraint_torque: Vec3::zero(),
+            body_type: BodyType::Dynamic,
+            collision_detection_mode: CollisionDetectionMode::Discrete,
         }
     }
 

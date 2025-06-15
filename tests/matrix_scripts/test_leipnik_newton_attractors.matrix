@@ -1,0 +1,389 @@
+-- Double Leipnik-Newton Attractor Test Script
+-- This creates a beautiful 3D mathematical visualization with proper geometry
+
+-- Define the Leipnik-Newton system parameters
+let a = 0.1
+let b = -0.1
+let c = 0.2
+let d = -0.5
+
+-- Time parameters
+let dt = 0.005
+let time_scale = 2.0
+
+-- Trail system parameters
+let max_trail_length = 100
+let trail_fade_factor = 0.95
+
+-- Attractor structure definition
+struct AttractorPoint {
+    x: Float,
+    y: Float,
+    z: Float,
+    vx: Float,
+    vy: Float,
+    vz: Float,
+    color: [Float],
+    trail_positions: Array<Vec3>,
+    energy: Float
+}
+
+-- Create first attractor (red/orange)
+let attractor1 = AttractorPoint {
+    x: 1.2,
+    y: 0.8,
+    z: 0.3,
+    vx: 0.0,
+    vy: 0.0,
+    vz: 0.0,
+    color: [1.0, 0.3, 0.1, 1.0],
+    trail_positions: [],
+    energy: 0.0
+}
+
+-- Create second attractor (blue/cyan)
+let attractor2 = AttractorPoint {
+    x: -1.1,
+    y: 0.5,
+    z: -0.4,
+    vx: 0.0,
+    vy: 0.0,
+    vz: 0.0,
+    color: [0.1, 0.4, 1.0, 1.0],
+    trail_positions: [],
+    energy: 0.0
+}
+
+-- Third attractor for complexity (green)
+let attractor3 = AttractorPoint {
+    x: 0.2,
+    y: -1.3,
+    z: 0.8,
+    vx: 0.0,
+    vy: 0.0,
+    vz: 0.0,
+    color: [0.2, 1.0, 0.3, 1.0],
+    trail_positions: [],
+    energy: 0.0
+}
+
+-- Function to update Leipnik-Newton dynamics with energy calculation
+let updateAttractor = (point: AttractorPoint, dt: Float, coupling: Float) => {
+    -- Enhanced Leipnik-Newton equations with coupling:
+    -- dx/dt = -a*x + y*z + coupling*sin(t)
+    -- dy/dt = -x - b*y + x*z + coupling*cos(t)
+    -- dz/dt = c - d*z - x*y + coupling*x*y
+
+    let time_factor = sin(time * 0.5) * coupling
+
+    let dx = (-a * point.x + point.y * point.z + time_factor * 0.1) * dt
+    let dy = (-point.x - b * point.y + point.x * point.z + time_factor * 0.15) * dt
+    let dz = (c - d * point.z - point.x * point.y + time_factor * point.x * point.y * 0.05) * dt
+
+    -- Calculate kinetic energy
+    let kinetic_energy = 0.5 * (dx*dx + dy*dy + dz*dz) / (dt*dt)
+
+    -- Update trail
+    let new_trail = point.trail_positions
+    new_trail.push(Vec3::new(point.x, point.y, point.z))
+    if new_trail.length() > max_trail_length {
+        new_trail.remove(0)
+    }
+
+    AttractorPoint {
+        x: point.x + dx,
+        y: point.y + dy,
+        z: point.z + dz,
+        vx: dx / dt,
+        vy: dy / dt,
+        vz: dz / dt,
+        color: point.color,
+        trail_positions: new_trail,
+        energy: kinetic_energy
+    }
+}
+
+-- Create visual sphere objects for attractors with proper 3D geometry
+let attractor1_sphere = GameObject {
+    name: "Attractor1_Core",
+    position: Vec3::new(attractor1.x, attractor1.y, attractor1.z),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(0.8, 0.8, 0.8),
+    color: attractor1.color,
+    geometry_type: "Sphere",
+    material: "Emissive"
+}
+
+let attractor2_sphere = GameObject {
+    name: "Attractor2_Core",
+    position: Vec3::new(attractor2.x, attractor2.y, attractor2.z),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(0.8, 0.8, 0.8),
+    color: attractor2.color,
+    geometry_type: "Sphere",
+    material: "Emissive"
+}
+
+let attractor3_sphere = GameObject {
+    name: "Attractor3_Core",
+    position: Vec3::new(attractor3.x, attractor3.y, attractor3.z),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(0.8, 0.8, 0.8),
+    color: attractor3.color,
+    geometry_type: "Sphere",
+    material: "Emissive"
+}
+
+-- Create coordinate system with proper 3D cubes and cylinders
+let x_axis_marker = GameObject {
+    name: "X_Axis",
+    position: Vec3::new(3.0, 0.0, 0.0),
+    rotation: Vec3::new(0.0, 0.0, 90.0),
+    scale: Vec3::new(0.1, 6.0, 0.1),
+    color: [1.0, 0.0, 0.0, 0.8],
+    geometry_type: "Cylinder",
+    material: "Standard"
+}
+
+let y_axis_marker = GameObject {
+    name: "Y_Axis",
+    position: Vec3::new(0.0, 3.0, 0.0),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(0.1, 6.0, 0.1),
+    color: [0.0, 1.0, 0.0, 0.8],
+    geometry_type: "Cylinder",
+    material: "Standard"
+}
+
+let z_axis_marker = GameObject {
+    name: "Z_Axis",
+    position: Vec3::new(0.0, 0.0, 3.0),
+    rotation: Vec3::new(90.0, 0.0, 0.0),
+    scale: Vec3::new(0.1, 6.0, 0.1),
+    color: [0.0, 0.0, 1.0, 0.8],
+    geometry_type: "Cylinder",
+    material: "Standard"
+}
+
+-- Origin marker with cube geometry
+let origin_marker = GameObject {
+    name: "Origin",
+    position: Vec3::new(0.0, 0.0, 0.0),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(0.5, 0.5, 0.5),
+    color: [1.0, 1.0, 1.0, 1.0],
+    geometry_type: "Cube",
+    material: "Standard"
+}
+
+-- Test geometry objects with different shapes
+let test_cube = GameObject {
+    name: "TestCube",
+    position: Vec3::new(4.0, 2.0, 1.0),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+    color: [0.7, 0.2, 0.8, 1.0],
+    geometry_type: "Cube",
+    material: "Standard"
+}
+
+let test_cylinder = GameObject {
+    name: "TestCylinder",
+    position: Vec3::new(-4.0, 1.5, -1.0),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(1.0, 2.0, 1.0),
+    color: [0.8, 0.7, 0.2, 1.0],
+    geometry_type: "Cylinder",
+    material: "Standard"
+}
+
+let test_plane = GameObject {
+    name: "TestPlane",
+    position: Vec3::new(0.0, -3.0, 0.0),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(10.0, 0.1, 10.0),
+    color: [0.3, 0.3, 0.3, 0.5],
+    geometry_type: "Plane",
+    material: "Standard"
+}
+
+-- Multiple cameras for different viewing angles
+let scene_camera = GameObject {
+    name: "SceneCamera",
+    position: Vec3::new(8.0, 6.0, 10.0),
+    rotation: Vec3::new(-25.0, -30.0, 0.0),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+    color: [0.9, 0.9, 0.2, 1.0],
+    geometry_type: "Camera",
+    material: "Standard",
+    fov: 60.0,
+    near_clip: 0.1,
+    far_clip: 100.0
+}
+
+let game_camera = GameObject {
+    name: "GameCamera",
+    position: Vec3::new(0.0, 3.0, 12.0),
+    rotation: Vec3::new(-15.0, 0.0, 0.0),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+    color: [0.2, 0.9, 0.9, 1.0],
+    geometry_type: "Camera",
+    material: "Standard",
+    fov: 75.0,
+    near_clip: 0.1,
+    far_clip: 200.0
+}
+
+let close_up_camera = GameObject {
+    name: "CloseUpCamera",
+    position: Vec3::new(2.0, 1.0, 3.0),
+    rotation: Vec3::new(-10.0, -45.0, 0.0),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+    color: [0.9, 0.2, 0.9, 1.0],
+    geometry_type: "Camera",
+    material: "Standard",
+    fov: 90.0,
+    near_clip: 0.05,
+    far_clip: 50.0
+}
+
+-- Lighting setup
+let main_light = GameObject {
+    name: "MainLight",
+    position: Vec3::new(5.0, 8.0, 5.0),
+    rotation: Vec3::new(-45.0, -30.0, 0.0),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+    color: [1.0, 0.95, 0.8, 1.0],
+    geometry_type: "Light",
+    material: "Standard",
+    light_type: "Directional",
+    intensity: 2.0
+}
+
+let ambient_light = GameObject {
+    name: "AmbientLight",
+    position: Vec3::new(0.0, 0.0, 0.0),
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(1.0, 1.0, 1.0),
+    color: [0.3, 0.4, 0.6, 1.0],
+    geometry_type: "Light",
+    material: "Standard",
+    light_type: "Ambient",
+    intensity: 0.8
+}
+
+-- Trail rendering function (creates small spheres for trails)
+let createTrailSphere = (pos: Vec3, color: [Float], alpha: Float, index: Int) => GameObject {
+    name: "Trail_" + toString(index),
+    position: pos,
+    rotation: Vec3::new(0.0, 0.0, 0.0),
+    scale: Vec3::new(0.1, 0.1, 0.1),
+    color: [color[0], color[1], color[2], alpha],
+    geometry_type: "Sphere",
+    material: "Transparent"
+}
+
+-- Animation variables
+let time = 0.0
+let coupling_strength = 0.1
+
+-- Animation update function (called each frame)
+let animate = (dt: Float) => {
+    time = time + dt * time_scale
+
+    -- Update attractors with dynamic coupling
+    coupling_strength = 0.1 + 0.05 * sin(time * 0.2)
+
+    attractor1 = updateAttractor(attractor1, dt, coupling_strength)
+    attractor2 = updateAttractor(attractor2, dt, coupling_strength * 1.1)
+    attractor3 = updateAttractor(attractor3, dt, coupling_strength * 0.9)
+
+    -- Update sphere positions
+    attractor1_sphere.position = Vec3::new(attractor1.x, attractor1.y, attractor1.z)
+    attractor2_sphere.position = Vec3::new(attractor2.x, attractor2.y, attractor2.z)
+    attractor3_sphere.position = Vec3::new(attractor3.x, attractor3.y, attractor3.z)
+
+    -- Make spheres pulse based on energy
+    let scale1 = 0.5 + 0.3 * (attractor1.energy * 10.0).clamp(0.0, 1.0)
+    let scale2 = 0.5 + 0.3 * (attractor2.energy * 10.0).clamp(0.0, 1.0)
+    let scale3 = 0.5 + 0.3 * (attractor3.energy * 10.0).clamp(0.0, 1.0)
+
+    attractor1_sphere.scale = Vec3::new(scale1, scale1, scale1)
+    attractor2_sphere.scale = Vec3::new(scale2, scale2, scale2)
+    attractor3_sphere.scale = Vec3::new(scale3, scale3, scale3)
+
+    -- Animate test objects for visual reference
+    test_cube.position.y = 2.0 + sin(time * 2.0) * 0.8
+    test_cube.rotation.y = time * 30.0
+    test_cube.rotation.x = time * 45.0
+
+    test_cylinder.position.z = -1.0 + cos(time * 1.5) * 2.0
+    test_cylinder.rotation.y = time * -20.0
+
+    -- Animate cameras for dynamic views
+    game_camera.position.x = 12.0 * cos(time * 0.3)
+    game_camera.position.z = 12.0 * sin(time * 0.3)
+    game_camera.rotation.y = time * 15.0
+
+    close_up_camera.position.x = 3.0 * cos(time * 0.8)
+    close_up_camera.position.z = 3.0 * sin(time * 0.8)
+    close_up_camera.rotation.y = -time * 40.0
+}
+
+-- Physics configuration
+struct PhysicsConfig {
+    gravity: Vec3,
+    damping: Float,
+    iterations: Int,
+    enable_collisions: Bool
+}
+
+let physics = PhysicsConfig {
+    gravity: Vec3::new(0.0, -2.0, 0.0),
+    damping: 0.99,
+    iterations: 8,
+    enable_collisions: true
+}
+
+-- Render settings for Unity-like visualization
+struct RenderSettings {
+    wireframe_mode: Bool,
+    show_normals: Bool,
+    ambient_occlusion: Bool,
+    shadow_quality: String,
+    anti_aliasing: Bool
+}
+
+let render_settings = RenderSettings {
+    wireframe_mode: false,
+    show_normals: false,
+    ambient_occlusion: true,
+    shadow_quality: "High",
+    anti_aliasing: true
+}
+
+-- Performance metrics
+let performance_info = () => {
+    print("=== Leipnik-Newton Attractor System ===")
+    print("Attractor 1 Energy: " + toString(attractor1.energy))
+    print("Attractor 2 Energy: " + toString(attractor2.energy))
+    print("Attractor 3 Energy: " + toString(attractor3.energy))
+    print("Coupling Strength: " + toString(coupling_strength))
+    print("Animation Time: " + toString(time))
+    print("Trail Length: " + toString(attractor1.trail_positions.length()))
+    print("========================================")
+}
+
+-- Output initial state
+print("Double Leipnik-Newton Attractor System Initialized")
+print("Created 3 attractors with proper 3D geometry")
+print("Cameras: Scene, Game, and Close-up views available")
+print("Test objects: Cube, Cylinder, Plane with different materials")
+print("Lighting: Directional and ambient lights configured")
+print("Physics: Enabled with realistic parameters")
+print("Ready for Unity-like 3D visualization!")
+
+-- Call performance info every few seconds
+if time % 2.0 < 0.1 {
+    performance_info()
+}

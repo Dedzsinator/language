@@ -30,6 +30,14 @@ pub struct Viewport {
     drag_start_pos: Option<egui::Pos2>,
     drag_start_transform: Option<Transform>,
 
+    // Enhanced viewport features from conversation summary
+    wireframe_mode: bool,
+    show_bounding_boxes: bool,
+    lighting_enabled: bool,
+    camera_preview_size: f32,
+    show_camera_frustum: bool,
+    geometry_detail_level: u32,
+
     /// Callback for object creation
     pub object_creation_callback: Option<Box<dyn Fn(&str, Vec3) + Send + Sync>>,
 
@@ -41,14 +49,6 @@ pub struct Viewport {
 
     /// Callback for transform changes
     pub transform_changed_callback: Option<Box<dyn Fn(u32, Transform) + Send + Sync>>,
-}
-
-/// Gizmo interaction modes
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum GizmoMode {
-    Translate,
-    Rotate,
-    Scale,
 }
 
 /// Gizmo axis for interaction
@@ -89,6 +89,14 @@ impl Viewport {
             gizmo_dragging: None,
             drag_start_pos: None,
             drag_start_transform: None,
+
+            // Enhanced viewport features
+            wireframe_mode: false,
+            show_bounding_boxes: false,
+            lighting_enabled: true,
+            camera_preview_size: 150.0,
+            show_camera_frustum: false,
+            geometry_detail_level: 2,
 
             object_creation_callback: None,
             preset_creation_callback: None,
@@ -214,15 +222,41 @@ impl Viewport {
 
             // Lighting options
             ui.menu_button("Lighting", |ui| {
+                if ui
+                    .checkbox(&mut self.lighting_enabled, "Enable Lighting")
+                    .changed()
+                {
+                    // Lighting toggle
+                }
                 if ui.button("Realistic").clicked() {
+                    self.lighting_enabled = true;
                     ui.close_menu();
                 }
                 if ui.button("Flat").clicked() {
+                    self.lighting_enabled = false;
                     ui.close_menu();
                 }
-                if ui.button("Wireframe").clicked() {
-                    ui.close_menu();
-                }
+            });
+
+            // Render options
+            ui.menu_button("Render", |ui| {
+                ui.checkbox(&mut self.wireframe_mode, "Wireframe Mode");
+                ui.checkbox(&mut self.show_bounding_boxes, "Show Bounding Boxes");
+                ui.checkbox(&mut self.show_camera_frustum, "Show Camera Frustum");
+
+                ui.separator();
+                ui.label("Geometry Detail:");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.geometry_detail_level, 1, "Low");
+                    ui.selectable_value(&mut self.geometry_detail_level, 2, "Medium");
+                    ui.selectable_value(&mut self.geometry_detail_level, 3, "High");
+                });
+
+                ui.separator();
+                ui.add(
+                    egui::Slider::new(&mut self.camera_preview_size, 50.0..=300.0)
+                        .text("Preview Size"),
+                );
             });
 
             ui.separator();
@@ -562,7 +596,7 @@ impl Viewport {
         // Clear background
         painter.rect_filled(
             response.rect,
-            egui::CornerRadius::ZERO,
+            0.0,
             egui::Color32::from_rgba_unmultiplied(
                 (bg_color[0] * 255.0) as u8,
                 (bg_color[1] * 255.0) as u8,
@@ -595,6 +629,11 @@ impl Viewport {
 
         // Show camera info overlay
         self.draw_camera_info(ui, response.rect, camera_pos, camera_rot);
+
+        // Draw game camera preview if enabled
+        if self.show_game_view {
+            self.draw_game_camera_preview(&painter, response.rect, scene);
+        }
 
         // Handle right-click context menu for creating objects
         response.context_menu(|ui| {
@@ -834,7 +873,7 @@ impl Viewport {
                     let size = (base_size * size_factor) as f32;
                     painter.rect_filled(
                         egui::Rect::from_center_size(animated_screen_pos, egui::Vec2::splat(size)),
-                        egui::CornerRadius::ZERO,
+                        0.0,
                         object_color,
                     );
                 }
@@ -863,7 +902,7 @@ impl Viewport {
                             animated_screen_pos,
                             egui::Vec2::new(size, size * 0.7),
                         ),
-                        egui::CornerRadius::same(2),
+                        2.0,
                         object_color,
                     );
                     painter.circle_filled(
@@ -1193,6 +1232,101 @@ impl Viewport {
             egui::RichText::new(info_text)
                 .small()
                 .color(egui::Color32::WHITE),
+        );
+    }
+
+    /// Draw game camera preview window (picture-in-picture)
+    fn draw_game_camera_preview(&self, painter: &egui::Painter, rect: egui::Rect, scene: &Scene) {
+        if !self.show_game_view {
+            return;
+        }
+
+        // Calculate preview window position and size
+        let preview_size = self.camera_preview_size;
+        let preview_rect = egui::Rect::from_min_size(
+            rect.max - egui::Vec2::new(preview_size + 20.0, preview_size + 20.0),
+            egui::Vec2::splat(preview_size),
+        );
+
+        // Draw preview window border
+        let stroke = egui::Stroke::new(2.0, egui::Color32::YELLOW);
+        painter.line_segment([preview_rect.left_top(), preview_rect.right_top()], stroke);
+        painter.line_segment(
+            [preview_rect.right_top(), preview_rect.right_bottom()],
+            stroke,
+        );
+        painter.line_segment(
+            [preview_rect.right_bottom(), preview_rect.left_bottom()],
+            stroke,
+        );
+        painter.line_segment(
+            [preview_rect.left_bottom(), preview_rect.left_top()],
+            stroke,
+        );
+
+        // Clear preview background
+        painter.rect_filled(
+            preview_rect,
+            5.0,
+            egui::Color32::from_rgba_unmultiplied(20, 20, 30, 200),
+        );
+
+        // Render scene from game camera perspective in preview window
+        let preview_center = preview_rect.center();
+        for (_, object) in &scene.objects {
+            if !object.visible {
+                continue;
+            }
+
+            let screen_pos = self.world_to_screen_with_camera(
+                object.transform.position,
+                preview_center,
+                self.game_camera_position,
+                self.game_camera_rotation,
+            );
+
+            // Check if object is within preview bounds
+            if preview_rect.contains(screen_pos) {
+                let object_color = match &object.object_type {
+                    GameObjectType::Cube => egui::Color32::LIGHT_BLUE,
+                    GameObjectType::Sphere => egui::Color32::LIGHT_RED,
+                    GameObjectType::Cylinder => egui::Color32::LIGHT_GREEN,
+                    GameObjectType::Plane => egui::Color32::GRAY,
+                    GameObjectType::Light => egui::Color32::YELLOW,
+                    GameObjectType::Camera => egui::Color32::BLUE,
+                    _ => egui::Color32::WHITE,
+                };
+
+                // Scale objects smaller for preview
+                let preview_scale = 0.3;
+                match &object.object_type {
+                    GameObjectType::Sphere => {
+                        painter.circle_filled(screen_pos, 3.0 * preview_scale, object_color);
+                    }
+                    GameObjectType::Cube => {
+                        painter.rect_filled(
+                            egui::Rect::from_center_size(
+                                screen_pos,
+                                egui::Vec2::splat(6.0 * preview_scale),
+                            ),
+                            0.0,
+                            object_color,
+                        );
+                    }
+                    _ => {
+                        painter.circle_filled(screen_pos, 2.0 * preview_scale, object_color);
+                    }
+                }
+            }
+        }
+
+        // Draw "Game Camera" label
+        painter.text(
+            preview_rect.min + egui::Vec2::new(5.0, 5.0),
+            egui::Align2::LEFT_TOP,
+            "Game Camera",
+            egui::FontId::proportional(10.0),
+            egui::Color32::YELLOW,
         );
     }
 

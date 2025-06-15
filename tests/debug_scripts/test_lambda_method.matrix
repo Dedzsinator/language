@@ -1,0 +1,10 @@
+-- Test lambda with method calls
+struct List {
+    items: [Float]
+}
+
+let test_list = List { items: [] }
+let func = (l: List) => {
+    let len = l.length()
+    len
+}

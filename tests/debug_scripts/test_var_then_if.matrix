@@ -1,0 +1,14 @@
+-- Test variable assignment then method calls in if
+struct List {
+    items: [Float]
+}
+
+let list = List { items: [] }
+
+let test = () => {
+    let new_list = list.items
+    if new_list.length() > 5 {
+        new_list.remove(0)
+    }
+    0
+}

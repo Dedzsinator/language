@@ -1,0 +1,8 @@
+-- Test generic types
+struct TestStruct {
+    data: Array<Float>
+}
+
+let test = TestStruct {
+    data: []
+}

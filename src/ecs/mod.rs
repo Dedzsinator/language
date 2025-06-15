@@ -2,12 +2,14 @@
 pub mod components;
 pub mod resources;
 pub mod systems;
+pub mod world;
 
+use crate::physics::rigid_body::Shape;
 pub use bevy_ecs::prelude::*;
 pub use components::*;
 pub use resources::*;
 pub use systems::*;
-use crate::physics::rigid_body::Shape;
+pub use world::WorldExt;
 
 /// Main ECS-based physics world
 pub struct PhysicsECS {
@@ -42,27 +44,32 @@ impl PhysicsECS {
         self.schedule.run(&mut self.world);
     }
 
-    pub fn spawn_rigid_body(&mut self, shape: Shape, mass: f64, position: crate::physics::math::Vec3) -> Entity {
-        self.world.spawn((
-            PhysicsTransform::from_position(position),
-            RigidBodyComponent::new(mass, shape),
-            VelocityComponent::default(),
-            PhysicsObject::RigidBody,
-        )).id()
+    pub fn spawn_rigid_body(
+        &mut self,
+        shape: Shape,
+        mass: f64,
+        position: crate::physics::math::Vec3,
+    ) -> Entity {
+        self.world
+            .spawn((
+                PhysicsTransform::from_position(position),
+                RigidBodyComponent::new(mass, shape),
+                VelocityComponent::default(),
+                PhysicsObject::RigidBody,
+            ))
+            .id()
     }
 
     pub fn spawn_soft_body(&mut self, particles: Vec<SoftBodyParticle>) -> Entity {
-        self.world.spawn((
-            SoftBodyComponent::new(particles),
-            PhysicsObject::SoftBody,
-        )).id()
+        self.world
+            .spawn((SoftBodyComponent::new(particles), PhysicsObject::SoftBody))
+            .id()
     }
 
     pub fn spawn_fluid_system(&mut self, particles: Vec<FluidParticle>) -> Entity {
-        self.world.spawn((
-            FluidComponent::new(particles),
-            PhysicsObject::Fluid,
-        )).id()
+        self.world
+            .spawn((FluidComponent::new(particles), PhysicsObject::Fluid))
+            .id()
     }
 }
 

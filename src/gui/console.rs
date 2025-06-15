@@ -674,6 +674,11 @@ impl Console {
     pub fn take_pending_spawn_command(&mut self) -> Option<String> {
         self.pending_spawn_command.take()
     }
+
+    /// Clear all log entries
+    pub fn clear(&mut self) {
+        self.log_entries.clear();
+    }
 }
 
 fn format_timestamp(timestamp: std::time::SystemTime) -> String {

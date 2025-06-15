@@ -1,0 +1,14 @@
+-- Very simple method call test
+struct TestArray {
+    items: Array<Float>
+}
+
+let arr = TestArray {
+    items: []
+}
+
+let test = (arr: TestArray) => {
+    let trail = arr.items
+    let len = trail.length()
+    len
+}

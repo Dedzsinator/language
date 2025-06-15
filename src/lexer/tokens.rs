@@ -124,6 +124,8 @@ pub enum Token {
     Semicolon,
     #[token(":")]
     Colon,
+    #[token("::")]
+    DoubleColon,
     #[token("?")]
     Question,
     #[token(".")]
@@ -233,6 +235,7 @@ impl fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Semicolon => write!(f, ";"),
             Token::Colon => write!(f, ":"),
+            Token::DoubleColon => write!(f, "::"),
             Token::Question => write!(f, "?"),
             Token::Dot => write!(f, "."),
             Token::DotDot => write!(f, ".."),

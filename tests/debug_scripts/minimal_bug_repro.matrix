@@ -1,0 +1,6 @@
+-- Minimal parser bug reproduction
+let f = () => {
+    if 1 > 0 {
+        2
+    }
+}

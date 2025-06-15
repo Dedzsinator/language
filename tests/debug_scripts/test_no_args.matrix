@@ -1,0 +1,16 @@
+-- Test method calls without arguments
+struct TestArray {
+    items: Array<Float>
+}
+
+let arr = TestArray {
+    items: []
+}
+
+let test = (arr: TestArray) => {
+    let trail = arr.items
+    if trail.length() > 5 {
+        let len = trail.length()
+    }
+    arr
+}

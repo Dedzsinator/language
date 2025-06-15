@@ -1,0 +1,18 @@
+-- Test exact pattern from Leipnik script
+struct Array {
+    length: () => Int,
+    remove: (Int) => Unit
+}
+
+let new_trail = Array {
+    length: () => 5,
+    remove: (x) => x
+}
+
+let max_trail_length = 3
+
+let test = () => {
+    if new_trail.length() > max_trail_length {
+        new_trail.remove(0)
+    }
+}

@@ -11,6 +11,7 @@ pub mod spatial;
 
 use crate::eval::interpreter::{RuntimeResult, Value};
 use std::collections::HashMap;
+use bevy_ecs::system::Resource;
 
 /// Core physics world that manages all simulations
 #[derive(Debug, Clone)]
@@ -24,6 +25,8 @@ pub struct PhysicsWorld {
     pub dt: f64,
     pub gravity: math::Vec3,
     pub damping: f64,
+    pub time_scale: f64, // New field for time scaling
+    pub collision_count: u32, // New field for tracking collisions
 }
 
 impl PhysicsWorld {
@@ -38,6 +41,8 @@ impl PhysicsWorld {
             dt: 1.0 / 60.0, // 60 FPS default
             gravity: math::Vec3::new(0.0, -9.81, 0.0),
             damping: 0.99,
+            time_scale: 1.0, // Default time scale
+            collision_count: 0, // Initialize collision count
         }
     }
 
@@ -64,7 +69,7 @@ impl PhysicsWorld {
         // 7. Finalize positions and update velocities
         self.finalize_step();
 
-        self.time += self.dt;
+        self.time += self.dt * self.time_scale; // Apply time scale
     }
 
     fn update_spatial_hash(&mut self) {
@@ -271,7 +276,31 @@ impl PhysicsWorld {
             fields: state,
         })
     }
+
+    /// Set global gravity
+    pub fn set_gravity(&mut self, gravity: math::Vec3) {
+        self.gravity = gravity;
+    }
+
+    /// Set physics time scale
+    pub fn set_time_scale(&mut self, time_scale: f64) {
+        self.time_scale = time_scale;
+    }
+
+    /// Get reference to rigid bodies
+    pub fn get_rigid_bodies(&self) -> &Vec<rigid_body::RigidBody> {
+        &self.rigid_bodies
+    }
+
+    /// Get collision count
+    pub fn get_collision_count(&self) -> u32 {
+        // Return the number of active collisions detected in the last frame
+        self.collision_count
+    }
 }
+
+// Implement Resource trait so PhysicsWorld can be stored in bevy's ECS
+impl Resource for PhysicsWorld {}
 
 /// Built-in physics functions for the language
 pub fn register_physics_functions(env: &mut crate::eval::interpreter::Environment) {

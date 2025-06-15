@@ -1,0 +1,7 @@
+-- Test method calls
+struct List {
+    items: [Float]
+}
+
+let list = List { items: [] }
+let len = list.length()
