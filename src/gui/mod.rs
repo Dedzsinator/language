@@ -281,6 +281,12 @@ pub struct Scene {
     pub is_2d: bool,
     pub background_color: [f32; 4],
     pub physics_settings: PhysicsSettings,
+
+    // Simulation state
+    #[serde(skip)]
+    pub is_playing: bool,
+    #[serde(skip)]
+    pub simulation_time: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -311,6 +317,8 @@ impl Scene {
             is_2d,
             background_color: [0.2, 0.3, 0.8, 1.0],
             physics_settings: PhysicsSettings::default(),
+            is_playing: false,
+            simulation_time: 0.0,
         }
     }
 
@@ -367,8 +375,6 @@ impl Scene {
 pub enum ViewMode {
     Scene2D,
     Scene3D,
-    Game2D,
-    Game3D,
 }
 
 /// Drag and drop payload for UI interactions
@@ -524,6 +530,9 @@ impl Default for UnityStyleEditor {
         // Initialize physics for the default scene
         editor.initialize_physics_for_scene();
 
+        // Set up viewport simulation callback
+        editor.setup_viewport_simulation_callback();
+
         editor
     }
 }
@@ -535,6 +544,9 @@ impl eframe::App for UnityStyleEditor {
 
         // Setup callbacks on first update
         self.setup_callbacks();
+
+        // Sync viewport simulation state with main editor
+        self.sync_viewport_simulation_state();
 
         // Update physics simulation
         if self.is_simulating {
@@ -692,6 +704,8 @@ impl UnityStyleEditor {
                     .clicked()
                 {
                     self.is_simulating = !self.is_simulating;
+                    // Sync viewport state with main editor
+                    self.viewport.set_playing(self.is_simulating);
                     if self.is_simulating {
                         // Initialize physics when starting simulation
                         self.initialize_physics_for_scene();
@@ -699,6 +713,8 @@ impl UnityStyleEditor {
                 }
                 if ui.button("⏹ Stop").clicked() {
                     self.is_simulating = false;
+                    // Sync viewport state with main editor
+                    self.viewport.set_playing(false);
                     // Reset physics world
                     self.physics_world = PhysicsWorld::new();
                     self.initialize_physics_for_scene();
@@ -960,6 +976,44 @@ impl UnityStyleEditor {
             "Console command system initialized with message passing",
             "System",
         );
+    }
+
+    /// Setup viewport simulation callback to sync with main editor simulation
+    fn setup_viewport_simulation_callback(&mut self) {
+        // Since we can't use closures that capture self, we'll handle simulation
+        // state synchronization in the update method by checking viewport state
+        self.console.log(
+            LogLevel::Debug,
+            "Viewport simulation callback system initialized",
+            "System",
+        );
+    }
+
+    /// Sync viewport simulation state with main editor
+    fn sync_viewport_simulation_state(&mut self) {
+        // Check if viewport simulation state has changed
+        let viewport_is_playing = self.viewport.is_playing();
+
+        if viewport_is_playing != self.is_simulating {
+            // Viewport state changed - update main simulation
+            self.is_simulating = viewport_is_playing;
+
+            if self.is_simulating {
+                // Starting simulation
+                self.initialize_physics_for_scene();
+                self.console
+                    .log(LogLevel::Info, "Simulation started from viewport", "System");
+            } else {
+                // Stopping simulation
+                self.physics_world = PhysicsWorld::new();
+                self.initialize_physics_for_scene();
+                self.console
+                    .log(LogLevel::Info, "Simulation stopped from viewport", "System");
+            }
+        } else {
+            // Ensure viewport state stays in sync with main editor
+            self.viewport.set_playing(self.is_simulating);
+        }
     }
 
     /// Handle dialogs (save, open, etc.)

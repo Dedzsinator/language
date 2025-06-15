@@ -38,6 +38,10 @@ pub struct Viewport {
     show_camera_frustum: bool,
     geometry_detail_level: u32,
 
+    // Camera follow system
+    follow_selected_object: bool,
+    last_selected_object_position: Option<Vec3>,
+
     /// Callback for object creation
     pub object_creation_callback: Option<Box<dyn Fn(&str, Vec3) + Send + Sync>>,
 
@@ -49,6 +53,9 @@ pub struct Viewport {
 
     /// Callback for transform changes
     pub transform_changed_callback: Option<Box<dyn Fn(u32, Transform) + Send + Sync>>,
+
+    /// Callback for simulation state changes
+    pub simulation_state_callback: Option<Box<dyn Fn(bool) + Send + Sync>>,
 }
 
 /// Gizmo axis for interaction
@@ -98,10 +105,15 @@ impl Viewport {
             show_camera_frustum: false,
             geometry_detail_level: 2,
 
+            // Camera follow system
+            follow_selected_object: false,
+            last_selected_object_position: None,
+
             object_creation_callback: None,
             preset_creation_callback: None,
             selection_callback: None,
             transform_changed_callback: None,
+            simulation_state_callback: None,
         }
     }
 
@@ -113,6 +125,21 @@ impl Viewport {
     /// Set the view mode
     pub fn set_view_mode(&mut self, mode: ViewMode) {
         self.view_mode = mode;
+    }
+
+    /// Set the simulation state callback
+    pub fn set_simulation_state_callback(&mut self, callback: Box<dyn Fn(bool) + Send + Sync>) {
+        self.simulation_state_callback = Some(callback);
+    }
+
+    /// Set the playing state (can be called from external simulation manager)
+    pub fn set_playing(&mut self, playing: bool) {
+        self.is_playing = playing;
+    }
+
+    /// Get the playing state
+    pub fn is_playing(&self) -> bool {
+        self.is_playing
     }
 
     pub fn show(&mut self, ctx: &egui::Context, scene: &Scene, selected_object: Option<u32>) {
@@ -144,27 +171,41 @@ impl Viewport {
 
     fn show_viewport_toolbar(&mut self, ui: &mut egui::Ui, scene: &Scene) {
         ui.horizontal(|ui| {
-            // View mode buttons
+            // Simple 2D/3D toggle (Unity-like)
             ui.label("View:");
-            ui.selectable_value(&mut self.view_mode, ViewMode::Scene2D, "2D");
-            ui.selectable_value(&mut self.view_mode, ViewMode::Scene3D, "3D");
-            ui.selectable_value(&mut self.view_mode, ViewMode::Game2D, "Game 2D");
-            ui.selectable_value(&mut self.view_mode, ViewMode::Game3D, "Game 3D");
+            if ui
+                .selectable_value(&mut self.view_mode, ViewMode::Scene2D, "2D")
+                .clicked()
+            {
+                // When switching to 2D, adjust camera for better 2D view
+                self.camera_position = Vec3::new(0.0, 0.0, 10.0);
+                self.camera_rotation = Vec3::new(0.0, 0.0, 0.0);
+                self.zoom_level = 1.0;
+            }
+            if ui
+                .selectable_value(&mut self.view_mode, ViewMode::Scene3D, "3D")
+                .clicked()
+            {
+                // When switching to 3D, adjust camera for better 3D view
+                self.camera_position = Vec3::new(5.0, 5.0, 10.0);
+                self.camera_rotation = Vec3::new(-20.0, -25.0, 0.0);
+                self.zoom_level = 1.0;
+            }
 
             ui.separator();
 
-            // Game view toggle
-            if ui.checkbox(&mut self.show_game_view, "Game View").changed() {
+            // Game view toggle (simpler than before)
+            if ui.toggle_value(&mut self.show_game_view, "Game").clicked() {
+                // Auto-switch to 3D when enabling game view for better experience
                 if self.show_game_view {
-                    // Switch to game camera when enabled
-                    self.view_mode = ViewMode::Game3D;
+                    self.view_mode = ViewMode::Scene3D;
                 }
             }
 
             ui.separator();
 
-            // Animation controls
-            ui.label("Animation:");
+            // Animation controls with reset functionality
+            ui.label("Simulation:");
             if ui
                 .button(if self.is_playing {
                     "⏸ Pause"
@@ -174,13 +215,38 @@ impl Viewport {
                 .clicked()
             {
                 self.is_playing = !self.is_playing;
+                // Notify about simulation state change
+                if let Some(ref callback) = self.simulation_state_callback {
+                    callback(self.is_playing);
+                }
             }
             if ui.button("⏹ Stop").clicked() {
                 self.is_playing = false;
                 self.animation_time = 0.0;
+                // Notify about simulation state change
+                if let Some(ref callback) = self.simulation_state_callback {
+                    callback(false);
+                }
+                // Clear any animation state to prevent rubber-banding
+                ui.ctx().request_repaint();
             }
-            if ui.button("⏮ Reset").clicked() {
+            if ui.button("⏮ Reset Scene").clicked() {
+                self.is_playing = false;
                 self.animation_time = 0.0;
+                // Notify about simulation state change
+                if let Some(ref callback) = self.simulation_state_callback {
+                    callback(false);
+                }
+                // Reset camera to default position
+                if matches!(self.view_mode, ViewMode::Scene3D) {
+                    self.camera_position = Vec3::new(5.0, 5.0, 10.0);
+                    self.camera_rotation = Vec3::new(-20.0, -25.0, 0.0);
+                } else {
+                    self.camera_position = Vec3::new(0.0, 0.0, 10.0);
+                    self.camera_rotation = Vec3::new(0.0, 0.0, 0.0);
+                }
+                self.zoom_level = 1.0;
+                ui.ctx().request_repaint();
             }
 
             ui.label(format!("Time: {:.1}s", self.animation_time));
@@ -206,12 +272,14 @@ impl Viewport {
                 self.reset_camera();
             }
 
+            ui.checkbox(&mut self.follow_selected_object, "Follow");
+
             ui.label(format!("Zoom: {:.1}x", self.zoom_level));
 
             ui.separator();
 
             // 3D rendering settings
-            if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+            if matches!(self.view_mode, ViewMode::Scene3D) {
                 ui.menu_button("3D Settings", |ui| {
                     ui.add(egui::Slider::new(&mut self.field_of_view, 30.0..=120.0).text("FOV"));
                     ui.add(egui::Slider::new(&mut self.near_clip, 0.01..=1.0).text("Near Clip"));
@@ -285,6 +353,9 @@ impl Viewport {
             ui.ctx().request_repaint(); // Keep animating
         }
 
+        // Update camera follow system
+        self.update_camera_follow(scene, selected_object);
+
         // Create a custom paint widget for the 3D viewport
         let (response, painter) =
             ui.allocate_painter(available_size, egui::Sense::click_and_drag());
@@ -306,7 +377,7 @@ impl Viewport {
             // WASD movement
             if i.key_down(egui::Key::W) {
                 match self.view_mode {
-                    ViewMode::Scene3D | ViewMode::Game3D => {
+                    ViewMode::Scene3D => {
                         // Move forward in 3D
                         let forward = self.get_forward_vector_for_camera(camera_rot);
                         if self.show_game_view {
@@ -315,7 +386,7 @@ impl Viewport {
                             self.camera_position += forward * camera_speed;
                         }
                     }
-                    ViewMode::Scene2D | ViewMode::Game2D => {
+                    ViewMode::Scene2D => {
                         // Move up in 2D
                         if self.show_game_view {
                             self.game_camera_position.y += camera_speed;
@@ -328,7 +399,7 @@ impl Viewport {
             }
             if i.key_down(egui::Key::S) {
                 match self.view_mode {
-                    ViewMode::Scene3D | ViewMode::Game3D => {
+                    ViewMode::Scene3D => {
                         // Move backward in 3D
                         let forward = self.get_forward_vector_for_camera(camera_rot);
                         if self.show_game_view {
@@ -337,7 +408,7 @@ impl Viewport {
                             self.camera_position -= forward * camera_speed;
                         }
                     }
-                    ViewMode::Scene2D | ViewMode::Game2D => {
+                    ViewMode::Scene2D => {
                         // Move down in 2D
                         if self.show_game_view {
                             self.game_camera_position.y -= camera_speed;
@@ -350,7 +421,7 @@ impl Viewport {
             }
             if i.key_down(egui::Key::A) {
                 match self.view_mode {
-                    ViewMode::Scene3D | ViewMode::Game3D => {
+                    ViewMode::Scene3D => {
                         // Strafe left in 3D
                         let right = self.get_right_vector_for_camera(camera_rot);
                         if self.show_game_view {
@@ -359,7 +430,7 @@ impl Viewport {
                             self.camera_position -= right * camera_speed;
                         }
                     }
-                    ViewMode::Scene2D | ViewMode::Game2D => {
+                    ViewMode::Scene2D => {
                         // Move left in 2D
                         if self.show_game_view {
                             self.game_camera_position.x -= camera_speed;
@@ -372,7 +443,7 @@ impl Viewport {
             }
             if i.key_down(egui::Key::D) {
                 match self.view_mode {
-                    ViewMode::Scene3D | ViewMode::Game3D => {
+                    ViewMode::Scene3D => {
                         // Strafe right in 3D
                         let right = self.get_right_vector_for_camera(camera_rot);
                         if self.show_game_view {
@@ -381,7 +452,7 @@ impl Viewport {
                             self.camera_position += right * camera_speed;
                         }
                     }
-                    ViewMode::Scene2D | ViewMode::Game2D => {
+                    ViewMode::Scene2D => {
                         // Move right in 2D
                         if self.show_game_view {
                             self.game_camera_position.x += camera_speed;
@@ -394,9 +465,7 @@ impl Viewport {
             }
 
             // Q/E for up/down movement in 3D
-            if i.key_down(egui::Key::Q)
-                && matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
-            {
+            if i.key_down(egui::Key::Q) && matches!(self.view_mode, ViewMode::Scene3D) {
                 if self.show_game_view {
                     self.game_camera_position.y -= camera_speed;
                 } else {
@@ -404,9 +473,7 @@ impl Viewport {
                 }
                 camera_moved = true;
             }
-            if i.key_down(egui::Key::E)
-                && matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
-            {
+            if i.key_down(egui::Key::E) && matches!(self.view_mode, ViewMode::Scene3D) {
                 if self.show_game_view {
                     self.game_camera_position.y += camera_speed;
                 } else {
@@ -472,7 +539,7 @@ impl Viewport {
             } else {
                 // Normal camera controls
                 match self.view_mode {
-                    ViewMode::Scene2D | ViewMode::Game2D => {
+                    ViewMode::Scene2D => {
                         // Pan in 2D
                         if self.show_game_view {
                             self.game_camera_position.x -= (delta.x * 0.02) as f64;
@@ -482,7 +549,7 @@ impl Viewport {
                             self.camera_position.y += (delta.y * 0.02) as f64;
                         }
                     }
-                    ViewMode::Scene3D | ViewMode::Game3D => {
+                    ViewMode::Scene3D => {
                         // Rotate camera in 3D
                         if ui.input(|i| i.modifiers.shift) {
                             // Pan
@@ -587,10 +654,14 @@ impl Viewport {
 
         // Set background color based on view mode
         let bg_color = match self.view_mode {
-            ViewMode::Scene2D => [0.3, 0.3, 0.3, 1.0],
-            ViewMode::Scene3D => self.background_color,
-            ViewMode::Game2D => [0.1, 0.1, 0.1, 1.0],
-            ViewMode::Game3D => [0.05, 0.05, 0.1, 1.0],
+            ViewMode::Scene2D => [0.3, 0.3, 0.3, 1.0], // Darker for 2D
+            ViewMode::Scene3D => {
+                if self.show_game_view {
+                    [0.05, 0.05, 0.1, 1.0] // Darker blue for game view
+                } else {
+                    self.background_color // Normal 3D background
+                }
+            }
         };
 
         // Clear background
@@ -629,6 +700,12 @@ impl Viewport {
 
         // Show camera info overlay
         self.draw_camera_info(ui, response.rect, camera_pos, camera_rot);
+
+        // Draw Unity-like orientation gizmo in top-right corner
+        self.draw_orientation_gizmo(&painter, response.rect);
+
+        // Draw view mode indicator
+        self.draw_view_mode_indicator(&painter, response.rect);
 
         // Draw game camera preview if enabled
         if self.show_game_view {
@@ -705,6 +782,45 @@ impl Viewport {
         new_selection
     }
 
+    /// Update camera to follow selected object if enabled
+    pub fn update_camera_follow(&mut self, scene: &Scene, selected_object: Option<u32>) {
+        if !self.follow_selected_object {
+            // If follow is disabled, clear tracking
+            self.last_selected_object_position = None;
+            return;
+        }
+
+        if let Some(object_id) = selected_object {
+            if let Some(object) = scene.objects.get(&object_id) {
+                let current_pos = object.transform.position;
+
+                // Check if object has moved since last frame
+                if let Some(last_pos) = self.last_selected_object_position {
+                    let movement = current_pos - last_pos;
+                    let movement_magnitude = movement.magnitude();
+
+                    // If object moved significantly, update camera to follow
+                    if movement_magnitude > 0.1 {
+                        // Smoothly follow the object movement
+                        let follow_factor = 0.5; // How much the camera should follow (0 = none, 1 = full)
+
+                        if self.show_game_view {
+                            self.game_camera_position += movement * follow_factor;
+                        } else {
+                            self.camera_position += movement * follow_factor;
+                        }
+                    }
+                }
+
+                // Store current position for next frame
+                self.last_selected_object_position = Some(current_pos);
+            }
+        } else {
+            // No object selected, clear tracking
+            self.last_selected_object_position = None;
+        }
+    }
+
     fn draw_grid(
         &self,
         painter: &egui::Painter,
@@ -713,47 +829,159 @@ impl Viewport {
         _camera_rot: Vec3,
     ) {
         let center = rect.center();
-        let grid_spacing = self.grid_size * self.zoom_level * 20.0;
 
-        // Draw grid lines
-        let grid_color = egui::Color32::from_rgba_unmultiplied(128, 128, 128, 64);
+        match self.view_mode {
+            ViewMode::Scene2D => {
+                // 2D Grid - simple orthogonal grid
+                let grid_spacing = self.grid_size * self.zoom_level * 20.0;
+                let grid_color = egui::Color32::from_rgba_unmultiplied(100, 100, 100, 80);
+                let axis_color = egui::Color32::from_rgba_unmultiplied(150, 150, 150, 150);
 
-        // Vertical lines
-        let mut x = center.x % grid_spacing;
-        while x < rect.max.x {
-            painter.line_segment(
-                [egui::pos2(x, rect.min.y), egui::pos2(x, rect.max.y)],
-                egui::Stroke::new(1.0, grid_color),
-            );
-            x += grid_spacing;
+                // Draw fine grid lines
+                let mut x = center.x % grid_spacing;
+                while x < rect.max.x {
+                    painter.line_segment(
+                        [egui::pos2(x, rect.min.y), egui::pos2(x, rect.max.y)],
+                        egui::Stroke::new(0.5, grid_color),
+                    );
+                    x += grid_spacing;
+                }
+
+                let mut y = center.y % grid_spacing;
+                while y < rect.max.y {
+                    painter.line_segment(
+                        [egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, y)],
+                        egui::Stroke::new(0.5, grid_color),
+                    );
+                    y += grid_spacing;
+                }
+
+                // Draw main X and Y axes with different colors
+                painter.line_segment(
+                    [
+                        egui::pos2(center.x, rect.min.y),
+                        egui::pos2(center.x, rect.max.y),
+                    ],
+                    egui::Stroke::new(2.0, egui::Color32::GREEN), // Y-axis green
+                );
+                painter.line_segment(
+                    [
+                        egui::pos2(rect.min.x, center.y),
+                        egui::pos2(rect.max.x, center.y),
+                    ],
+                    egui::Stroke::new(2.0, egui::Color32::RED), // X-axis red
+                );
+            }
+            ViewMode::Scene3D => {
+                // 3D Grid - improved perspective grid with better depth cues
+                let base_spacing = self.grid_size * 25.0;
+                let grid_color = egui::Color32::from_rgba_unmultiplied(100, 100, 100, 40);
+                let major_grid_color = egui::Color32::from_rgba_unmultiplied(140, 140, 140, 80);
+
+                // Create perspective grid that looks more natural
+                let grid_lines = 15i32; // Reduced for better performance
+                let line_spacing = base_spacing * self.zoom_level;
+
+                // Ground plane grid - horizontal lines (going into depth)
+                for i in -(grid_lines / 2)..=(grid_lines / 2) {
+                    let i_f = i as f32;
+                    let depth_factor = 1.0 - (i.abs() as f32 / (grid_lines as f32 / 2.0)) * 0.4;
+
+                    // Converging lines towards vanishing point
+                    let y_offset = i_f * line_spacing * 0.2 * depth_factor;
+                    let line_y = center.y + y_offset + 50.0; // Offset below center
+
+                    let start_x =
+                        center.x - (grid_lines as f32 / 2.0) * line_spacing * depth_factor;
+                    let end_x = center.x + (grid_lines as f32 / 2.0) * line_spacing * depth_factor;
+
+                    let color = if i % 5 == 0 {
+                        major_grid_color
+                    } else {
+                        grid_color
+                    };
+                    let width = if i % 5 == 0 { 1.2 } else { 0.6 };
+
+                    painter.line_segment(
+                        [egui::pos2(start_x, line_y), egui::pos2(end_x, line_y)],
+                        egui::Stroke::new(width, color),
+                    );
+                }
+
+                // Vertical lines (perspective)
+                for i in -(grid_lines / 2)..=(grid_lines / 2) {
+                    let i_f = i as f32;
+                    let x_offset = i_f * line_spacing;
+
+                    // Lines converge toward a vanishing point
+                    let convergence_factor = 0.7;
+                    let start_y = center.y + 50.0 - (grid_lines as f32 / 3.0) * line_spacing * 0.15;
+                    let end_y = center.y + 50.0 + (grid_lines as f32 / 2.0) * line_spacing * 0.4;
+
+                    let start_x = center.x + x_offset;
+                    let end_x = center.x + x_offset * convergence_factor;
+
+                    let color = if i % 5 == 0 {
+                        major_grid_color
+                    } else {
+                        grid_color
+                    };
+                    let width = if i % 5 == 0 { 1.2 } else { 0.6 };
+
+                    painter.line_segment(
+                        [egui::pos2(start_x, start_y), egui::pos2(end_x, end_y)],
+                        egui::Stroke::new(width, color),
+                    );
+                }
+
+                // Draw 3D coordinate axes at origin
+                let axis_length = 80.0;
+                let axis_start = center + egui::Vec2::new(-180.0, 120.0); // Better positioning
+
+                // X-axis (red, pointing right)
+                painter.line_segment(
+                    [axis_start, axis_start + egui::Vec2::new(axis_length, 0.0)],
+                    egui::Stroke::new(4.0, egui::Color32::RED),
+                );
+                painter.text(
+                    axis_start + egui::Vec2::new(axis_length + 8.0, 0.0),
+                    egui::Align2::LEFT_CENTER,
+                    "X",
+                    egui::FontId::proportional(16.0),
+                    egui::Color32::RED,
+                );
+
+                // Y-axis (green, pointing up)
+                painter.line_segment(
+                    [axis_start, axis_start + egui::Vec2::new(0.0, -axis_length)],
+                    egui::Stroke::new(4.0, egui::Color32::GREEN),
+                );
+                painter.text(
+                    axis_start + egui::Vec2::new(0.0, -axis_length - 8.0),
+                    egui::Align2::CENTER_BOTTOM,
+                    "Y",
+                    egui::FontId::proportional(16.0),
+                    egui::Color32::GREEN,
+                );
+
+                // Z-axis (blue, pointing into perspective)
+                let z_end = axis_start + egui::Vec2::new(-axis_length * 0.7, axis_length * 0.5);
+                painter.line_segment(
+                    [axis_start, z_end],
+                    egui::Stroke::new(4.0, egui::Color32::BLUE),
+                );
+                painter.text(
+                    z_end + egui::Vec2::new(-15.0, 8.0),
+                    egui::Align2::RIGHT_CENTER,
+                    "Z",
+                    egui::FontId::proportional(16.0),
+                    egui::Color32::BLUE,
+                );
+
+                // Add origin point
+                painter.circle_filled(axis_start, 5.0, egui::Color32::WHITE);
+            }
         }
-
-        // Horizontal lines
-        let mut y = center.y % grid_spacing;
-        while y < rect.max.y {
-            painter.line_segment(
-                [egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, y)],
-                egui::Stroke::new(1.0, grid_color),
-            );
-            y += grid_spacing;
-        }
-
-        // Draw main axes in different color
-        let axis_color = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128);
-        painter.line_segment(
-            [
-                egui::pos2(center.x, rect.min.y),
-                egui::pos2(center.x, rect.max.y),
-            ],
-            egui::Stroke::new(2.0, axis_color),
-        );
-        painter.line_segment(
-            [
-                egui::pos2(rect.min.x, center.y),
-                egui::pos2(rect.max.x, center.y),
-            ],
-            egui::Stroke::new(2.0, axis_color),
-        );
     }
 
     fn draw_scene_objects(
@@ -774,7 +1002,7 @@ impl Viewport {
             .filter(|(_, object)| object.visible)
             .map(|(object_id, object)| {
                 let (screen_pos, depth) = match self.view_mode {
-                    ViewMode::Scene2D | ViewMode::Game2D => {
+                    ViewMode::Scene2D => {
                         let pos = self.world_to_screen_with_camera(
                             object.transform.position,
                             center,
@@ -783,7 +1011,7 @@ impl Viewport {
                         );
                         (pos, 0.0)
                     }
-                    ViewMode::Scene3D | ViewMode::Game3D => {
+                    ViewMode::Scene3D => {
                         let pos = self.world_to_screen_with_camera(
                             object.transform.position,
                             center,
@@ -834,8 +1062,8 @@ impl Viewport {
             // Calculate size based on distance and scale for better 3D perspective
             let base_size = object.transform.scale.x;
             let size_factor = match self.view_mode {
-                ViewMode::Scene2D | ViewMode::Game2D => self.zoom_level as f64 * 10.0,
-                ViewMode::Scene3D | ViewMode::Game3D => {
+                ViewMode::Scene2D => self.zoom_level as f64 * 10.0,
+                ViewMode::Scene3D => {
                     // Apply perspective scaling with improved formula
                     let distance = (object.transform.position - camera_pos).magnitude();
                     let perspective_scale = 100.0 / (distance.max(1.0)); // Improved perspective
@@ -844,9 +1072,10 @@ impl Viewport {
                 }
             };
 
-            // Apply animation transformations
+            // Apply animation transformations (only if playing, don't override manual edits)
             let animated_position = if self.is_playing {
                 // Simple rotation animation for demonstration
+                // Only apply to objects that haven't been manually moved recently
                 let rotation_speed = 1.0;
                 let angle = self.animation_time as f64 * rotation_speed;
                 Vec3::new(
@@ -857,6 +1086,8 @@ impl Viewport {
                         + object.transform.position.z * angle.cos(),
                 )
             } else {
+                // When not playing, always use the object's actual transform position
+                // This prevents rubber-banding back to original positions
                 object.transform.position
             };
 
@@ -985,7 +1216,7 @@ impl Viewport {
         painter.circle_filled(y_end, 5.0, egui::Color32::GREEN);
 
         // Z axis (blue arrow) - only in 3D
-        if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+        if matches!(self.view_mode, ViewMode::Scene3D) {
             painter.circle_filled(center, 7.0, egui::Color32::BLUE);
             painter.circle_stroke(center, 7.0, egui::Stroke::new(2.0, egui::Color32::WHITE));
         }
@@ -1010,7 +1241,7 @@ impl Viewport {
         );
 
         // Z rotation (blue circle) - only in 3D
-        if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+        if matches!(self.view_mode, ViewMode::Scene3D) {
             painter.circle_stroke(
                 center,
                 radius * 0.6,
@@ -1049,7 +1280,7 @@ impl Viewport {
         );
 
         // Z axis (blue) - only in 3D
-        if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D) {
+        if matches!(self.view_mode, ViewMode::Scene3D) {
             painter.rect_filled(
                 egui::Rect::from_center_size(center, egui::Vec2::splat(cube_size * 1.2)),
                 0.0,
@@ -1106,9 +1337,7 @@ impl Viewport {
             }
 
             // Check Z axis (only in 3D)
-            if matches!(self.view_mode, ViewMode::Scene3D | ViewMode::Game3D)
-                && distance_to_center < 12.0
-            {
+            if matches!(self.view_mode, ViewMode::Scene3D) && distance_to_center < 12.0 {
                 return Some(GizmoAxis::Z);
             }
         }
@@ -1204,6 +1433,147 @@ impl Viewport {
                 }
             }
         }
+    }
+
+    /// Draw Unity-like orientation gizmo in the top-right corner
+    fn draw_orientation_gizmo(&self, painter: &egui::Painter, rect: egui::Rect) {
+        if !matches!(self.view_mode, ViewMode::Scene3D) {
+            return; // Only show in 3D mode
+        }
+
+        let gizmo_size = 80.0;
+        let gizmo_rect = egui::Rect::from_center_size(
+            rect.right_top() + egui::Vec2::new(-gizmo_size / 2.0 - 15.0, gizmo_size / 2.0 + 15.0),
+            egui::Vec2::splat(gizmo_size),
+        );
+
+        // Background circle
+        painter.circle_filled(
+            gizmo_rect.center(),
+            gizmo_size * 0.45,
+            egui::Color32::from_black_alpha(120),
+        );
+        painter.circle_stroke(
+            gizmo_rect.center(),
+            gizmo_size * 0.45,
+            egui::Stroke::new(1.5, egui::Color32::from_white_alpha(100)),
+        );
+
+        let center = gizmo_rect.center();
+        let axis_length = 25.0;
+
+        // Get current camera rotation for proper axis visualization
+        let camera_rot = if self.show_game_view {
+            self.game_camera_rotation
+        } else {
+            self.camera_rotation
+        };
+
+        // Calculate axis directions based on camera rotation
+        let yaw = camera_rot.y.to_radians() as f32;
+        let pitch = camera_rot.x.to_radians() as f32;
+
+        // X-axis (Red) - points right, affected by yaw
+        let x_dir = egui::Vec2::new(yaw.cos(), yaw.sin() * pitch.cos());
+        let x_end = center + x_dir * axis_length;
+        painter.line_segment([center, x_end], egui::Stroke::new(3.0, egui::Color32::RED));
+        painter.circle_filled(x_end, 4.0, egui::Color32::RED);
+        painter.text(
+            x_end + egui::Vec2::new(8.0, 0.0),
+            egui::Align2::LEFT_CENTER,
+            "X",
+            egui::FontId::proportional(12.0),
+            egui::Color32::WHITE,
+        );
+
+        // Y-axis (Green) - points up
+        let y_dir = egui::Vec2::new(0.0, -1.0);
+        let y_end = center + y_dir * axis_length;
+        painter.line_segment(
+            [center, y_end],
+            egui::Stroke::new(3.0, egui::Color32::GREEN),
+        );
+        painter.circle_filled(y_end, 4.0, egui::Color32::GREEN);
+        painter.text(
+            y_end + egui::Vec2::new(0.0, -12.0),
+            egui::Align2::CENTER_BOTTOM,
+            "Y",
+            egui::FontId::proportional(12.0),
+            egui::Color32::WHITE,
+        );
+
+        // Z-axis (Blue) - points into screen, affected by camera rotation
+        let z_dir = egui::Vec2::new(-yaw.sin() * 0.7, pitch.sin() * 0.7);
+        let z_end = center + z_dir * axis_length;
+        painter.line_segment([center, z_end], egui::Stroke::new(3.0, egui::Color32::BLUE));
+        painter.circle_filled(z_end, 4.0, egui::Color32::BLUE);
+        painter.text(
+            z_end + egui::Vec2::new(-8.0, 0.0),
+            egui::Align2::RIGHT_CENTER,
+            "Z",
+            egui::FontId::proportional(12.0),
+            egui::Color32::WHITE,
+        );
+
+        // Draw center dot
+        painter.circle_filled(center, 3.0, egui::Color32::WHITE);
+    }
+
+    /// Draw view mode indicator in bottom-left corner
+    fn draw_view_mode_indicator(&self, painter: &egui::Painter, rect: egui::Rect) {
+        let indicator_pos = rect.left_bottom() + egui::Vec2::new(10.0, -30.0);
+
+        // Background
+        let bg_rect = egui::Rect::from_min_size(indicator_pos, egui::Vec2::new(80.0, 25.0));
+        painter.rect_filled(bg_rect, 4.0, egui::Color32::from_black_alpha(180));
+        // Border around the indicator
+        painter.line_segment(
+            [bg_rect.left_top(), bg_rect.right_top()],
+            egui::Stroke::new(1.0, egui::Color32::from_white_alpha(100)),
+        );
+        painter.line_segment(
+            [bg_rect.right_top(), bg_rect.right_bottom()],
+            egui::Stroke::new(1.0, egui::Color32::from_white_alpha(100)),
+        );
+        painter.line_segment(
+            [bg_rect.right_bottom(), bg_rect.left_bottom()],
+            egui::Stroke::new(1.0, egui::Color32::from_white_alpha(100)),
+        );
+        painter.line_segment(
+            [bg_rect.left_bottom(), bg_rect.left_top()],
+            egui::Stroke::new(1.0, egui::Color32::from_white_alpha(100)),
+        );
+
+        // View mode text
+        let mode_text = match self.view_mode {
+            ViewMode::Scene2D => "2D",
+            ViewMode::Scene3D => {
+                if self.show_game_view {
+                    "3D Game"
+                } else {
+                    "3D Scene"
+                }
+            }
+        };
+
+        let text_color = match self.view_mode {
+            ViewMode::Scene2D => egui::Color32::LIGHT_GREEN,
+            ViewMode::Scene3D => {
+                if self.show_game_view {
+                    egui::Color32::LIGHT_BLUE
+                } else {
+                    egui::Color32::WHITE
+                }
+            }
+        };
+
+        painter.text(
+            bg_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            mode_text,
+            egui::FontId::proportional(14.0),
+            text_color,
+        );
     }
 
     // Camera information display
@@ -1519,10 +1889,10 @@ impl Viewport {
         self.draw_enhanced_gizmos(painter, rect, scene, selected_object_id);
     }
 
-    /// Legacy reset camera function
+    /// Reset camera function
     fn reset_camera(&mut self) {
         match self.view_mode {
-            ViewMode::Scene2D | ViewMode::Game2D => {
+            ViewMode::Scene2D => {
                 if self.show_game_view {
                     self.game_camera_position = Vec3::new(0.0, 0.0, 0.0);
                     self.game_camera_rotation = Vec3::new(0.0, 0.0, 0.0);
@@ -1531,7 +1901,7 @@ impl Viewport {
                     self.camera_rotation = Vec3::new(0.0, 0.0, 0.0);
                 }
             }
-            ViewMode::Scene3D | ViewMode::Game3D => {
+            ViewMode::Scene3D => {
                 if self.show_game_view {
                     self.game_camera_position = Vec3::new(0.0, 2.0, 5.0);
                     self.game_camera_rotation = Vec3::new(-10.0, 0.0, 0.0);
