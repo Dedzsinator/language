@@ -1,0 +1,11 @@
+-- Function example
+let square = (x: Int) => x * x
+let cube = (x: Int) => x * x * x
+
+let result1 = square(5)
+let result2 = cube(3)
+
+-- Higher-order function
+let apply_twice = (f: (Int) -> Int, x: Int) => f(f(x))
+let increment = (x: Int) => x + 1
+let result3 = apply_twice(increment, 10)

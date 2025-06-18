@@ -1,0 +1,44 @@
+[package]
+name = "matrix-lang"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <email@example.com>"]
+description = "Matrix Language: A functional matrix-oriented programming language with JIT compilation"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/user/matrix-lang"
+readme = "README.md"
+
+[dependencies]
+# Language core
+logos = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
+rand_pcg = { workspace = true }
+
+# CLI and REPL
+clap = { workspace = true }
+rustyline = { workspace = true }
+
+# JIT compilation with LLVM
+inkwell = { workspace = true, optional = true }
+llvm-sys = { workspace = true, optional = true }
+
+# Async and performance
+rayon = { workspace = true }
+tokio = { workspace = true }
+num_cpus = { workspace = true }
+
+[features]
+default = []
+jit = ["inkwell", "llvm-sys"]
+debug = []
+
+[[bin]]
+name = "matrix-lang"
+path = "src/main.rs"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.0"

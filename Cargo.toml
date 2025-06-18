@@ -1,52 +1,66 @@
-[package]
-name = "matrix-lang"
-version = "0.1.0"
-edition = "2021"
-authors = ["Your Name <email@example.com>"]
-description = "A functional matrix-oriented scripting language for physics simulation and GPU acceleration"
+[workspace]
+members = [
+    "matrix-lang",
+    "physics-engine",
+]
+resolver = "2"
 
-[dependencies]
-# Essential parsing and CLI
-logos = "0.13"
-clap = { version = "4.4", features = ["derive"] }
-rustyline = "13.0"
+[workspace.dependencies]
+# Shared dependencies across the workspace
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 rand = { version = "0.8", features = ["std"] }
 rand_pcg = "0.3"
+rayon = "1.8"
+nalgebra = "0.32"
+tokio = { version = "1.35", features = ["full"] }
+num_cpus = "1.17.0"
 
-# GUI and Graphics
+# GUI dependencies
 eframe = "0.31"
 egui = "0.31"
 egui_plot = "0.31"
 egui_dock = "0.16"
 
-# ECS and Performance
+# ECS
 bevy_ecs = "0.12"
-rayon = "1.8"
-nalgebra = "0.32"
 
 # GPU computation
 wgpu = "0.19"
 bytemuck = { version = "1.14", features = ["derive"] }
 futures-intrusive = "0.5"
 
-# Async runtime
-tokio = { version = "1.35", features = ["full"] }
-
-# Optional dependencies (disabled for now due to linker issues)
-# nom = "7.1"
+# CLI and parsing
+logos = "0.13"
+clap = { version = "4.4", features = ["derive"] }
+rustyline = "13.0"
 
 # JIT compilation with LLVM
-inkwell = { version = "0.4", features = ["llvm17-0"], optional = true }
-llvm-sys = { version = "170", optional = true }
-num_cpus = "1.17.0"
+inkwell = { version = "0.4", features = ["llvm17-0"] }
+llvm-sys = { version = "170" }
 
-[features]
-default = []
-jit = ["inkwell", "llvm-sys"]
+[profile.dev]
+# Development optimization for faster builds
+opt-level = 0
+debug = true
+overflow-checks = true
 
-[[bin]]
-name = "matrix-lang"
-path = "src/main.rs"
+[profile.release]
+# Release optimization for performance
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.test]
+# Test optimization for faster test runs
+opt-level = 1
+debug = true
+
+[profile.bench]
+# Benchmark optimization
+opt-level = 3
+debug = false
+lto = true
