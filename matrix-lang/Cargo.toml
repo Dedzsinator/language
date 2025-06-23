@@ -30,6 +30,11 @@ rayon = { workspace = true }
 tokio = { workspace = true }
 num_cpus = { workspace = true }
 
+# Quantum computing
+num-complex = "0.4"
+chrono = "0.4"
+lazy_static = "1.4"
+
 [features]
 default = []
 jit = ["inkwell", "llvm-sys"]

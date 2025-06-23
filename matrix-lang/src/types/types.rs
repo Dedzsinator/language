@@ -290,6 +290,142 @@ impl TypeContext {
             span: Span::new(0, 0, 0, 0),
         };
         self.typeclasses.register_instance(float_addable);
+
+        // Register built-in functions
+        self.register_builtin_functions();
+    }
+
+    fn register_builtin_functions(&mut self) {
+        // print function: variadic function that takes any types and returns Unit
+        self.env.bind(
+            "print".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::TypeVar("T".to_string())], // Simplified - real impl would be variadic
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // println function
+        self.env.bind(
+            "println".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Unit)),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Math functions
+        self.env.bind(
+            "abs".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::TypeVar("T".to_string())],
+                    Box::new(Type::TypeVar("T".to_string())),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "sqrt".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::Float], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Quantum functions
+        self.env.bind(
+            "quantum_circuit".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int],
+                    Box::new(Type::Int), // Return circuit ID as Int
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "hadamard".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "cnot".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Int], // circuit_id, control, target
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Parametric rotation gates
+        self.env.bind(
+            "rx".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Float], // circuit_id, qubit, angle
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "ry".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Float], // circuit_id, qubit, angle
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "rz".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Float], // circuit_id, qubit, angle
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "simulate_circuit".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int],     // circuit_id
+                    Box::new(Type::Int), // Return result ID as Int
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "print_state".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int], // result_id
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
     }
 
     pub fn fresh_type_var(&mut self) -> Type {

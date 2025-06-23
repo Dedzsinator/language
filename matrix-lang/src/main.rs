@@ -5,6 +5,7 @@ pub mod ir;
 pub mod jit;
 pub mod lexer;
 pub mod parser;
+pub mod quantum;
 pub mod runtime;
 pub mod stdlib;
 pub mod types;
@@ -57,7 +58,9 @@ fn main() {
 
     if matches.get_flag("gui") {
         println!("GUI functionality temporarily disabled during reorganization");
-        // TODO: Re-enable GUI after separation is complete
+        // GUI functionality temporarily disabled during reorganization
+        // Quantum GUI is available through the quantum module
+        // Unity editor integration to be re-enabled after separation is complete
         // if let Err(e) = crate::gui::launch_unity_editor() {
         //     eprintln!("Failed to launch editor: {}", e);
         //     std::process::exit(1);
@@ -114,6 +117,7 @@ fn run_repl() {
 
     // Create persistent interpreter and type checker for REPL session
     let mut interpreter = Interpreter::new();
+    crate::stdlib::register_all(&mut interpreter);
     let mut type_checker = TypeChecker::new();
 
     loop {
@@ -261,6 +265,7 @@ fn execute_source(source: &str, parse_only: bool) -> Result<(), Box<dyn std::err
 
     // Evaluation/Interpretation
     let mut interpreter = Interpreter::new();
+    crate::stdlib::register_all(&mut interpreter);
     let result = interpreter
         .eval_program(&ast)
         .map_err(|e| format!("Runtime error: {}", e))?;
@@ -319,7 +324,7 @@ fn format_result(value: &crate::eval::interpreter::Value) -> String {
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
         crate::eval::interpreter::Value::Function { .. } => "<function>".to_string(),
-                crate::eval::interpreter::Value::BuiltinFunction { name, .. } => {
+        crate::eval::interpreter::Value::BuiltinFunction { name, .. } => {
             format!("<builtin: {}>", name)
         }
         crate::eval::interpreter::Value::AsyncHandle(task) => {

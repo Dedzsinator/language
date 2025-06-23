@@ -1,6 +1,8 @@
 // Standard library implementation for Matrix Language (simplified)
 use crate::eval::interpreter::{RuntimeError, Value};
 
+pub mod quantum;
+
 /// Register basic standard library functions with an interpreter
 pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
     // Register basic math functions directly
@@ -245,15 +247,13 @@ pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
         Value::BuiltinFunction {
             name: "len".to_string(),
             arity: 1,
-            func: |args| {
-                match &args[0] {
-                    Value::Array(arr) => Ok(Value::Int(arr.len() as i64)),
-                    Value::String(s) => Ok(Value::Int(s.len() as i64)),
-                    Value::Matrix(mat) => Ok(Value::Int(mat.len() as i64)),
-                    _ => Err(RuntimeError::TypeError {
-                        message: format!("Cannot get length of {}", args[0].type_name()),
-                    }),
-                }
+            func: |args| match &args[0] {
+                Value::Array(arr) => Ok(Value::Int(arr.len() as i64)),
+                Value::String(s) => Ok(Value::Int(s.len() as i64)),
+                Value::Matrix(mat) => Ok(Value::Int(mat.len() as i64)),
+                _ => Err(RuntimeError::TypeError {
+                    message: format!("Cannot get length of {}", args[0].type_name()),
+                }),
             },
         },
     );
@@ -263,16 +263,14 @@ pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
         Value::BuiltinFunction {
             name: "max".to_string(),
             arity: 2,
-            func: |args| {
-                match (&args[0], &args[1]) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(*a.max(b))),
-                    (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a.max(*b))),
-                    (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).max(*b))),
-                    (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.max(*b as f64))),
-                    _ => Err(RuntimeError::TypeError {
-                        message: "max requires numeric arguments".to_string(),
-                    }),
-                }
+            func: |args| match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(*a.max(b))),
+                (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a.max(*b))),
+                (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).max(*b))),
+                (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.max(*b as f64))),
+                _ => Err(RuntimeError::TypeError {
+                    message: "max requires numeric arguments".to_string(),
+                }),
             },
         },
     );
@@ -282,16 +280,14 @@ pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
         Value::BuiltinFunction {
             name: "min".to_string(),
             arity: 2,
-            func: |args| {
-                match (&args[0], &args[1]) {
-                    (Value::Int(a), Value::Int(b)) => Ok(Value::Int(*a.min(b))),
-                    (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a.min(*b))),
-                    (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).min(*b))),
-                    (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.min(*b as f64))),
-                    _ => Err(RuntimeError::TypeError {
-                        message: "min requires numeric arguments".to_string(),
-                    }),
-                }
+            func: |args| match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(*a.min(b))),
+                (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a.min(*b))),
+                (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).min(*b))),
+                (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.min(*b as f64))),
+                _ => Err(RuntimeError::TypeError {
+                    message: "min requires numeric arguments".to_string(),
+                }),
             },
         },
     );
@@ -330,6 +326,9 @@ pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
             },
         },
     );
+
+    // Register quantum computing functions
+    quantum::register_quantum_functions(interpreter);
 }
 
 // Helper function to convert Value to string representation

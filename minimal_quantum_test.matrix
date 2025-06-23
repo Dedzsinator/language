@@ -1,0 +1,6 @@
+-- Simple Quantum Test for Matrix Language
+-- Tests basic quantum functionality
+
+let test_quantum = (
+    print("Testing quantum computing functionality...")
+)

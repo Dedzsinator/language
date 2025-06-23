@@ -1,0 +1,2 @@
+-- Simple test to check if stdlib functions work
+let test_basic = print("Hello from Matrix Language!")

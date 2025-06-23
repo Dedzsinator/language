@@ -243,7 +243,8 @@ impl PhysicsWorld {
     }
 
     /// Convert simulation state to language values for visualization
-    // TODO: Re-enable when matrix-lang integration is complete
+    /// Currently disabled to maintain separation between physics engine and matrix-lang
+    /// Integration will be enabled when physics-matrix-lang bridge is implemented
     /*
     pub fn to_simulation_state(&self) -> RuntimeResult<Value> {
         let mut state = HashMap::new();
@@ -304,7 +305,8 @@ impl PhysicsWorld {
 impl Resource for PhysicsWorld {}
 
 /// Built-in physics functions for the language
-// TODO: Re-enable when matrix-lang integration is complete
+/// Currently disabled to maintain clean separation between physics engine and matrix-lang
+/// Will be enabled when physics-matrix-lang integration bridge is implemented
 /*
 pub fn register_physics_functions(env: &mut crate::eval::interpreter::Environment) {
     // Physics world creation

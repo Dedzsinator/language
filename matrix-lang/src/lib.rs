@@ -8,13 +8,14 @@
 // - Standard library with mathematical and utility functions
 
 pub mod ast;
-pub mod lexer;
-pub mod parser;
-pub mod types;
 pub mod eval;
 pub mod ir;
-pub mod stdlib;
+pub mod lexer;
+pub mod parser;
+pub mod quantum;
 pub mod runtime;
+pub mod stdlib;
+pub mod types;
 
 #[cfg(feature = "jit")]
 pub mod jit;
@@ -24,9 +25,10 @@ pub mod debug_tests;
 
 // Re-exports for convenience
 pub use ast::*;
+pub use eval::{Interpreter, RuntimeError, RuntimeResult, Value};
 pub use lexer::Lexer;
 pub use parser::Parser;
-pub use eval::{Interpreter, Value, RuntimeError, RuntimeResult};
+pub use quantum::{QuantumCircuit, QuantumEngine, QuantumResult, QuantumState};
 pub use types::TypeChecker;
 
 #[cfg(feature = "jit")]
