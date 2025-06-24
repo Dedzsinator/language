@@ -35,4 +35,3 @@ default = []
 [[bin]]
 name = "physics-gui"
 path = "src/main.rs"
-path = "src/main.rs"

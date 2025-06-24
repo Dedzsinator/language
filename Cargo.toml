@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "matrix-lang",
-    "physics-engine",
+    "engine",
 ]
 resolver = "2"
 

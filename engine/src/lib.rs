@@ -1,27 +1,11 @@
 // Physics Simulation GUI Engine Library
 // Provides Unity-style physics simulation interface as a standalone library
 
-// GUI Components
+// Core GUI Module
 pub mod gui;
-pub mod viewport;
-pub mod unity_layout;
-pub mod scene_view;
-pub mod game_view;
-pub mod animation_view;
-pub mod inspector;
-pub mod object_hierarchy;
-pub mod project_browser;
-pub mod scene_manager;
-pub mod console;
-pub mod scripting_panel;
-
-// Physics Components (keeping only GUI-related physics)
-pub mod physics_debugger;
 
 // Re-exports for easy access
 pub use gui::*;
-pub use viewport::*;
-pub use unity_layout::*;
 
 /// Launch the Unity-style physics simulation GUI
 pub fn launch_physics_gui() -> Result<(), Box<dyn std::error::Error>> {
