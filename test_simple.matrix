@@ -1,3 +1,0 @@
--- Test simple function calls
-let test_abs_int = abs(-5)
-let test_output = print(test_abs_int)

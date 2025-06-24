@@ -5,6 +5,9 @@ use matrix_lang::*;
 /// Parser unit tests
 mod parser_tests;
 
+/// Matrix Language comprehensive unit tests
+mod matrix_language_unit_tests;
+
 /// Lexer unit tests
 #[cfg(test)]
 mod lexer_tests {
@@ -31,7 +34,10 @@ mod lexer_tests {
         let lexer = Lexer::new("\"hello world\"");
         let tokens = lexer.tokenize().unwrap();
         assert_eq!(tokens.len(), 2); // String token + EOF
-        assert_eq!(tokens[0].token, Token::StringLiteral("hello world".to_string()));
+        assert_eq!(
+            tokens[0].token,
+            Token::StringLiteral("hello world".to_string())
+        );
     }
 
     #[test]
@@ -39,7 +45,10 @@ mod lexer_tests {
         let lexer = Lexer::new("variable_name");
         let tokens = lexer.tokenize().unwrap();
         assert_eq!(tokens.len(), 2); // Identifier token + EOF
-        assert_eq!(tokens[0].token, Token::Identifier("variable_name".to_string()));
+        assert_eq!(
+            tokens[0].token,
+            Token::Identifier("variable_name".to_string())
+        );
     }
 
     #[test]
@@ -86,10 +95,18 @@ mod lexer_tests {
         assert_eq!(tokens[1].token, Token::LeftBracket);
 
         // Should contain integer literals
-        assert!(tokens.iter().any(|t| matches!(t.token, Token::IntLiteral(1))));
-        assert!(tokens.iter().any(|t| matches!(t.token, Token::IntLiteral(2))));
-        assert!(tokens.iter().any(|t| matches!(t.token, Token::IntLiteral(3))));
-        assert!(tokens.iter().any(|t| matches!(t.token, Token::IntLiteral(4))));
+        assert!(tokens
+            .iter()
+            .any(|t| matches!(t.token, Token::IntLiteral(1))));
+        assert!(tokens
+            .iter()
+            .any(|t| matches!(t.token, Token::IntLiteral(2))));
+        assert!(tokens
+            .iter()
+            .any(|t| matches!(t.token, Token::IntLiteral(3))));
+        assert!(tokens
+            .iter()
+            .any(|t| matches!(t.token, Token::IntLiteral(4))));
     }
 }
 
@@ -147,7 +164,10 @@ mod interpreter_tests {
         assert_eq!(execute("42").unwrap(), Value::Int(42));
         assert_eq!(execute("3.14").unwrap(), Value::Float(3.14));
         assert_eq!(execute("true").unwrap(), Value::Bool(true));
-        assert_eq!(execute("\"hello\"").unwrap(), Value::String("hello".to_string()));
+        assert_eq!(
+            execute("\"hello\"").unwrap(),
+            Value::String("hello".to_string())
+        );
     }
 
     #[test]
@@ -272,12 +292,12 @@ mod error_handling_tests {
     #[test]
     fn test_syntax_errors() {
         let error_cases = vec![
-            "let = 42",           // Missing identifier
-            "2 +",                // Incomplete expression
-            "let x = ",           // Incomplete let binding
-            "struct { }",         // Missing struct name
-            "if true",            // Incomplete if expression
-            ")",                  // Unmatched parenthesis
+            "let = 42",             // Missing identifier
+            "2 +",                  // Incomplete expression
+            "let x = ",             // Incomplete let binding
+            "struct { }",           // Missing struct name
+            "if true",              // Incomplete if expression
+            ")",                    // Unmatched parenthesis
             "let x = 42 let y = 3", // Missing semicolon
         ];
 
@@ -290,9 +310,9 @@ mod error_handling_tests {
     #[test]
     fn test_runtime_errors() {
         let error_cases = vec![
-            "unknown_variable",   // Undefined variable
-            "add(1)",            // Wrong number of arguments (if add is defined)
-            "1 / 0",             // Division by zero (if checked)
+            "unknown_variable", // Undefined variable
+            "add(1)",           // Wrong number of arguments (if add is defined)
+            "1 / 0",            // Division by zero (if checked)
         ];
 
         for case in error_cases {
@@ -305,8 +325,8 @@ mod error_handling_tests {
     #[test]
     fn test_type_errors() {
         let error_cases = vec![
-            "let x: Int = \"hello\"",     // Type mismatch
-            "let f: Int -> Int = 42",     // Function type mismatch
+            "let x: Int = \"hello\"", // Type mismatch
+            "let f: Int -> Int = 42", // Function type mismatch
         ];
 
         for case in error_cases {

@@ -1,0 +1,160 @@
+name: Matrix Language Test Suite
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - "matrix-lang/**"
+      - "tests/matrix-files/**"
+      - "tests/run_all_tests.sh"
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - "matrix-lang/**"
+      - "tests/matrix-files/**"
+      - "tests/run_all_tests.sh"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  matrix-language-tests:
+    name: Matrix Language Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-matrix-lang-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-matrix-lang-
+            ${{ runner.os }}-cargo-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
+      - name: Build Matrix Language compiler
+        run: cargo build --bin matrix-lang --release
+
+      - name: Run Matrix Language comprehensive test suite
+        run: |
+          echo "🚀 Running Matrix Language Comprehensive Test Suite"
+          chmod +x tests/run_all_tests.sh
+          ./tests/run_all_tests.sh
+
+      - name: Run Matrix Language integration tests
+        run: cargo test --test matrix_language_integration_tests -- --nocapture
+
+      - name: Validate test file existence
+        run: |
+          echo "📁 Validating Matrix Language test files..."
+          test -f tests/matrix-files/final_matrix_language_test_suite.matrix
+          test -f tests/matrix-files/test_constants.matrix
+          test -f tests/matrix-files/test_math_float.matrix
+          test -f tests/matrix-files/test_physics.matrix
+          test -f tests/matrix-files/test_quantum_fixed.matrix
+          test -f tests/matrix-files/test_simple.matrix
+          test -f tests/matrix-files/working_comprehensive_test.matrix
+          echo "✅ All Matrix Language test files exist"
+
+      - name: Performance benchmark
+        run: |
+          echo "⏱️ Running Matrix Language performance benchmark..."
+          time cargo run --bin matrix-lang --release tests/matrix-files/test_simple.matrix
+
+      - name: Test individual Matrix Language features
+        run: |
+          echo "🧮 Testing individual Matrix Language features..."
+
+          echo "Testing constants..."
+          cargo run --bin matrix-lang --release tests/matrix-files/test_constants.matrix
+
+          echo "Testing math functions..."
+          cargo run --bin matrix-lang --release tests/matrix-files/test_math_float.matrix
+
+          echo "Testing physics system..."
+          cargo run --bin matrix-lang --release tests/matrix-files/test_physics.matrix
+
+          echo "Testing quantum computing..."
+          cargo run --bin matrix-lang --release tests/matrix-files/test_quantum_fixed.matrix
+
+      - name: Generate test report
+        run: |
+          echo "📊 Generating Matrix Language test report..."
+          echo "# Matrix Language Test Report" > matrix_test_report.md
+          echo "" >> matrix_test_report.md
+          echo "## Test Execution Summary" >> matrix_test_report.md
+          echo "- **Date**: $(date)" >> matrix_test_report.md
+          echo "- **Commit**: ${{ github.sha }}" >> matrix_test_report.md
+          echo "- **Branch**: ${{ github.ref_name }}" >> matrix_test_report.md
+          echo "" >> matrix_test_report.md
+          echo "## Features Tested" >> matrix_test_report.md
+          echo "- ✅ Mathematical constants and functions" >> matrix_test_report.md
+          echo "- ✅ String manipulation functions" >> matrix_test_report.md
+          echo "- ✅ Complete physics simulation system" >> matrix_test_report.md
+          echo "- ✅ Full quantum computing library" >> matrix_test_report.md
+          echo "- ✅ Core language features and types" >> matrix_test_report.md
+          echo "- ✅ Polymorphic function system" >> matrix_test_report.md
+          echo "" >> matrix_test_report.md
+          echo "## Test Files Executed" >> matrix_test_report.md
+          echo "- final_matrix_language_test_suite.matrix" >> matrix_test_report.md
+          echo "- test_constants.matrix" >> matrix_test_report.md
+          echo "- test_math_float.matrix" >> matrix_test_report.md
+          echo "- test_physics.matrix" >> matrix_test_report.md
+          echo "- test_quantum_fixed.matrix" >> matrix_test_report.md
+          echo "- test_simple.matrix" >> matrix_test_report.md
+          echo "- working_comprehensive_test.matrix" >> matrix_test_report.md
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-language-test-report
+          path: matrix_test_report.md
+
+  matrix-language-cross-platform:
+    name: Matrix Language Cross-Platform Tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install pkg-config
+
+      - name: Build Matrix Language compiler
+        run: cargo build --bin matrix-lang
+
+      - name: Run simple Matrix Language test
+        run: cargo run --bin matrix-lang tests/matrix-files/test_simple.matrix
+
+      - name: Run constants test
+        run: cargo run --bin matrix-lang tests/matrix-files/test_constants.matrix

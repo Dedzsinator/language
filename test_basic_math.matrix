@@ -1,3 +1,0 @@
--- Test basic math functions
-let test_abs = println(abs(-5))
-let test_sqrt = println(sqrt(16.0))

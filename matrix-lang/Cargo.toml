@@ -47,3 +47,13 @@ path = "src/main.rs"
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.0"
+tempfile = "3.8"
+
+# Integration test dependencies
+[[test]]
+name = "matrix_language_integration_tests"
+path = "tests/integration/matrix_language_integration_tests.rs"
+
+[[test]]
+name = "matrix_language_unit_tests"
+path = "tests/unit/matrix_language_unit_tests.rs"

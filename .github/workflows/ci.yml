@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
 
 env:
   CARGO_TERM_COLOR: always
@@ -73,6 +73,24 @@ jobs:
 
       - name: Run doc tests
         run: cargo test --doc
+
+      - name: Run Matrix Language Test Suite
+        run: |
+          echo "🚀 Running Matrix Language comprehensive test suite..."
+          chmod +x tests/run_all_tests.sh
+          ./tests/run_all_tests.sh
+
+      - name: Run Matrix Language Integration Tests
+        run: |
+          echo "🧪 Running Matrix Language integration tests..."
+          cd matrix-lang
+          cargo test --test matrix_language_integration_tests -- --nocapture
+
+      - name: Run Matrix Language Unit Tests
+        run: |
+          echo "⚡ Running Matrix Language unit tests..."
+          cd matrix-lang
+          cargo test --test matrix_language_unit_tests -- --nocapture
 
   lints:
     name: Lints

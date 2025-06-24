@@ -1,4 +1,0 @@
--- Test builtin functions
-let test_pi = pi
-let test_abs = abs(-5)
-let test_output = print(test_pi)

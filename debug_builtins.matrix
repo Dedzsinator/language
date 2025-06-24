@@ -1,3 +1,0 @@
--- Test what functions are available
-let test_builtin_print = print("Testing builtin print")
-let test_result = test_builtin_print
