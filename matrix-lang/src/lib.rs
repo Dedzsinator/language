@@ -1,21 +1,18 @@
-// Matrix Language - A functional matrix-oriented programming language with JIT compilation
+// Matrix Language - JIT-compiled physics simulation language
 //
-// This crate provides the complete Matrix Language implementation including:
+// This crate provides the Matrix Language implementation including:
 // - Lexical analysis and parsing
 // - Type checking and inference
 // - AST-based interpretation
 // - LLVM-based JIT compilation
-// - Standard library with mathematical and utility functions
-// - Quantum computing simulation and visualization
-// - Integrated development environment
+// - Standard library with mathematical functions
+// - Physics simulation integration
 
 pub mod ast;
 pub mod eval;
-pub mod gui;
 pub mod ir;
 pub mod lexer;
 pub mod parser;
-pub mod quantum;
 pub mod runtime;
 pub mod stdlib;
 pub mod types;
@@ -31,7 +28,6 @@ pub use ast::*;
 pub use eval::{Interpreter, RuntimeError, RuntimeResult, Value};
 pub use lexer::Lexer;
 pub use parser::Parser;
-pub use quantum::{QuantumCircuit, QuantumEngine, QuantumResult, QuantumState};
 pub use types::TypeChecker;
 
 #[cfg(feature = "jit")]

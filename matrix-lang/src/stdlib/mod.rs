@@ -1,11 +1,110 @@
-// Standard library implementation for Matrix Language (simplified)
+// Standard library implementation for Matrix Language
+// Focus: Physics simulation and mathematical functions
 use crate::eval::interpreter::{RuntimeError, Value};
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
-pub mod quantum;
+pub mod physics;
 
-/// Register basic standard library functions with an interpreter
+// Physics engine integration
+static PHYSICS_WORLDS: LazyLock<Mutex<HashMap<usize, PhysicsWorld>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static NEXT_WORLD_ID: LazyLock<Mutex<usize>> = LazyLock::new(|| Mutex::new(0));
+
+#[derive(Debug, Clone)]
+pub struct PhysicsWorld {
+    id: usize,
+    objects: Vec<PhysicsObject>,
+    gravity: Vec3,
+    time: f64,
+    dt: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct PhysicsObject {
+    id: usize,
+    shape: String,
+    mass: f64,
+    position: Vec3,
+    velocity: Vec3,
+    is_static: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct Vec3 {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
+impl PhysicsWorld {
+    fn new() -> Self {
+        let mut next_id = NEXT_WORLD_ID.lock().unwrap();
+        let id = *next_id;
+        *next_id += 1;
+
+        Self {
+            id,
+            objects: Vec::new(),
+            gravity: Vec3 {
+                x: 0.0,
+                y: -9.81,
+                z: 0.0,
+            },
+            time: 0.0,
+            dt: 1.0 / 60.0, // 60 FPS
+        }
+    }
+
+    fn add_object(&mut self, shape: String, mass: f64, position: Vec3) -> usize {
+        let id = self.objects.len();
+        self.objects.push(PhysicsObject {
+            id,
+            shape,
+            mass,
+            position,
+            velocity: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            is_static: mass == 0.0,
+        });
+        id
+    }
+
+    fn step(&mut self) {
+        // Simple physics integration
+        for obj in &mut self.objects {
+            if !obj.is_static {
+                // Apply gravity
+                obj.velocity.y += self.gravity.y * self.dt;
+
+                // Update position
+                obj.position.x += obj.velocity.x * self.dt;
+                obj.position.y += obj.velocity.y * self.dt;
+                obj.position.z += obj.velocity.z * self.dt;
+
+                // Simple ground collision
+                if obj.position.y < 0.0 {
+                    obj.position.y = 0.0;
+                    obj.velocity.y = -obj.velocity.y * 0.8; // Bounce with damping
+                }
+            }
+        }
+
+        self.time += self.dt;
+    }
+}
+
+/// Register all standard library functions with an interpreter
 pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
-    // Register basic math functions directly
+    register_math_functions(interpreter);
+    physics::register_physics_functions(interpreter);
+}
+
+fn register_math_functions(interpreter: &mut crate::eval::Interpreter) {
+    // Basic math functions
     interpreter.environment.define(
         "abs".to_string(),
         Value::BuiltinFunction {
@@ -327,8 +426,8 @@ pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
         },
     );
 
-    // Register quantum computing functions
-    quantum::register_quantum_functions(interpreter);
+    // Register physics computing functions
+    physics::register_physics_functions(interpreter);
 }
 
 // Helper function to convert Value to string representation

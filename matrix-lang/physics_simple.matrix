@@ -1,0 +1,4 @@
+let world = create_physics_world()
+let sphere = add_rigid_body(world, "sphere", 1.0, [0.0, 5.0, 0.0])
+physics_step(world)
+get_object_position(world, sphere)
