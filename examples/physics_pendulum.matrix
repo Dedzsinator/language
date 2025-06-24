@@ -1,0 +1,77 @@
+# Advanced Physics - Pendulum Simulation
+# Demonstrates constraint-based physics
+
+let world = create_physics_world()
+set_gravity(world, [0.0, -9.81, 0.0])
+
+# Create anchor point (static)
+let anchor = add_rigid_body(
+    world,
+    shape: "sphere",
+    radius: 0.1,
+    mass: 0.0,
+    position: [0.0, 8.0, 0.0]
+)
+
+# Create pendulum bob
+let bob = add_rigid_body(
+    world,
+    shape: "sphere",
+    radius: 0.5,
+    mass: 2.0,
+    position: [3.0, 4.0, 0.0]
+)
+
+# Create constraint to connect them (distance constraint)
+let constraint = add_distance_constraint(
+    world,
+    anchor,
+    bob,
+    distance: 4.0,
+    stiffness: 1.0
+)
+
+print("Pendulum simulation starting...")
+print("Bob starts at an angle")
+
+let max_steps = 1800  # 30 seconds
+let energy_samples = []
+
+# Run simulation and track energy
+for step in 1..max_steps {
+    physics_step(world)
+
+    if step % 30 == 0 {  # Every 0.5 seconds
+        let pos = get_object_position(world, bob)
+        let vel = get_object_velocity(world, bob)
+
+        # Calculate approximate energy (simplified)
+        let height = pos[1]
+        let speed = sqrt(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2])
+        let potential = 2.0 * 9.81 * height  # mass * g * height
+        let kinetic = 0.5 * 2.0 * speed * speed  # 0.5 * mass * v^2
+        let total_energy = potential + kinetic
+
+        energy_samples = energy_samples + [total_energy]
+
+        if step % 180 == 0 {  # Every 3 seconds
+            let t = step / 60
+            print("Time: " + t + "s, Position: " + pos + ", Energy: " + total_energy)
+        }
+    }
+}
+
+# Analyze energy conservation
+if len(energy_samples) > 1 {
+    let first = energy_samples[0]
+    let last = energy_samples[len(energy_samples) - 1]
+    let energy_loss = first - last
+    let loss_percent = (energy_loss / first) * 100
+
+    print("Energy analysis:")
+    print("  Initial energy: " + first)
+    print("  Final energy: " + last)
+    print("  Energy loss: " + energy_loss + " (" + loss_percent + "%)")
+}
+
+print("Pendulum simulation complete!")

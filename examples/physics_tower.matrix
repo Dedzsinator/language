@@ -1,0 +1,67 @@
+# Physics Stack Simulation
+# Creates a tower of objects that can tumble
+
+let world = create_physics_world()
+set_gravity(world, [0.0, -9.81, 0.0])
+
+# Create ground platform
+let ground = add_rigid_body(
+    world,
+    shape: "box",
+    size: [10.0, 0.5, 10.0],
+    mass: 0.0,
+    position: [0.0, 0.0, 0.0]
+)
+
+# Build a tower of boxes
+let tower_height = 8
+let boxes = []
+
+for i in 1..tower_height {
+    let box = add_rigid_body(
+        world,
+        shape: "cube",
+        size: [1.0, 1.0, 1.0],
+        mass: 1.0,
+        position: [0.0, i * 1.1, 0.0]
+    )
+    boxes = boxes + [box]
+}
+
+# Add a sphere to knock over the tower
+let wrecking_ball = add_rigid_body(
+    world,
+    shape: "sphere",
+    radius: 0.8,
+    mass: 5.0,
+    position: [8.0, 5.0, 0.0]
+)
+
+# Give the wrecking ball initial velocity toward the tower
+set_object_velocity(world, wrecking_ball, [-15.0, 0.0, 0.0])
+
+print("Tower destruction simulation starting...")
+print("Tower has " + tower_height + " boxes")
+print("Wrecking ball incoming!")
+
+# Run simulation
+for step in 1..900 {
+    physics_step(world)
+
+    if step % 60 == 0 {
+        let t = step / 60
+        print("Time: " + t + "s")
+
+        # Check position of top box
+        if len(boxes) > 0 {
+            let top_box = boxes[len(boxes) - 1]
+            let pos = get_object_position(world, top_box)
+            print("  Top box: " + pos)
+        }
+
+        let ball_pos = get_object_position(world, wrecking_ball)
+        print("  Ball: " + ball_pos)
+    }
+}
+
+print("Tower destruction complete!")

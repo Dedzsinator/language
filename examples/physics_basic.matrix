@@ -1,0 +1,35 @@
+# Basic Physics Simulation Example
+# Creates a simple falling cube simulation
+
+let world = create_physics_world()
+set_gravity(world, [0.0, -9.81, 0.0])
+
+# Create a cube that falls
+let cube = add_rigid_body(
+    world,
+    shape: "cube",
+    size: [1.0, 1.0, 1.0],
+    mass: 1.0,
+    position: [0.0, 10.0, 0.0]
+)
+
+# Create ground plane
+let ground = add_rigid_body(
+    world,
+    shape: "box",
+    size: [20.0, 0.1, 20.0],
+    mass: 0.0,
+    position: [0.0, 0.0, 0.0]
+)
+
+# Run simulation for 300 steps (5 seconds at 60 FPS)
+for step in 1..300 {
+    physics_step(world)
+
+    if step % 60 == 0 {
+        let pos = get_object_position(world, cube)
+        print("Cube position at " + (step / 60) + "s: " + pos)
+    }
+}
+
+print("Basic physics simulation complete!")

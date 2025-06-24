@@ -1,0 +1,72 @@
+# Multi-Object Physics Simulation
+# Creates multiple objects with different properties
+
+let world = create_physics_world()
+set_gravity(world, [0.0, -9.81, 0.0])
+
+# Create ground
+let ground = add_rigid_body(
+    world,
+    shape: "box",
+    size: [15.0, 0.2, 15.0],
+    mass: 0.0,
+    position: [0.0, 0.0, 0.0]
+)
+
+# Create multiple cubes at different heights
+let cube1 = add_rigid_body(
+    world,
+    shape: "cube",
+    size: [1.0, 1.0, 1.0],
+    mass: 1.0,
+    position: [-2.0, 8.0, 0.0]
+)
+
+let cube2 = add_rigid_body(
+    world,
+    shape: "cube",
+    size: [0.5, 0.5, 0.5],
+    mass: 0.5,
+    position: [0.0, 12.0, 0.0]
+)
+
+let cube3 = add_rigid_body(
+    world,
+    shape: "cube",
+    size: [1.5, 1.5, 1.5],
+    mass: 2.0,
+    position: [2.0, 6.0, 0.0]
+)
+
+# Create spheres
+let sphere1 = add_rigid_body(
+    world,
+    shape: "sphere",
+    radius: 0.5,
+    mass: 0.8,
+    position: [-1.0, 15.0, -1.0]
+)
+
+let sphere2 = add_rigid_body(
+    world,
+    shape: "sphere",
+    radius: 0.3,
+    mass: 0.3,
+    position: [1.5, 18.0, 1.0]
+)
+
+print("Multi-object simulation starting...")
+
+# Run simulation
+for step in 1..600 {
+    physics_step(world)
+
+    if step % 120 == 0 {
+        let t = step / 60
+        print("Time: " + t + "s")
+        print("  Cube1: " + get_object_position(world, cube1))
+        print("  Sphere1: " + get_object_position(world, sphere1))
+    }
+}
+
+print("Multi-object simulation complete!")
