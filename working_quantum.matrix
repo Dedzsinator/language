@@ -1,5 +1,0 @@
--- Simple quantum circuit creation
-let circuit = quantum_circuit(2)
-
--- Test basic functionality
-let result = circuit

@@ -1,0 +1,38 @@
+[package]
+name = "physics-simulation-gui"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <email@example.com>"]
+description = "Unity-style physics simulation GUI engine"
+
+[dependencies]
+# Matrix Language as dependency
+matrix-lang = { path = "../matrix-lang" }
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+# GUI and Graphics
+eframe = "0.31"
+egui = "0.31"
+egui_plot = "0.31"
+egui_dock = "0.16"
+
+# Math and linear algebra
+nalgebra = "0.32"
+
+# Async runtime (for UI responsiveness)
+tokio = { version = "1.35", features = ["rt", "macros"] }
+
+# Utility crates
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+[features]
+default = []
+
+[[bin]]
+name = "physics-gui"
+path = "src/main.rs"
+path = "src/main.rs"

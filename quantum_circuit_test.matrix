@@ -1,5 +1,0 @@
-let test_quantum_circuit = (
-    print("Creating quantum circuit..."),
-    let circuit = quantum_circuit(2),
-    print("Circuit created successfully!")
-)

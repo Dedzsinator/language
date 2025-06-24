@@ -1,3 +1,0 @@
-let test_print = (
-    print("Hello Matrix Language!")
-)
