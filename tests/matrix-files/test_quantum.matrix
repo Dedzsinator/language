@@ -1,0 +1,9 @@
+-- Test quantum functions
+let circuit = quantum_circuit(2)
+let result1 = println("Created quantum circuit")
+let h_gate = h(circuit, 0)
+let result2 = println("Applied Hadamard gate")
+let x_gate = x(circuit, 1)
+let result3 = println("Applied X gate")
+let cnot_gate = cnot(circuit, 0, 1)
+let result4 = println("Applied CNOT gate")

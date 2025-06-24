@@ -1,0 +1,4 @@
+-- Test mathematical constants
+let test_pi = print(pi)
+let test_e = print(e)
+let test_calculation = print(pi * 2.0)

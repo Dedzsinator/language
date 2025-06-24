@@ -1,0 +1,87 @@
+-- Basic Functionality Tests
+-- Tests fundamental language features
+
+let run_basic_tests = {
+    let results = []
+
+    -- Test 1: Basic Variable Assignment
+    let test_int = 42
+    let result1 = assert_equal(42, test_int, "Basic Integer Assignment")
+    let results = results + [result1]
+
+    -- Test 2: Float Assignment
+    let test_float = 3.14159
+    let result2 = assert_equal(3.14159, test_float, "Basic Float Assignment")
+    let results = results + [result2]
+
+    -- Test 3: String Assignment
+    let test_string = "Hello World"
+    let result3 = assert_equal("Hello World", test_string, "Basic String Assignment")
+    let results = results + [result3]
+
+    -- Test 4: Boolean Assignment
+    let test_bool_true = true
+    let test_bool_false = false
+    let result4a = assert_equal(true, test_bool_true, "Boolean True Assignment")
+    let result4b = assert_equal(false, test_bool_false, "Boolean False Assignment")
+    let results = results + [result4a, result4b]
+
+    -- Test 5: Basic Arithmetic
+    let add_result = 10 + 5
+    let sub_result = 10 - 5
+    let mul_result = 10 * 5
+    let div_result = 10 / 5
+    let mod_result = 10 % 3
+
+    let result5a = assert_equal(15, add_result, "Addition")
+    let result5b = assert_equal(5, sub_result, "Subtraction")
+    let result5c = assert_equal(50, mul_result, "Multiplication")
+    let result5d = assert_equal(2, div_result, "Division")
+    let result5e = assert_equal(1, mod_result, "Modulo")
+    let results = results + [result5a, result5b, result5c, result5d, result5e]
+
+    -- Test 6: Comparison Operations
+    let eq_test = 5 == 5
+    let neq_test = 5 != 3
+    let lt_test = 3 < 5
+    let gt_test = 5 > 3
+    let lte_test = 5 <= 5
+    let gte_test = 5 >= 5
+
+    let result6a = assert_equal(true, eq_test, "Equality")
+    let result6b = assert_equal(true, neq_test, "Inequality")
+    let result6c = assert_equal(true, lt_test, "Less Than")
+    let result6d = assert_equal(true, gt_test, "Greater Than")
+    let result6e = assert_equal(true, lte_test, "Less Than or Equal")
+    let result6f = assert_equal(true, gte_test, "Greater Than or Equal")
+    let results = results + [result6a, result6b, result6c, result6d, result6e, result6f]
+
+    -- Test 7: Logical Operations
+    let and_test = true && true
+    let or_test = true || false
+    let not_test = !false
+
+    let result7a = assert_equal(true, and_test, "Logical AND")
+    let result7b = assert_equal(true, or_test, "Logical OR")
+    let result7c = assert_equal(true, not_test, "Logical NOT")
+    let results = results + [result7a, result7b, result7c]
+
+    -- Count results
+    let total_tests = len(results)
+    let passed_tests = 0
+
+    for result in results {
+        if result.passed {
+            let passed_tests = passed_tests + 1
+        }
+    }
+
+    let suite = TestSuite {
+        name: "Basic Functionality",
+        results: results,
+        total_tests: total_tests,
+        passed_tests: passed_tests
+    }
+
+    suite
+}

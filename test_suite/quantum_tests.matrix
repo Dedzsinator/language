@@ -1,0 +1,117 @@
+-- Quantum Computing Tests
+-- Tests quantum circuit creation and manipulation functionality
+
+let run_quantum_tests = {
+    let results = []
+
+    -- Test 1: Quantum Circuit Creation
+    let circuit = create_quantum_circuit(2)
+    let circuit_created = circuit != null
+
+    let result1 = assert_equal(true, circuit_created, "Quantum circuit creation")
+    let results = results + [result1]
+
+    -- Test 2: Basic Quantum Gates
+    let h_gate = add_hadamard_gate(circuit, 0)
+    let x_gate = add_pauli_x_gate(circuit, 1)
+    let y_gate = add_pauli_y_gate(circuit, 0)
+    let z_gate = add_pauli_z_gate(circuit, 1)
+
+    let result2a = assert_equal(true, h_gate != null, "Hadamard gate addition")
+    let result2b = assert_equal(true, x_gate != null, "Pauli-X gate addition")
+    let result2c = assert_equal(true, y_gate != null, "Pauli-Y gate addition")
+    let result2d = assert_equal(true, z_gate != null, "Pauli-Z gate addition")
+    let results = results + [result2a, result2b, result2c, result2d]
+
+    -- Test 3: Rotation Gates
+    let rx_gate = add_rotation_x_gate(circuit, 0, pi/4.0)
+    let ry_gate = add_rotation_y_gate(circuit, 1, pi/2.0)
+    let rz_gate = add_rotation_z_gate(circuit, 0, pi)
+
+    let result3a = assert_equal(true, rx_gate != null, "Rotation-X gate addition")
+    let result3b = assert_equal(true, ry_gate != null, "Rotation-Y gate addition")
+    let result3c = assert_equal(true, rz_gate != null, "Rotation-Z gate addition")
+    let results = results + [result3a, result3b, result3c]
+
+    -- Test 4: Phase Gate
+    let phase_gate = add_phase_gate(circuit, 0, pi/4.0)
+
+    let result4 = assert_equal(true, phase_gate != null, "Phase gate addition")
+    let results = results + [result4]
+
+    -- Test 5: Two-Qubit Gates
+    let cnot_gate = add_cnot_gate(circuit, 0, 1)
+    let cz_gate = add_cz_gate(circuit, 1, 0)
+
+    let result5a = assert_equal(true, cnot_gate != null, "CNOT gate addition")
+    let result5b = assert_equal(true, cz_gate != null, "CZ gate addition")
+    let results = results + [result5a, result5b]
+
+    -- Test 6: Swap Gate
+    let swap_gate = add_swap_gate(circuit, 0, 1)
+
+    let result6 = assert_equal(true, swap_gate != null, "SWAP gate addition")
+    let results = results + [result6]
+
+    -- Test 7: Measurement
+    let measure_0 = add_measurement(circuit, 0)
+    let measure_1 = add_measurement(circuit, 1)
+
+    let result7a = assert_equal(true, measure_0 != null, "Measurement on qubit 0")
+    let result7b = assert_equal(true, measure_1 != null, "Measurement on qubit 1")
+    let results = results + [result7a, result7b]
+
+    -- Test 8: Circuit Simulation
+    let simulation = simulate_circuit(circuit)
+    let simulation_successful = simulation != null
+
+    let result8 = assert_equal(true, simulation_successful, "Circuit simulation")
+    let results = results + [result8]
+
+    -- Test 9: Get Circuit Depth
+    let depth = get_circuit_depth(circuit)
+    let has_depth = depth >= 0
+
+    let result9 = assert_equal(true, has_depth, "Circuit depth retrieval")
+    let results = results + [result9]
+
+    -- Test 10: Get Qubit Count
+    let qubit_count = get_qubit_count(circuit)
+
+    let result10 = assert_equal(2, qubit_count, "Circuit qubit count")
+    let results = results + [result10]
+
+    -- Test 11: Circuit State Vector (if available)
+    let state_vector = get_state_vector(circuit)
+    let has_state = state_vector != null
+
+    let result11 = assert_equal(true, has_state, "Circuit state vector")
+    let results = results + [result11]
+
+    -- Test 12: Multiple Circuit Creation
+    let circuit3 = create_quantum_circuit(3)
+    let circuit4 = create_quantum_circuit(4)
+
+    let result12a = assert_equal(3, get_qubit_count(circuit3), "3-qubit circuit creation")
+    let result12b = assert_equal(4, get_qubit_count(circuit4), "4-qubit circuit creation")
+    let results = results + [result12a, result12b]
+
+    -- Count results
+    let total_tests = len(results)
+    let passed_tests = 0
+
+    for result in results {
+        if result.passed {
+            let passed_tests = passed_tests + 1
+        }
+    }
+
+    let suite = TestSuite {
+        name: "Quantum Computing",
+        results: results,
+        total_tests: total_tests,
+        passed_tests: passed_tests
+    }
+
+    suite
+}

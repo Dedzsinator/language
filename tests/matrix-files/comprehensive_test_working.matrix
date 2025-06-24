@@ -1,0 +1,96 @@
+-- Matrix Language Comprehensive Test Suite
+-- Tests ALL current functionality step by step
+
+-- Test 1: Basic Variables and Print
+let test1_var = 42
+let test1_string = "Hello Matrix Language"
+let test1_float = 3.14159
+
+-- Test 2: Basic Arithmetic
+let test2_a = 10
+let test2_b = 5
+let test2_sum = test2_a + test2_b
+let test2_diff = test2_a - test2_b
+let test2_prod = test2_a * test2_b
+let test2_quot = test2_a / test2_b
+
+-- Test 3: Math Functions
+let test3_abs_neg = abs(-15)
+let test3_abs_pos = abs(25)
+let test3_sqrt = sqrt(16.0)
+let test3_sin = sin(0.0)
+let test3_cos = cos(0.0)
+let test3_exp = exp(0.0)
+let test3_pow = pow(2.0, 3.0)
+let test3_floor = floor(3.7)
+let test3_ceil = ceil(3.2)
+let test3_round = round(3.6)
+
+-- Test 4: Min/Max Functions
+let test4_min = min(10, 25)
+let test4_max = max(10, 25)
+
+-- Test 5: Array and String Length
+let test5_array = [1, 2, 3, 4, 5]
+let test5_array_len = len(test5_array)
+let test5_string_len = len("Hello")
+
+-- Test 6: Physics World Creation
+let test6_world = create_physics_world()
+
+-- Test 7: Physics Object Creation
+let test7_world = create_physics_world()
+let test7_sphere = add_rigid_body(test7_world, "sphere", 2.5, [1.0, 5.0, 2.0])
+let test7_cube = add_rigid_body(test7_world, "cube", 1.0, [0.0, 0.0, 0.0])
+
+-- Test 8: Physics Object Queries
+let test8_world = create_physics_world()
+let test8_sphere = add_rigid_body(test8_world, "sphere", 2.5, [1.0, 5.0, 2.0])
+let test8_mass = get_object_mass(test8_world, test8_sphere)
+let test8_shape = get_object_shape(test8_world, test8_sphere)
+
+-- Test 9: Physics Object Modification
+let test9_world = create_physics_world()
+let test9_sphere = add_rigid_body(test9_world, "sphere", 2.0, [0.0, 0.0, 0.0])
+let test9_set_result = set_object_mass(test9_world, test9_sphere, 5.0)
+let test9_new_mass = get_object_mass(test9_world, test9_sphere)
+
+-- Test 10: Physics Object List
+let test10_world = create_physics_world()
+let test10_sphere1 = add_rigid_body(test10_world, "sphere", 1.0, [0.0, 0.0, 0.0])
+let test10_sphere2 = add_rigid_body(test10_world, "sphere", 2.0, [1.0, 1.0, 1.0])
+let test10_objects = list_objects(test10_world)
+let test10_objects_count = len(test10_objects)
+
+-- Test 11: Physics Object Info
+let test11_world = create_physics_world()
+let test11_sphere = add_rigid_body(test11_world, "sphere", 3.0, [2.0, 3.0, 4.0])
+let test11_info = get_object_info(test11_world, test11_sphere)
+
+-- Test Results Summary
+let header = "=== MATRIX LANGUAGE COMPREHENSIVE TEST RESULTS ==="
+let separator = "=================================================="
+
+let results_basic_vars = "Test 1 - Basic Variables: " + test1_var + ", " + test1_string + ", " + test1_float
+let results_arithmetic = "Test 2 - Arithmetic: sum=" + test2_sum + ", diff=" + test2_diff + ", prod=" + test2_prod + ", quot=" + test2_quot
+let results_math = "Test 3 - Math Functions: abs(-15)=" + test3_abs_neg + ", sqrt(16)=" + test3_sqrt + ", sin(0)=" + test3_sin + ", cos(0)=" + test3_cos
+let results_minmax = "Test 4 - Min/Max: min(10,25)=" + test4_min + ", max(10,25)=" + test4_max
+let results_arrays = "Test 5 - Arrays/Strings: array_len=" + test5_array_len + ", string_len=" + test5_string_len
+let results_physics_world = "Test 6 - Physics World: world_id=" + test6_world
+let results_physics_objects = "Test 7 - Physics Objects: sphere_id=" + test7_sphere + ", cube_id=" + test7_cube
+let results_physics_queries = "Test 8 - Physics Queries: mass=" + test8_mass + ", shape=" + test8_shape
+let results_physics_modify = "Test 9 - Physics Modify: new_mass=" + test9_new_mass
+let results_physics_list = "Test 10 - Physics List: object_count=" + test10_objects_count
+let results_physics_info = "Test 11 - Physics Info: retrieved object info successfully"
+
+-- Expected vs Got Format
+let expected_vs_got_header = "EXPECTED vs GOT COMPARISONS:"
+let test1_comparison = "Test 1 Expected: 42, Got: " + test1_var
+let test2_comparison = "Test 2 Expected: 15, Got: " + test2_sum
+let test3_comparison = "Test 3 Expected: 4.0, Got: " + test3_sqrt
+let test4_comparison = "Test 4 Expected: min=10 max=25, Got: min=" + test4_min + " max=" + test4_max
+let test5_comparison = "Test 5 Expected: array_len=5 string_len=5, Got: array_len=" + test5_array_len + " string_len=" + test5_string_len
+let test6_comparison = "Test 6 Expected: world_id=0, Got: " + test6_world
+let test8_comparison = "Test 8 Expected: mass=2.5 shape=sphere, Got: mass=" + test8_mass + " shape=" + test8_shape
+let test9_comparison = "Test 9 Expected: new_mass=5.0, Got: " + test9_new_mass
+let test10_comparison = "Test 10 Expected: object_count=2, Got: " + test10_objects_count

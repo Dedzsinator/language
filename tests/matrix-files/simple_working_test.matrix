@@ -1,0 +1,5 @@
+-- Simple working test
+let test_int = 42
+let test_float = 3.14
+let test_add = 5 + 3
+let test_output = println("Basic test works!")

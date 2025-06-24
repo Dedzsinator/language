@@ -1,0 +1,3 @@
+-- Test basic math functions with floats
+let test_abs = println(abs(-5.0))
+let test_sqrt = println(sqrt(16.0))

@@ -1,0 +1,7 @@
+-- Test physics functions
+let world = create_physics_world()
+let result1 = println("Created physics world")
+let object1 = add_rigid_body(world, "cube", 1.0, [0.0, 0.0, 0.0])
+let result2 = println("Added rigid body")
+let step_result = physics_step(world)
+let result3 = println("Physics step completed")

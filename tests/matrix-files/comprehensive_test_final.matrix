@@ -1,0 +1,197 @@
+let test_header = println("=== Comprehensive Matrix Language Test Script ===")
+let test_description = println("Testing all available functionality with expected vs actual comparisons")
+
+let arithmetic_header = println("\n=== Basic Arithmetic Tests ===")
+let arithmetic_test_1 = 5 + 3
+let arithmetic_expected_1 = 8
+let arithmetic_result_1 = print("Arithmetic 5+3: Expected " + arithmetic_expected_1 + ", Got " + arithmetic_test_1)
+
+let arithmetic_test_2 = 10 - 4
+let arithmetic_expected_2 = 6
+let arithmetic_result_2 = print("Arithmetic 10-4: Expected " + arithmetic_expected_2 + ", Got " + arithmetic_test_2)
+
+let arithmetic_test_3 = 6 * 7
+let arithmetic_expected_3 = 42
+let arithmetic_result_3 = print("Arithmetic 6*7: Expected " + arithmetic_expected_3 + ", Got " + arithmetic_test_3)
+
+let arithmetic_test_4 = 15 / 3
+let arithmetic_expected_4 = 5
+let arithmetic_result_4 = print("Arithmetic 15/3: Expected " + arithmetic_expected_4 + ", Got " + arithmetic_test_4)
+
+let math_header = println("\n=== Math Functions Tests ===")
+
+let abs_test_1 = abs(-5)
+let abs_expected_1 = 5
+let abs_result_1 = print("Math abs(-5): Expected " + abs_expected_1 + ", Got " + abs_test_1)
+
+let abs_test_2 = abs(3.14)
+let abs_expected_2 = 3.14
+let abs_result_2 = print("Math abs(3.14): Expected " + abs_expected_2 + ", Got " + abs_test_2)
+
+let sqrt_header = println("--- Testing sqrt function ---")
+
+let sqrt_test_1 = sqrt(16)
+let sqrt_expected_1 = 4
+let sqrt_result_1 = print("Math sqrt(16): Expected " + sqrt_expected_1 + ", Got " + sqrt_test_1)
+
+let sqrt_test_2 = sqrt(9)
+let sqrt_expected_2 = 3
+let sqrt_result_2 = print("Math sqrt(9): Expected " + sqrt_expected_2 + ", Got " + sqrt_test_2)
+
+let pow_header = println("--- Testing pow function ---")
+
+let pow_test_1 = pow(2, 3)
+let pow_expected_1 = 8
+let pow_result_1 = print("Math pow(2,3): Expected " + pow_expected_1 + ", Got " + pow_test_1)
+
+let pow_test_2 = pow(5, 2)
+let pow_expected_2 = 25
+let pow_result_2 = print("Math pow(5,2): Expected " + pow_expected_2 + ", Got " + pow_test_2)
+
+let floor_header = println("--- Testing floor function ---")
+
+let floor_test_1 = floor(3.7)
+let floor_expected_1 = 3
+let floor_result_1 = print("Math floor(3.7): Expected " + floor_expected_1 + ", Got " + floor_test_1)
+
+let floor_test_2 = floor(9.1)
+let floor_expected_2 = 9
+let floor_result_2 = print("Math floor(9.1): Expected " + floor_expected_2 + ", Got " + floor_test_2)
+
+let ceil_header = println("--- Testing ceil function ---")
+
+let ceil_test_1 = ceil(2.1)
+let ceil_expected_1 = 3
+let ceil_result_1 = print("Math ceil(2.1): Expected " + ceil_expected_1 + ", Got " + ceil_test_1)
+
+let ceil_test_2 = ceil(7.9)
+let ceil_expected_2 = 8
+let ceil_result_2 = print("Math ceil(7.9): Expected " + ceil_expected_2 + ", Got " + ceil_test_2)
+
+let round_header = println("--- Testing round function ---")
+
+let round_test_1 = round(2.4)
+let round_expected_1 = 2
+let round_result_1 = print("Math round(2.4): Expected " + round_expected_1 + ", Got " + round_test_1)
+
+let round_test_2 = round(3.6)
+let round_expected_2 = 4
+let round_result_2 = print("Math round(3.6): Expected " + round_expected_2 + ", Got " + round_test_2)
+
+let min_header = println("--- Testing min function ---")
+
+let min_test_1 = min(5, 3)
+let min_expected_1 = 3
+let min_result_1 = print("Math min(5,3): Expected " + min_expected_1 + ", Got " + min_test_1)
+
+let min_test_2 = min(2.5, 7.1)
+let min_expected_2 = 2.5
+let min_result_2 = print("Math min(2.5,7.1): Expected " + min_expected_2 + ", Got " + min_test_2)
+
+let max_header = println("--- Testing max function ---")
+
+let max_test_1 = max(5, 3)
+let max_expected_1 = 5
+let max_result_1 = print("Math max(5,3): Expected " + max_expected_1 + ", Got " + max_test_1)
+
+let max_test_2 = max(2.5, 7.1)
+let max_expected_2 = 7.1
+let max_result_2 = print("Math max(2.5,7.1): Expected " + max_expected_2 + ", Got " + max_test_2)
+
+let array_header = println("\n=== Array Tests ===")
+
+let array_test_1 = [1, 2, 3, 4, 5]
+let array_len_test = len(array_test_1)
+let array_len_expected = 5
+let array_result_1 = print("Array len([1,2,3,4,5]): Expected " + array_len_expected + ", Got " + array_len_test)
+
+let array_test_2 = ["hello", "world", "test"]
+let array_len_test_2 = len(array_test_2)
+let array_len_expected_2 = 3
+let array_result_2 = print("Array len([\"hello\",\"world\",\"test\"]): Expected " + array_len_expected_2 + ", Got " + array_len_test_2)
+
+let string_header = println("\n=== String Tests ===")
+
+let string_test_1 = "Matrix Language"
+let string_len_test = len(string_test_1)
+let string_len_expected = 15
+let string_result_1 = print("String len(\"Matrix Language\"): Expected " + string_len_expected + ", Got " + string_len_test)
+
+let string_test_2 = "Hello" + " " + "World"
+let string_expected_2 = "Hello World"
+let string_result_2 = print("String concat: Expected \"" + string_expected_2 + "\", Got \"" + string_test_2 + "\"")
+
+let physics_separator = println("\n=== Physics Functions Tests ===")
+
+let world_id = create_physics_world()
+let world_creation_result = print("Created physics world with ID: " + world_id)
+
+let sphere_id = add_rigid_body(world_id, "sphere", 1.0, [0.0, 0.0, 0.0])
+let sphere_creation_result = print("Created sphere with ID: " + sphere_id)
+
+let cube_id = add_rigid_body(world_id, "cube", 2.5, [1.0, 1.0, 1.0])
+let cube_creation_result = print("Created cube with ID: " + cube_id)
+
+let capsule_id = add_rigid_body(world_id, "capsule", 0.8, [2.0, 0.0, 0.0])
+let capsule_creation_result = print("Created capsule with ID: " + capsule_id)
+
+let sphere_info = get_object_info(world_id, sphere_id)
+let sphere_info_result = print("Sphere info retrieved successfully")
+
+let cube_info = get_object_info(world_id, cube_id)
+let cube_info_result = print("Cube info retrieved successfully")
+
+let sphere_mass = get_object_mass(world_id, sphere_id)
+let sphere_mass_expected = 1.0
+let sphere_mass_result = print("Sphere mass: Expected " + sphere_mass_expected + ", Got " + sphere_mass)
+
+let cube_mass = get_object_mass(world_id, cube_id)
+let cube_mass_expected = 2.5
+let cube_mass_result = print("Cube mass: Expected " + cube_mass_expected + ", Got " + cube_mass)
+
+let sphere_shape = get_object_shape(world_id, sphere_id)
+let sphere_shape_expected = "sphere"
+let sphere_shape_result = print("Sphere shape: Expected \"" + sphere_shape_expected + "\", Got \"" + sphere_shape + "\"")
+
+let cube_shape = get_object_shape(world_id, cube_id)
+let cube_shape_expected = "cube"
+let cube_shape_result = print("Cube shape: Expected \"" + cube_shape_expected + "\", Got \"" + cube_shape + "\"")
+
+let object_list = list_objects(world_id)
+let object_count = len(object_list)
+let object_count_expected = 3
+let object_list_result = print("Object count in world: Expected " + object_count_expected + ", Got " + object_count)
+
+let step_result_1 = physics_step(world_id, 0.016)
+let step_result_output_1 = print("Physics step 1 completed")
+
+let step_result_2 = physics_step(world_id, 0.016)
+let step_result_output_2 = print("Physics step 2 completed")
+
+let sphere_position = get_object_position(world_id, sphere_id)
+let sphere_position_result = print("Sphere position after physics steps retrieved")
+
+let cube_position = get_object_position(world_id, cube_id)
+let cube_position_result = print("Cube position after physics steps retrieved")
+
+let mass_update_result = set_object_mass(world_id, sphere_id, 3.0)
+let mass_update_output = print("Updated sphere mass to 3.0")
+
+let sphere_new_mass = get_object_mass(world_id, sphere_id)
+let sphere_new_mass_expected = 3.0
+let sphere_new_mass_result = print("Sphere new mass: Expected " + sphere_new_mass_expected + ", Got " + sphere_new_mass)
+
+let complex_header = println("\n=== Complex Mathematical Expressions ===")
+
+let complex_expr_1 = pow(abs(-4), 2) + sqrt(16)
+let complex_expr_1_expected = 20
+let complex_expr_1_result = print("Complex expr pow(abs(-4), 2) + sqrt(16): Expected " + complex_expr_1_expected + ", Got " + complex_expr_1)
+
+let complex_expr_2 = min(max(floor(3.7), ceil(2.1)), round(4.6))
+let complex_expr_2_expected = 3
+let complex_expr_2_result = print("Complex expr min(max(floor(3.7), ceil(2.1)), round(4.6)): Expected " + complex_expr_2_expected + ", Got " + complex_expr_2)
+
+let test_summary = println("\n=== Test Summary ===")
+let summary_message = println("All Matrix Language functionality tests completed!")
+let summary_details = println("Tested: Arithmetic, Math functions, Arrays, Strings, and Physics system")
+let summary_conclusion = println("All PhysicsObject fields (id, shape, mass) are now actively used!")

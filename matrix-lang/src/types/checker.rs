@@ -793,14 +793,17 @@ impl TypeChecker {
                     });
                 }
 
-                // Check argument types
-                for (arg, param_type) in args.iter().zip(param_types.iter()) {
+                // Instantiate polymorphic function types with fresh type variables
+                let (fresh_param_types, fresh_return_type) = self.instantiate_function_type(param_types, return_type);
+
+                // Check argument types against fresh instantiation
+                for (arg, param_type) in args.iter().zip(fresh_param_types.iter()) {
                     let arg_type = self.check_expression(arg)?;
                     self.unifier.unify(&arg_type.ty, param_type)?;
                 }
 
                 Ok(InferredType {
-                    ty: (**return_type).clone(),
+                    ty: fresh_return_type,
                     constraints: func_type.constraints,
                 })
             }
@@ -1326,6 +1329,87 @@ impl TypeChecker {
 
         self.context.pop_scope();
         Ok(result_type)
+    }
+
+    /// Instantiate a polymorphic function type with fresh type variables
+    /// This prevents type variable conflicts across different function calls
+    fn instantiate_function_type(&mut self, param_types: &[Type], return_type: &Type) -> (Vec<Type>, Type) {
+        use std::collections::HashMap;
+
+        // Collect all type variables in the function signature
+        let mut type_vars = std::collections::HashSet::new();
+        for param_type in param_types {
+            self.collect_type_vars(param_type, &mut type_vars);
+        }
+        self.collect_type_vars(return_type, &mut type_vars);
+
+        // Create fresh type variables
+        let mut substitution_map = HashMap::new();
+        for type_var in type_vars {
+            let fresh_var = self.context.fresh_type_var();
+            substitution_map.insert(type_var, fresh_var);
+        }
+
+        // Substitute type variables with fresh ones
+        let fresh_param_types: Vec<Type> = param_types.iter()
+            .map(|ty| ty.substitute(&substitution_map))
+            .collect();
+        let fresh_return_type = return_type.substitute(&substitution_map);
+
+        (fresh_param_types, fresh_return_type)
+    }
+
+    /// Collect all type variables from a type
+    fn collect_type_vars(&self, ty: &Type, vars: &mut std::collections::HashSet<String>) {
+        match ty {
+            Type::TypeVar(name) => {
+                vars.insert(name.clone());
+            }
+            Type::Array(elem_ty) => {
+                self.collect_type_vars(elem_ty, vars);
+            }
+            Type::Matrix(elem_ty, _, _) => {
+                self.collect_type_vars(elem_ty, vars);
+            }
+            Type::Function(param_types, return_type) => {
+                for param in param_types {
+                    self.collect_type_vars(param, vars);
+                }
+                self.collect_type_vars(return_type, vars);
+            }
+            Type::TypeApp(_, args) => {
+                for arg in args {
+                    self.collect_type_vars(arg, vars);
+                }
+            }
+            Type::Option(inner) => {
+                self.collect_type_vars(inner, vars);
+            }
+            Type::Spanned(inner, _) => {
+                self.collect_type_vars(inner, vars);
+            }
+            Type::Field(inner) => {
+                self.collect_type_vars(inner, vars);
+            }
+            Type::GPU(inner) => {
+                self.collect_type_vars(inner, vars);
+            }
+            Type::SIMD(inner, _) => {
+                self.collect_type_vars(inner, vars);
+            }
+            Type::Future(inner) => {
+                self.collect_type_vars(inner, vars);
+            }
+            Type::Stream(inner) => {
+                self.collect_type_vars(inner, vars);
+            }
+            // Base types have no type variables
+            Type::Int | Type::Float | Type::Bool | Type::String | Type::Unit |
+            Type::Struct(_) | Type::Vector2 | Type::Vector3 | Type::Quaternion |
+            Type::Transform | Type::RigidBody | Type::SoftBody | Type::FluidSystem |
+            Type::Particle | Type::ForceField | Type::Material | Type::Constraint |
+            Type::PhysicsWorld | Type::Tensor(_) => {}
+        }
     }
 
     pub fn finalize_types(&mut self) -> HashMap<String, Type> {

@@ -1,0 +1,7 @@
+-- Test mathematical functions
+let test_abs = print(abs(-5))
+let test_sqrt = print(sqrt(16.0))
+let test_sin = print(sin(pi / 2.0))
+let test_cos = print(cos(0.0))
+let test_max = print(max(10, 20))
+let test_min = print(min(3.5, 2.1))

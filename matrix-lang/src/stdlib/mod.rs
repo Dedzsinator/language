@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 pub mod physics;
+pub mod quantum;
 
 // Physics engine integration
 static PHYSICS_WORLDS: LazyLock<Mutex<HashMap<usize, PhysicsWorld>>> =
@@ -101,91 +102,12 @@ impl PhysicsWorld {
 pub fn register_all(interpreter: &mut crate::eval::Interpreter) {
     register_math_functions(interpreter);
     physics::register_physics_functions(interpreter);
+    quantum::register_quantum_functions(interpreter);
 }
 
 fn register_math_functions(interpreter: &mut crate::eval::Interpreter) {
-    // Basic math functions
-    interpreter.environment.define(
-        "abs".to_string(),
-        Value::BuiltinFunction {
-            name: "abs".to_string(),
-            arity: 1,
-            func: |args| match &args[0] {
-                Value::Int(n) => Ok(Value::Int(n.abs())),
-                Value::Float(f) => Ok(Value::Float(f.abs())),
-                _ => Err(RuntimeError::TypeError {
-                    message: format!("Cannot get absolute value of {}", args[0].type_name()),
-                }),
-            },
-        },
-    );
-
-    interpreter.environment.define(
-        "sqrt".to_string(),
-        Value::BuiltinFunction {
-            name: "sqrt".to_string(),
-            arity: 1,
-            func: |args| {
-                let num = match &args[0] {
-                    Value::Int(n) => *n as f64,
-                    Value::Float(f) => *f,
-                    _ => {
-                        return Err(RuntimeError::TypeError {
-                            message: format!("Cannot compute sqrt of {}", args[0].type_name()),
-                        })
-                    }
-                };
-
-                if num < 0.0 {
-                    return Err(RuntimeError::Generic {
-                        message: "sqrt of negative number".to_string(),
-                    });
-                }
-
-                Ok(Value::Float(num.sqrt()))
-            },
-        },
-    );
-
-    interpreter.environment.define(
-        "sin".to_string(),
-        Value::BuiltinFunction {
-            name: "sin".to_string(),
-            arity: 1,
-            func: |args| {
-                let num = match &args[0] {
-                    Value::Int(n) => *n as f64,
-                    Value::Float(f) => *f,
-                    _ => {
-                        return Err(RuntimeError::TypeError {
-                            message: format!("Cannot compute sin of {}", args[0].type_name()),
-                        })
-                    }
-                };
-                Ok(Value::Float(num.sin()))
-            },
-        },
-    );
-
-    interpreter.environment.define(
-        "cos".to_string(),
-        Value::BuiltinFunction {
-            name: "cos".to_string(),
-            arity: 1,
-            func: |args| {
-                let num = match &args[0] {
-                    Value::Int(n) => *n as f64,
-                    Value::Float(f) => *f,
-                    _ => {
-                        return Err(RuntimeError::TypeError {
-                            message: format!("Cannot compute cos of {}", args[0].type_name()),
-                        })
-                    }
-                };
-                Ok(Value::Float(num.cos()))
-            },
-        },
-    );
+    // Note: abs, sin, cos, sqrt, len are already registered in interpreter builtins
+    // Only register functions that are NOT in builtins
 
     interpreter.environment.define(
         "tan".to_string(),
@@ -342,22 +264,6 @@ fn register_math_functions(interpreter: &mut crate::eval::Interpreter) {
     );
 
     interpreter.environment.define(
-        "len".to_string(),
-        Value::BuiltinFunction {
-            name: "len".to_string(),
-            arity: 1,
-            func: |args| match &args[0] {
-                Value::Array(arr) => Ok(Value::Int(arr.len() as i64)),
-                Value::String(s) => Ok(Value::Int(s.len() as i64)),
-                Value::Matrix(mat) => Ok(Value::Int(mat.len() as i64)),
-                _ => Err(RuntimeError::TypeError {
-                    message: format!("Cannot get length of {}", args[0].type_name()),
-                }),
-            },
-        },
-    );
-
-    interpreter.environment.define(
         "max".to_string(),
         Value::BuiltinFunction {
             name: "max".to_string(),
@@ -391,23 +297,7 @@ fn register_math_functions(interpreter: &mut crate::eval::Interpreter) {
         },
     );
 
-    interpreter.environment.define(
-        "print".to_string(),
-        Value::BuiltinFunction {
-            name: "print".to_string(),
-            arity: 1,
-            func: |args| {
-                for (i, arg) in args.iter().enumerate() {
-                    if i > 0 {
-                        print!(" ");
-                    }
-                    print!("{}", value_to_string(arg));
-                }
-                Ok(Value::Unit)
-            },
-        },
-    );
-
+    // println is a stdlib-only function (print is in builtins with different arity)
     interpreter.environment.define(
         "println".to_string(),
         Value::BuiltinFunction {
@@ -422,6 +312,19 @@ fn register_math_functions(interpreter: &mut crate::eval::Interpreter) {
                 }
                 println!();
                 Ok(Value::Unit)
+            },
+        },
+    );
+
+    // str is a stdlib-only function
+    interpreter.environment.define(
+        "str".to_string(),
+        Value::BuiltinFunction {
+            name: "str".to_string(),
+            arity: 1,
+            func: |args| {
+                let string_val = value_to_string(&args[0]);
+                Ok(Value::String(string_val))
             },
         },
     );

@@ -1,0 +1,6 @@
+-- Test string concatenation issue
+let test_int = 42
+let test_string = "Number: "
+let test_result = println("Test works without concatenation")
+let test_concat = "Hello" + "World"
+let test_concat_output = println("Concatenation works")

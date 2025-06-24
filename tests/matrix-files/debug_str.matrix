@@ -1,0 +1,4 @@
+-- Test str function in file
+let test_number = 42
+let test_str = str(test_number)
+let test_output = print(test_str)

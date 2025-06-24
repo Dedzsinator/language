@@ -296,6 +296,31 @@ impl TypeContext {
     }
 
     fn register_builtin_functions(&mut self) {
+        // Mathematical constants
+        self.env.bind(
+            "pi".to_string(),
+            InferredType {
+                ty: Type::Float,
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "e".to_string(),
+            InferredType {
+                ty: Type::Float,
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "tau".to_string(),
+            InferredType {
+                ty: Type::Float,
+                constraints: Vec::new(),
+            },
+        );
+
         // print function: variadic function that takes any types and returns Unit
         self.env.bind(
             "print".to_string(),
@@ -317,7 +342,25 @@ impl TypeContext {
             },
         );
 
-        // Math functions
+        // len function
+        self.env.bind(
+            "len".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Int)),
+                constraints: Vec::new(),
+            },
+        );
+
+        // str function
+        self.env.bind(
+            "str".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::String)),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Math functions from interpreter builtins
         self.env.bind(
             "abs".to_string(),
             InferredType {
@@ -330,9 +373,206 @@ impl TypeContext {
         );
 
         self.env.bind(
+            "sin".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "cos".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
             "sqrt".to_string(),
             InferredType {
-                ty: Type::Function(vec![Type::Float], Box::new(Type::Float)),
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Math functions from stdlib
+        self.env.bind(
+            "tan".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "exp".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "log".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "pow".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![
+                        Type::TypeVar("T".to_string()),
+                        Type::TypeVar("U".to_string()),
+                    ],
+                    Box::new(Type::Float),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "floor".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "ceil".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "round".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::TypeVar("T".to_string())], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "max".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![
+                        Type::TypeVar("T".to_string()),
+                        Type::TypeVar("T".to_string()),
+                    ],
+                    Box::new(Type::TypeVar("T".to_string())),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "min".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![
+                        Type::TypeVar("T".to_string()),
+                        Type::TypeVar("T".to_string()),
+                    ],
+                    Box::new(Type::TypeVar("T".to_string())),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Physics functions
+        self.env.bind(
+            "create_physics_world".to_string(),
+            InferredType {
+                ty: Type::Function(vec![], Box::new(Type::Int)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "add_rigid_body".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![
+                        Type::Int,
+                        Type::String,
+                        Type::Float,
+                        Type::Array(Box::new(Type::Float)),
+                    ],
+                    Box::new(Type::Int),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "physics_step".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::Int], Box::new(Type::Unit)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "get_object_position".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int],
+                    Box::new(Type::Array(Box::new(Type::Float))),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "get_object_info".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int],
+                    Box::new(Type::TypeVar("T".to_string())),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "get_object_mass".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Float)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "set_object_mass".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Float],
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "get_object_shape".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::Int, Type::Int], Box::new(Type::String)),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "list_objects".to_string(),
+            InferredType {
+                ty: Type::Function(vec![Type::Int], Box::new(Type::Array(Box::new(Type::Int)))),
                 constraints: Vec::new(),
             },
         );
@@ -422,6 +662,190 @@ impl TypeContext {
                 ty: Type::Function(
                     vec![Type::Int], // result_id
                     Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Additional quantum gate functions
+        // Single-qubit gates
+        self.env.bind(
+            "h".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "x".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "y".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "z".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "t".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "s".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Two-qubit gates
+        self.env.bind(
+            "cz".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Int], // circuit_id, qubit1, qubit2
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "swap".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Int], // circuit_id, qubit1, qubit2
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Three-qubit gates
+        self.env.bind(
+            "toffoli".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int, Type::Int, Type::Int], // circuit_id, control1, control2, target
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Measurement functions
+        self.env.bind(
+            "measure".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int, Type::Int], // circuit_id, qubit
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "measure_all".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int], // circuit_id
+                    Box::new(Type::Unit),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Additional simulation functions
+        self.env.bind(
+            "simulate".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int],                          // circuit_id
+                    Box::new(Type::TypeVar("T".to_string())), // Simulation result
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "get_probabilities".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int],                              // circuit_id
+                    Box::new(Type::Array(Box::new(Type::Float))), // Array of probabilities
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Circuit info functions
+        self.env.bind(
+            "circuit_info".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int], // circuit_id
+                    Box::new(Type::String),
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        self.env.bind(
+            "quantum_state_info".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![Type::Int],                          // circuit_id
+                    Box::new(Type::TypeVar("T".to_string())), // State info struct
+                ),
+                constraints: Vec::new(),
+            },
+        );
+
+        // Bell state convenience function
+        self.env.bind(
+            "bell_state".to_string(),
+            InferredType {
+                ty: Type::Function(
+                    vec![],              // no parameters
+                    Box::new(Type::Int), // returns circuit_id
                 ),
                 constraints: Vec::new(),
             },

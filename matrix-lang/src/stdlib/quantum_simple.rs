@@ -3,7 +3,7 @@
 
 use crate::eval::{RuntimeError, RuntimeResult, Value};
 use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
+use std::sync::Mutex;
 
 // Simplified quantum state for testing
 #[derive(Debug, Clone)]
@@ -13,9 +13,8 @@ struct SimpleQuantumCircuit {
     gates: Vec<String>,
 }
 
-static NEXT_CIRCUIT_ID: LazyLock<Mutex<usize>> = LazyLock::new(|| Mutex::new(0));
-static CIRCUITS: LazyLock<Mutex<HashMap<usize, SimpleQuantumCircuit>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+static NEXT_CIRCUIT_ID: Mutex<usize> = Mutex::new(0);
+static CIRCUITS: Mutex<HashMap<usize, SimpleQuantumCircuit>> = Mutex::new(HashMap::new());
 
 // Register all quantum computing functions
 pub fn register_quantum_functions(interpreter: &mut crate::eval::Interpreter) {
@@ -214,141 +213,97 @@ fn register_gate_functions(interpreter: &mut crate::eval::Interpreter) {
 }
 
 fn register_single_qubit_gate(interpreter: &mut crate::eval::Interpreter, name: &str) {
-    match name {
-        "h" | "hadamard" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 2,
-                    func: apply_h_gate,
-                },
-            );
-        }
-        "x" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 2,
-                    func: apply_x_gate,
-                },
-            );
-        }
-        "y" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 2,
-                    func: apply_y_gate,
-                },
-            );
-        }
-        "z" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 2,
-                    func: apply_z_gate,
-                },
-            );
-        }
-        "t" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 2,
-                    func: apply_t_gate,
-                },
-            );
-        }
-        "s" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 2,
-                    func: apply_s_gate,
-                },
-            );
-        }
-        _ => {}
-    }
+    let gate_name = name.to_uppercase();
+    let name_copy = name.to_string();
+
+    interpreter.environment.define(
+        name_copy.clone(),
+        Value::BuiltinFunction {
+            name: name_copy,
+            arity: 2, // circuit_id, qubit
+            func: move |args| {
+                let circuit_id = get_circuit_id(&args[0])?;
+                let qubit = get_qubit_index(&args[1])?;
+
+                let mut circuits = CIRCUITS.lock().unwrap();
+                if let Some(circuit) = circuits.get_mut(&circuit_id) {
+                    let gate_str = format!("{}({})", gate_name, qubit);
+                    circuit.gates.push(gate_str);
+                    Ok(Value::Unit)
+                } else {
+                    Err(RuntimeError::Generic {
+                        message: format!("Circuit {} not found", circuit_id),
+                    })
+                }
+            },
+        },
+    );
 }
 
 fn register_parametric_gate(interpreter: &mut crate::eval::Interpreter, name: &str) {
-    match name {
-        "rx" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 3,
-                    func: apply_rx_gate,
-                },
-            );
-        }
-        "ry" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 3,
-                    func: apply_ry_gate,
-                },
-            );
-        }
-        "rz" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 3,
-                    func: apply_rz_gate,
-                },
-            );
-        }
-        _ => {}
-    }
+    let gate_name = name.to_uppercase();
+    let name_copy = name.to_string();
+
+    interpreter.environment.define(
+        name_copy.clone(),
+        Value::BuiltinFunction {
+            name: name_copy,
+            arity: 3, // circuit_id, qubit, angle
+            func: move |args| {
+                let circuit_id = get_circuit_id(&args[0])?;
+                let qubit = get_qubit_index(&args[1])?;
+                let angle = match &args[2] {
+                    Value::Float(f) => *f,
+                    Value::Int(i) => *i as f64,
+                    _ => {
+                        return Err(RuntimeError::TypeError {
+                            message: "Angle must be a number".to_string(),
+                        })
+                    }
+                };
+
+                let mut circuits = CIRCUITS.lock().unwrap();
+                if let Some(circuit) = circuits.get_mut(&circuit_id) {
+                    let gate_str = format!("{}({},{})", gate_name, qubit, angle);
+                    circuit.gates.push(gate_str);
+                    Ok(Value::Unit)
+                } else {
+                    Err(RuntimeError::Generic {
+                        message: format!("Circuit {} not found", circuit_id),
+                    })
+                }
+            },
+        },
+    );
 }
 
 fn register_two_qubit_gate(interpreter: &mut crate::eval::Interpreter, name: &str) {
-    match name {
-        "cnot" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 3,
-                    func: apply_cnot_gate,
-                },
-            );
-        }
-        "cz" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 3,
-                    func: apply_cz_gate,
-                },
-            );
-        }
-        "swap" => {
-            interpreter.environment.define(
-                name.to_string(),
-                Value::BuiltinFunction {
-                    name: name.to_string(),
-                    arity: 3,
-                    func: apply_swap_gate,
-                },
-            );
-        }
-        _ => {}
-    }
+    let gate_name = name.to_uppercase();
+    let name_copy = name.to_string();
+
+    interpreter.environment.define(
+        name_copy.clone(),
+        Value::BuiltinFunction {
+            name: name_copy,
+            arity: 3, // circuit_id, qubit1, qubit2
+            func: move |args| {
+                let circuit_id = get_circuit_id(&args[0])?;
+                let qubit1 = get_qubit_index(&args[1])?;
+                let qubit2 = get_qubit_index(&args[2])?;
+
+                let mut circuits = CIRCUITS.lock().unwrap();
+                if let Some(circuit) = circuits.get_mut(&circuit_id) {
+                    let gate_str = format!("{}({},{})", gate_name, qubit1, qubit2);
+                    circuit.gates.push(gate_str);
+                    Ok(Value::Unit)
+                } else {
+                    Err(RuntimeError::Generic {
+                        message: format!("Circuit {} not found", circuit_id),
+                    })
+                }
+            },
+        },
+    );
 }
 
 fn register_simulation_functions(interpreter: &mut crate::eval::Interpreter) {
@@ -388,8 +343,14 @@ fn register_simulation_functions(interpreter: &mut crate::eval::Interpreter) {
                     // Return a simple result struct
                     let mut result = HashMap::new();
                     result.insert("circuit_id".to_string(), Value::Int(circuit_id as i64));
-                    result.insert("num_qubits".to_string(), Value::Int(circuit.num_qubits as i64));
-                    result.insert("num_gates".to_string(), Value::Int(circuit.gates.len() as i64));
+                    result.insert(
+                        "num_qubits".to_string(),
+                        Value::Int(circuit.num_qubits as i64),
+                    );
+                    result.insert(
+                        "num_gates".to_string(),
+                        Value::Int(circuit.gates.len() as i64),
+                    );
                     Ok(Value::Struct {
                         name: "SimulationResult".to_string(),
                         fields: result,
@@ -443,7 +404,10 @@ fn register_simulation_functions(interpreter: &mut crate::eval::Interpreter) {
                 let circuits = CIRCUITS.lock().unwrap();
                 if let Some(circuit) = circuits.get(&circuit_id) {
                     let mut info = HashMap::new();
-                    info.insert("num_qubits".to_string(), Value::Int(circuit.num_qubits as i64));
+                    info.insert(
+                        "num_qubits".to_string(),
+                        Value::Int(circuit.num_qubits as i64),
+                    );
                     info.insert("is_normalized".to_string(), Value::Bool(true));
                     info.insert("entropy".to_string(), Value::Float(0.0));
                     info.insert("purity".to_string(), Value::Float(1.0));
@@ -510,114 +474,5 @@ fn get_qubit_index(value: &Value) -> RuntimeResult<usize> {
         _ => Err(RuntimeError::TypeError {
             message: "Expected qubit index (integer)".to_string(),
         }),
-    }
-}
-
-// Gate implementation functions
-fn apply_h_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    add_gate_to_circuit(circuit_id, format!("H({})", qubit))
-}
-
-fn apply_x_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    add_gate_to_circuit(circuit_id, format!("X({})", qubit))
-}
-
-fn apply_y_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    add_gate_to_circuit(circuit_id, format!("Y({})", qubit))
-}
-
-fn apply_z_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    add_gate_to_circuit(circuit_id, format!("Z({})", qubit))
-}
-
-fn apply_t_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    add_gate_to_circuit(circuit_id, format!("T({})", qubit))
-}
-
-fn apply_s_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    add_gate_to_circuit(circuit_id, format!("S({})", qubit))
-}
-
-fn apply_rx_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    let angle = match &args[2] {
-        Value::Float(f) => *f,
-        Value::Int(i) => *i as f64,
-        _ => return Err(RuntimeError::TypeError {
-            message: "Angle must be a number".to_string(),
-        }),
-    };
-    add_gate_to_circuit(circuit_id, format!("RX({},{})", qubit, angle))
-}
-
-fn apply_ry_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    let angle = match &args[2] {
-        Value::Float(f) => *f,
-        Value::Int(i) => *i as f64,
-        _ => return Err(RuntimeError::TypeError {
-            message: "Angle must be a number".to_string(),
-        }),
-    };
-    add_gate_to_circuit(circuit_id, format!("RY({},{})", qubit, angle))
-}
-
-fn apply_rz_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit = get_qubit_index(&args[1])?;
-    let angle = match &args[2] {
-        Value::Float(f) => *f,
-        Value::Int(i) => *i as f64,
-        _ => return Err(RuntimeError::TypeError {
-            message: "Angle must be a number".to_string(),
-        }),
-    };
-    add_gate_to_circuit(circuit_id, format!("RZ({},{})", qubit, angle))
-}
-
-fn apply_cnot_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let control = get_qubit_index(&args[1])?;
-    let target = get_qubit_index(&args[2])?;
-    add_gate_to_circuit(circuit_id, format!("CNOT({},{})", control, target))
-}
-
-fn apply_cz_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit1 = get_qubit_index(&args[1])?;
-    let qubit2 = get_qubit_index(&args[2])?;
-    add_gate_to_circuit(circuit_id, format!("CZ({},{})", qubit1, qubit2))
-}
-
-fn apply_swap_gate(args: &[Value]) -> RuntimeResult<Value> {
-    let circuit_id = get_circuit_id(&args[0])?;
-    let qubit1 = get_qubit_index(&args[1])?;
-    let qubit2 = get_qubit_index(&args[2])?;
-    add_gate_to_circuit(circuit_id, format!("SWAP({},{})", qubit1, qubit2))
-}
-
-fn add_gate_to_circuit(circuit_id: usize, gate_str: String) -> RuntimeResult<Value> {
-    let mut circuits = CIRCUITS.lock().unwrap();
-    if let Some(circuit) = circuits.get_mut(&circuit_id) {
-        circuit.gates.push(gate_str);
-        Ok(Value::Unit)
-    } else {
-        Err(RuntimeError::Generic {
-            message: format!("Circuit {} not found", circuit_id),
-        })
     }
 }

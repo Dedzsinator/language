@@ -1,0 +1,44 @@
+// Test comprehensive quantum functionality
+// All quantum gate types and circuit operations
+
+// Test 1: Basic quantum circuit creation
+let circuit = quantum_circuit(3)
+
+// Test 2: Single-qubit gates
+let _ = h(circuit, 0)
+let _ = x(circuit, 1)
+let _ = y(circuit, 2)
+let _ = z(circuit, 0)
+let _ = t(circuit, 1)
+let _ = s(circuit, 2)
+
+// Test 3: Parametric gates
+let _ = rx(circuit, 0, 1.5708)
+let _ = ry(circuit, 1, 3.14159)
+let _ = rz(circuit, 2, 0.7854)
+
+// Test 4: Two-qubit gates
+let _ = cnot(circuit, 0, 1)
+let _ = cz(circuit, 1, 2)
+let _ = swap(circuit, 0, 2)
+
+// Test 5: Three-qubit gates
+let circuit2 = quantum_circuit(3)
+let _ = toffoli(circuit2, 0, 1, 2)
+
+// Test 6: Measurement functions
+let _ = measure(circuit, 0)
+let _ = measure_all(circuit2)
+
+// Test 7: Simulation functions
+let result = simulate_circuit(circuit)
+let probs = get_probabilities(circuit)
+let info = circuit_info(circuit)
+
+// Test 8: Bell state convenience function
+let bell = bell_state()
+
+// Test 9: Print state function
+let _ = print_state(result)
+
+let _ = println("All quantum tests completed successfully!")

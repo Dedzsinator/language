@@ -1,0 +1,3 @@
+-- Minimal test - just constants and print
+let test_pi = println(pi)
+let test_e = println(e)

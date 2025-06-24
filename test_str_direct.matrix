@@ -1,0 +1,4 @@
+-- Test str function directly
+let test_number = 42
+let test_string = str(test_number)
+let test_result = println(test_string)

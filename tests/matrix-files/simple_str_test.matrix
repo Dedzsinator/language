@@ -1,0 +1,12 @@
+-- Simple test to check str() function
+let test_int = 42
+let test_float = 3.14
+let test_string = "hello"
+
+let result1 = str(test_int)
+let result2 = str(test_float)
+let result3 = str(test_string)
+
+let output1 = println("Int to string: " + result1)
+let output2 = println("Float to string: " + result2)
+let output3 = println("String to string: " + result3)

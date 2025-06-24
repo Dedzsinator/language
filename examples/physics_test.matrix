@@ -1,0 +1,14 @@
+-- Create world and add object
+let world = create_physics_world()
+let sphere = add_rigid_body(world, "sphere", 2.5, [1.0, 5.0, 2.0])
+
+-- Query object properties
+let mass = get_object_mass(world, sphere)       -- Returns 2.5
+let shape = get_object_shape(world, sphere)     -- Returns "sphere"
+let info = get_object_info(world, sphere)       -- Returns full object struct
+
+-- Modify object
+set_object_mass(world, sphere, 5.0)            -- Updates mass to 5.0
+
+-- List all objects
+let objects = list_objects(world)               -- Returns array of object IDs

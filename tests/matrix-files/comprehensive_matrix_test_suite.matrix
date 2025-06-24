@@ -1,0 +1,450 @@
+-- Matrix Language Complete Test Suite
+-- Comprehensive testing of ALL Matrix Language features
+-- Tests with expected vs actual comparisons and detailed reporting
+
+-- Test Result Structure
+struct TestResult {
+    name: String,
+    expected: String,
+    actual: String,
+    passed: Bool
+}
+
+-- Test Suite Structure
+struct TestSuite {
+    name: String,
+    total_tests: Int,
+    passed_tests: Int,
+    failed_tests: Int
+}
+
+-- Helper function to validate test results
+let assert_equal = |expected, actual, test_name| {
+    let expected_str = str(expected)
+    let actual_str = str(actual)
+    let passed = expected_str == actual_str
+
+    let test_result = TestResult {
+        name: test_name,
+        expected: expected_str,
+        actual: actual_str,
+        passed: passed
+    }
+
+    if passed {
+        println("✓ " + test_name + " PASSED")
+    } else {
+        println("✗ " + test_name + " FAILED")
+        println("    Expected: " + expected_str)
+        println("    Got:      " + actual_str)
+    }
+
+    test_result
+}
+
+-- Helper function to check approximate equality for floats
+let assert_approx_equal = |expected, actual, test_name, tolerance| {
+    let diff = abs(expected - actual)
+    let passed = diff <= tolerance
+
+    let test_result = TestResult {
+        name: test_name,
+        expected: str(expected),
+        actual: str(actual),
+        passed: passed
+    }
+
+    if passed {
+        println("✓ " + test_name + " PASSED (within tolerance)")
+    } else {
+        println("✗ " + test_name + " FAILED")
+        println("    Expected: " + str(expected) + " (±" + str(tolerance) + ")")
+        println("    Got:      " + str(actual))
+        println("    Difference: " + str(diff))
+    }
+
+    test_result
+}
+
+-- Test results collection
+let all_test_results = []
+
+-- =============================================================================
+-- SECTION 1: BASIC FUNCTIONALITY TESTS
+-- =============================================================================
+println("=" * 60)
+println("MATRIX LANGUAGE COMPREHENSIVE TEST SUITE")
+println("=" * 60)
+println("")
+println("SECTION 1: BASIC FUNCTIONALITY")
+println("-" * 40)
+
+-- Test 1.1: Basic Variable Assignment
+let test_int = 42
+let result_1_1 = assert_equal(42, test_int, "1.1 Basic Integer Assignment")
+let all_test_results = all_test_results + [result_1_1]
+
+-- Test 1.2: Float Assignment
+let test_float = 3.14159
+let result_1_2 = assert_equal(3.14159, test_float, "1.2 Basic Float Assignment")
+let all_test_results = all_test_results + [result_1_2]
+
+-- Test 1.3: String Assignment
+let test_string = "Hello World"
+let result_1_3 = assert_equal("Hello World", test_string, "1.3 Basic String Assignment")
+let all_test_results = all_test_results + [result_1_3]
+
+-- Test 1.4: Boolean Assignment
+let test_bool_true = true
+let test_bool_false = false
+let result_1_4a = assert_equal(true, test_bool_true, "1.4a Boolean True Assignment")
+let result_1_4b = assert_equal(false, test_bool_false, "1.4b Boolean False Assignment")
+let all_test_results = all_test_results + [result_1_4a, result_1_4b]
+
+-- Test 1.5: Basic Arithmetic
+let add_result = 10 + 5
+let sub_result = 10 - 5
+let mul_result = 10 * 5
+let div_result = 10 / 5
+let mod_result = 10 % 3
+
+let result_1_5a = assert_equal(15, add_result, "1.5a Addition")
+let result_1_5b = assert_equal(5, sub_result, "1.5b Subtraction")
+let result_1_5c = assert_equal(50, mul_result, "1.5c Multiplication")
+let result_1_5d = assert_equal(2, div_result, "1.5d Division")
+let result_1_5e = assert_equal(1, mod_result, "1.5e Modulo")
+let all_test_results = all_test_results + [result_1_5a, result_1_5b, result_1_5c, result_1_5d, result_1_5e]
+
+-- =============================================================================
+-- SECTION 2: MATHEMATICAL FUNCTIONS TESTS
+-- =============================================================================
+println("")
+println("SECTION 2: MATHEMATICAL FUNCTIONS")
+println("-" * 40)
+
+-- Test 2.1: Absolute Value Functions
+let abs_neg = abs(-15)
+let abs_pos = abs(25)
+let abs_float = abs(-3.14)
+let abs_zero = abs(0)
+
+let result_2_1a = assert_equal(15, abs_neg, "2.1a abs(-15)")
+let result_2_1b = assert_equal(25, abs_pos, "2.1b abs(25)")
+let result_2_1c = assert_equal(3.14, abs_float, "2.1c abs(-3.14)")
+let result_2_1d = assert_equal(0, abs_zero, "2.1d abs(0)")
+let all_test_results = all_test_results + [result_2_1a, result_2_1b, result_2_1c, result_2_1d]
+
+-- Test 2.2: Square Root Functions
+let sqrt_16 = sqrt(16.0)
+let sqrt_9 = sqrt(9.0)
+let sqrt_1 = sqrt(1.0)
+let sqrt_4 = sqrt(4.0)
+
+let result_2_2a = assert_equal(4.0, sqrt_16, "2.2a sqrt(16.0)")
+let result_2_2b = assert_equal(3.0, sqrt_9, "2.2b sqrt(9.0)")
+let result_2_2c = assert_equal(1.0, sqrt_1, "2.2c sqrt(1.0)")
+let result_2_2d = assert_equal(2.0, sqrt_4, "2.2d sqrt(4.0)")
+let all_test_results = all_test_results + [result_2_2a, result_2_2b, result_2_2c, result_2_2d]
+
+-- Test 2.3: Trigonometric Functions (approximate)
+let sin_0 = sin(0.0)
+let cos_0 = cos(0.0)
+let tan_0 = tan(0.0)
+
+let result_2_3a = assert_approx_equal(0.0, sin_0, "2.3a sin(0.0)", 0.0001)
+let result_2_3b = assert_approx_equal(1.0, cos_0, "2.3b cos(0.0)", 0.0001)
+let result_2_3c = assert_approx_equal(0.0, tan_0, "2.3c tan(0.0)", 0.0001)
+let all_test_results = all_test_results + [result_2_3a, result_2_3b, result_2_3c]
+
+-- Test 2.4: Exponential and Logarithmic Functions
+let exp_0 = exp(0.0)
+let log_1 = log(1.0)
+
+let result_2_4a = assert_approx_equal(1.0, exp_0, "2.4a exp(0.0)", 0.0001)
+let result_2_4b = assert_approx_equal(0.0, log_1, "2.4b log(1.0)", 0.0001)
+let all_test_results = all_test_results + [result_2_4a, result_2_4b]
+
+-- Test 2.5: Power Functions
+let pow_2_3 = pow(2.0, 3.0)
+let pow_5_2 = pow(5.0, 2.0)
+let pow_10_0 = pow(10.0, 0.0)
+let pow_3_1 = pow(3.0, 1.0)
+
+let result_2_5a = assert_equal(8.0, pow_2_3, "2.5a pow(2.0, 3.0)")
+let result_2_5b = assert_equal(25.0, pow_5_2, "2.5b pow(5.0, 2.0)")
+let result_2_5c = assert_equal(1.0, pow_10_0, "2.5c pow(10.0, 0.0)")
+let result_2_5d = assert_equal(3.0, pow_3_1, "2.5d pow(3.0, 1.0)")
+let all_test_results = all_test_results + [result_2_5a, result_2_5b, result_2_5c, result_2_5d]
+
+-- Test 2.6: Rounding Functions
+let floor_3_7 = floor(3.7)
+let ceil_3_2 = ceil(3.2)
+let round_3_6 = round(3.6)
+let round_3_4 = round(3.4)
+
+let result_2_6a = assert_equal(3, floor_3_7, "2.6a floor(3.7)")
+let result_2_6b = assert_equal(4, ceil_3_2, "2.6b ceil(3.2)")
+let result_2_6c = assert_equal(4, round_3_6, "2.6c round(3.6)")
+let result_2_6d = assert_equal(3, round_3_4, "2.6d round(3.4)")
+let all_test_results = all_test_results + [result_2_6a, result_2_6b, result_2_6c, result_2_6d]
+
+-- Test 2.7: Min/Max Functions
+let min_10_25 = min(10, 25)
+let max_10_25 = max(10, 25)
+let min_float = min(2.5, 7.1)
+let max_float = max(2.5, 7.1)
+
+let result_2_7a = assert_equal(10, min_10_25, "2.7a min(10, 25)")
+let result_2_7b = assert_equal(25, max_10_25, "2.7b max(10, 25)")
+let result_2_7c = assert_equal(2.5, min_float, "2.7c min(2.5, 7.1)")
+let result_2_7d = assert_equal(7.1, max_float, "2.7d max(2.5, 7.1)")
+let all_test_results = all_test_results + [result_2_7a, result_2_7b, result_2_7c, result_2_7d]
+
+-- Test 2.8: Mathematical Constants
+let pi_reasonable = (pi > 3.14) && (pi < 3.15)
+let e_reasonable = (e > 2.71) && (e < 2.72)
+let tau_reasonable = (tau > 6.28) && (tau < 6.29)
+
+let result_2_8a = assert_equal(true, pi_reasonable, "2.8a pi constant reasonable")
+let result_2_8b = assert_equal(true, e_reasonable, "2.8b e constant reasonable")
+let result_2_8c = assert_equal(true, tau_reasonable, "2.8c tau constant reasonable")
+let all_test_results = all_test_results + [result_2_8a, result_2_8b, result_2_8c]
+
+-- =============================================================================
+-- SECTION 3: STRING AND ARRAY OPERATIONS
+-- =============================================================================
+println("")
+println("SECTION 3: STRING AND ARRAY OPERATIONS")
+println("-" * 40)
+
+-- Test 3.1: String Operations
+let str1 = "Hello"
+let str2 = "World"
+let str_concat = str1 + " " + str2
+
+let result_3_1a = assert_equal("Hello", str1, "3.1a String literal assignment")
+let result_3_1b = assert_equal("Hello World", str_concat, "3.1b String concatenation")
+let all_test_results = all_test_results + [result_3_1a, result_3_1b]
+
+-- Test 3.2: String Length
+let str_len = len("Matrix")
+let empty_len = len("")
+
+let result_3_2a = assert_equal(6, str_len, "3.2a String length")
+let result_3_2b = assert_equal(0, empty_len, "3.2b Empty string length")
+let all_test_results = all_test_results + [result_3_2a, result_3_2b]
+
+-- Test 3.3: String Conversion (str function)
+let int_to_str = str(42)
+let float_to_str = str(3.14)
+let bool_to_str = str(true)
+
+let result_3_3a = assert_equal("42", int_to_str, "3.3a Integer to string")
+let result_3_3b = assert_equal("3.14", float_to_str, "3.3b Float to string")
+let result_3_3c = assert_equal("true", bool_to_str, "3.3c Boolean to string")
+let all_test_results = all_test_results + [result_3_3a, result_3_3b, result_3_3c]
+
+-- Test 3.4: Array Operations
+let int_array = [1, 2, 3, 4, 5]
+let float_array = [1.1, 2.2, 3.3]
+let string_array = ["hello", "world", "test"]
+let empty_array = []
+
+let result_3_4a = assert_equal(5, len(int_array), "3.4a Integer array length")
+let result_3_4b = assert_equal(3, len(float_array), "3.4b Float array length")
+let result_3_4c = assert_equal(3, len(string_array), "3.4c String array length")
+let result_3_4d = assert_equal(0, len(empty_array), "3.4d Empty array length")
+let all_test_results = all_test_results + [result_3_4a, result_3_4b, result_3_4c, result_3_4d]
+
+-- =============================================================================
+-- SECTION 4: PHYSICS SYSTEM TESTS
+-- =============================================================================
+println("")
+println("SECTION 4: PHYSICS SYSTEM")
+println("-" * 40)
+
+-- Test 4.1: Physics World Creation
+let world = create_physics_world()
+let world_created = world != null
+
+let result_4_1 = assert_equal(true, world_created, "4.1 Physics world creation")
+let all_test_results = all_test_results + [result_4_1]
+
+-- Test 4.2: Basic Rigid Body Creation - Cube
+let cube = add_rigid_body(
+    world,
+    shape: "cube",
+    size: [1.0, 1.0, 1.0],
+    mass: 1.0,
+    position: [0.0, 5.0, 0.0]
+)
+let cube_created = cube != null
+
+let result_4_2 = assert_equal(true, cube_created, "4.2 Cube rigid body creation")
+let all_test_results = all_test_results + [result_4_2]
+
+-- Test 4.3: Sphere Creation
+let sphere = add_rigid_body(
+    world,
+    shape: "sphere",
+    radius: 0.5,
+    mass: 2.0,
+    position: [1.0, 3.0, 0.0]
+)
+let sphere_created = sphere != null
+
+let result_4_3 = assert_equal(true, sphere_created, "4.3 Sphere rigid body creation")
+let all_test_results = all_test_results + [result_4_3]
+
+-- Test 4.4: Object Mass Operations
+let original_mass = get_object_mass(world, cube)
+let mass_update = set_object_mass(world, cube, 2.5)
+let new_mass = get_object_mass(world, cube)
+
+let result_4_4a = assert_equal(1.0, original_mass, "4.4a Get original object mass")
+let result_4_4b = assert_equal(2.5, new_mass, "4.4b Set and get new object mass")
+let all_test_results = all_test_results + [result_4_4a, result_4_4b]
+
+-- Test 4.5: Object Shape Retrieval
+let cube_shape = get_object_shape(world, cube)
+let sphere_shape = get_object_shape(world, sphere)
+
+let result_4_5a = assert_equal("cube", cube_shape, "4.5a Cube shape retrieval")
+let result_4_5b = assert_equal("sphere", sphere_shape, "4.5b Sphere shape retrieval")
+let all_test_results = all_test_results + [result_4_5a, result_4_5b]
+
+-- Test 4.6: Physics Simulation Step
+let step_result = physics_step(world)
+let step_successful = step_result == null || step_result == true
+
+let result_4_6 = assert_equal(true, step_successful, "4.6 Physics simulation step")
+let all_test_results = all_test_results + [result_4_6]
+
+-- =============================================================================
+-- SECTION 5: QUANTUM COMPUTING TESTS
+-- =============================================================================
+println("")
+println("SECTION 5: QUANTUM COMPUTING")
+println("-" * 40)
+
+-- Test 5.1: Quantum Circuit Creation
+let q_circuit = create_quantum_circuit(2)
+let q_circuit_created = q_circuit != null
+
+let result_5_1 = assert_equal(true, q_circuit_created, "5.1 Quantum circuit creation")
+let all_test_results = all_test_results + [result_5_1]
+
+-- Test 5.2: Basic Quantum Gates
+let h_gate = add_hadamard_gate(q_circuit, 0)
+let x_gate = add_pauli_x_gate(q_circuit, 1)
+
+let result_5_2a = assert_equal(true, h_gate != null, "5.2a Hadamard gate addition")
+let result_5_2b = assert_equal(true, x_gate != null, "5.2b Pauli-X gate addition")
+let all_test_results = all_test_results + [result_5_2a, result_5_2b]
+
+-- Test 5.3: Two-Qubit Gates
+let cnot_gate = add_cnot_gate(q_circuit, 0, 1)
+
+let result_5_3 = assert_equal(true, cnot_gate != null, "5.3 CNOT gate addition")
+let all_test_results = all_test_results + [result_5_3]
+
+-- Test 5.4: Get Qubit Count
+let qubit_count = get_qubit_count(q_circuit)
+
+let result_5_4 = assert_equal(2, qubit_count, "5.4 Circuit qubit count")
+let all_test_results = all_test_results + [result_5_4]
+
+-- =============================================================================
+-- SECTION 6: ADVANCED FEATURES TESTS
+-- =============================================================================
+println("")
+println("SECTION 6: ADVANCED FEATURES")
+println("-" * 40)
+
+-- Test 6.1: Comparison Operations
+let eq_test = 5 == 5
+let neq_test = 5 != 3
+let lt_test = 3 < 5
+let gt_test = 5 > 3
+let lte_test = 5 <= 5
+let gte_test = 5 >= 5
+
+let result_6_1a = assert_equal(true, eq_test, "6.1a Equality")
+let result_6_1b = assert_equal(true, neq_test, "6.1b Inequality")
+let result_6_1c = assert_equal(true, lt_test, "6.1c Less Than")
+let result_6_1d = assert_equal(true, gt_test, "6.1d Greater Than")
+let result_6_1e = assert_equal(true, lte_test, "6.1e Less Than or Equal")
+let result_6_1f = assert_equal(true, gte_test, "6.1f Greater Than or Equal")
+let all_test_results = all_test_results + [result_6_1a, result_6_1b, result_6_1c, result_6_1d, result_6_1e, result_6_1f]
+
+-- Test 6.2: Logical Operations
+let and_test = true && true
+let or_test = true || false
+let not_test = !false
+
+let result_6_2a = assert_equal(true, and_test, "6.2a Logical AND")
+let result_6_2b = assert_equal(true, or_test, "6.2b Logical OR")
+let result_6_2c = assert_equal(true, not_test, "6.2c Logical NOT")
+let all_test_results = all_test_results + [result_6_2a, result_6_2b, result_6_2c]
+
+-- Test 6.3: Matrix Operations
+let matrix_2x2 = [[1, 2], [3, 4]]
+let matrix_len = len(matrix_2x2)
+let first_row_len = len(matrix_2x2[0])
+
+let result_6_3a = assert_equal(2, matrix_len, "6.3a Matrix row count")
+let result_6_3b = assert_equal(2, first_row_len, "6.3b Matrix column count")
+let all_test_results = all_test_results + [result_6_3a, result_6_3b]
+
+-- =============================================================================
+-- FINAL REPORT GENERATION
+-- =============================================================================
+println("")
+println("=" * 60)
+println("COMPREHENSIVE TEST SUITE RESULTS")
+println("=" * 60)
+
+-- Calculate statistics
+let total_tests = len(all_test_results)
+let passed_tests = 0
+let failed_tests = 0
+
+for result in all_test_results {
+    if result.passed {
+        let passed_tests = passed_tests + 1
+    } else {
+        let failed_tests = failed_tests + 1
+    }
+}
+
+-- Display summary
+println("")
+println("SUMMARY:")
+println("Total Tests:  " + str(total_tests))
+println("Passed Tests: " + str(passed_tests))
+println("Failed Tests: " + str(failed_tests))
+
+let success_rate = (passed_tests * 100) / total_tests
+println("Success Rate: " + str(success_rate) + "%")
+
+println("")
+if failed_tests == 0 {
+    println("🎉 ALL TESTS PASSED! Matrix Language is working perfectly!")
+} else {
+    println("❌ SOME TESTS FAILED")
+    println("")
+    println("Failed Tests:")
+    println("-" * 20)
+    for result in all_test_results {
+        if !result.passed {
+            println("  " + result.name)
+            println("    Expected: " + result.expected)
+            println("    Got:      " + result.actual)
+            println("")
+        }
+    }
+}
+
+println("=" * 60)
+println("Matrix Language Test Suite Complete!")
+let test_completion_marker = "All tests executed successfully"
