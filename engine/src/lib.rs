@@ -9,7 +9,7 @@ pub use gui::*;
 
 /// Launch the Unity-style physics simulation GUI
 pub fn launch_physics_gui() -> Result<(), Box<dyn std::error::Error>> {
-    gui::launch_unity_simulation()
+    gui::launch_physics_editor()
 }
 
 /// Get the version of the physics GUI engine

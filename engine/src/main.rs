@@ -1,30 +1,9 @@
-// Physics Simulation GUI - Main Entry Point
-// Unity-style physics simulation interface
+// Main entry point for the Physics Simulation GUI
+// Launches the Unity-style egui-based physics editor
 
-use clap::{Arg, Command};
+use physics_simulation_gui::launch_physics_editor;
 
-mod gui;
-
-fn main() {
-    let _matches = Command::new("physics-gui")
-        .about("Unity-style Physics Simulation GUI")
-        .version("0.1.0")
-        .arg(
-            Arg::new("fullscreen")
-                .long("fullscreen")
-                .short('f')
-                .help("Launch in fullscreen mode")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .get_matches();
-
-    println!("🎮 Physics Simulation GUI Engine v0.1.0");
-    println!("========================================");
-
-    let result = gui::launch_unity_simulation();
-
-    if let Err(e) = result {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Launch the Unity-style physics editor GUI
+    launch_physics_editor()
 }
