@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod eval;
+pub mod gui;
 pub mod ir;
 #[cfg(feature = "jit")]
 pub mod jit;
@@ -57,14 +58,11 @@ fn main() {
         .get_matches();
 
     if matches.get_flag("gui") {
-        println!("GUI functionality temporarily disabled during reorganization");
-        // GUI functionality temporarily disabled during reorganization
-        // Quantum GUI is available through the quantum module
-        // Unity editor integration to be re-enabled after separation is complete
-        // if let Err(e) = crate::gui::launch_unity_editor() {
-        //     eprintln!("Failed to launch editor: {}", e);
-        //     std::process::exit(1);
-        // }
+        // Launch the integrated Matrix Language Development Environment
+        if let Err(e) = crate::gui::MatrixGUI::launch() {
+            eprintln!("Failed to launch GUI: {}", e);
+            std::process::exit(1);
+        }
         return;
     } else if matches.get_flag("repl") || matches.get_one::<String>("file").is_none() {
         run_repl();

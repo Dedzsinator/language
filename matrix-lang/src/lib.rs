@@ -6,9 +6,12 @@
 // - AST-based interpretation
 // - LLVM-based JIT compilation
 // - Standard library with mathematical and utility functions
+// - Quantum computing simulation and visualization
+// - Integrated development environment
 
 pub mod ast;
 pub mod eval;
+pub mod gui;
 pub mod ir;
 pub mod lexer;
 pub mod parser;
