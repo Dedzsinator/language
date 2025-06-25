@@ -8,6 +8,38 @@ use std::thread;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
+/// Simulation mode for physics directives
+#[derive(Debug, Clone, PartialEq)]
+pub enum SimulationMode {
+    ThreeD,  // 3D scene simulation (@sim)
+    Plot,    // Plot animation (@plot)
+}
+
+/// Simulation context for @sim directive
+#[derive(Debug, Clone)]
+pub struct SimulationContext {
+    pub world: crate::stdlib::PhysicsWorld,
+    pub mode: SimulationMode,
+    pub real_time: bool,
+    pub interactive: bool,
+}
+
+/// Plot mode for plotting directives
+#[derive(Debug, Clone, PartialEq)]
+pub enum PlotMode {
+    Animation,  // Animated plot with time slider
+    Static,     // Static plot
+}
+
+/// Plot context for @plot directive
+#[derive(Debug, Clone)]
+pub struct PlotContext {
+    pub world: crate::stdlib::PhysicsWorld,
+    pub mode: PlotMode,
+    pub time_slider: bool,
+    pub interactive: bool,
+}
+
 // Stub JitError when JIT feature is not enabled
 #[cfg(not(feature = "jit"))]
 #[derive(Debug, Clone)]
@@ -125,6 +157,8 @@ pub enum Value {
         func: fn(&[Value]) -> RuntimeResult<Value>,
     },
     AsyncHandle(AsyncTask), // Handle to async computation
+    PhysicsWorld(crate::stdlib::PhysicsWorld),
+    PhysicsObject(crate::stdlib::PhysicsObject),
 }
 
 impl Value {
@@ -141,6 +175,8 @@ impl Value {
             Value::Function { .. } => "Function",
             Value::BuiltinFunction { .. } => "BuiltinFunction",
             Value::AsyncHandle(_) => "AsyncHandle",
+            Value::PhysicsWorld(_) => "PhysicsWorld",
+            Value::PhysicsObject(_) => "PhysicsObject",
         }
     }
 
@@ -386,6 +422,7 @@ pub struct Interpreter {
     async_tasks: HashMap<usize, AsyncTask>,     // Track async tasks
     next_task_id: usize,                        // Counter for task IDs
     gpu_mode: GpuMode,                          // Current GPU computation mode
+    simulation_mode: Option<SimulationMode>,    // Current simulation mode for directives
 }
 
 impl Interpreter {
@@ -399,6 +436,7 @@ impl Interpreter {
             async_tasks: HashMap::new(),
             next_task_id: 0,
             gpu_mode: GpuMode::Cpu,
+            simulation_mode: None,
         };
 
         interpreter.register_builtins();
@@ -666,6 +704,10 @@ impl Interpreter {
             Expression::Wait { expression, .. } => self.eval_async_wait(expression),
 
             Expression::GpuDirective { expression, .. } => self.eval_gpu_directive(expression),
+
+            Expression::SimDirective { expression, .. } => self.eval_sim_directive(expression),
+
+            Expression::PlotDirective { expression, .. } => self.eval_plot_directive(expression),
 
             Expression::OptionalAccess {
                 object,
@@ -1570,6 +1612,128 @@ impl Interpreter {
     pub fn clear_module_cache(&mut self) {
         self.module_cache.clear();
     }
+
+    /// Evaluate physics simulation directive (@sim)
+    fn eval_sim_directive(&mut self, expression: &Expression) -> RuntimeResult<Value> {
+        // Launch 3D physics simulation
+        let result = self.eval_expression(expression)?;
+
+        // Check if we have physics world data
+        match &result {
+            Value::PhysicsWorld(world) => {
+                // Launch 3D scene viewer with the physics world
+                self.launch_3d_simulation(world)?;
+                Ok(result)
+            }
+            _ => {
+                // Try to interpret as physics simulation code
+                self.run_3d_physics_simulation(expression)
+            }
+        }
+    }
+
+    /// Evaluate physics plotting directive (@plot)
+    fn eval_plot_directive(&mut self, expression: &Expression) -> RuntimeResult<Value> {
+        // Launch matplotlib-like plotting interface with time slider
+        let result = self.eval_expression(expression)?;
+
+        // Check if we have physics world data
+        match &result {
+            Value::PhysicsWorld(world) => {
+                // Launch plotting interface with time animation
+                self.launch_plot_animation(world)?;
+                Ok(result)
+            }
+            _ => {
+                // Try to interpret as data plotting code
+                self.run_plot_animation(expression)
+            }
+        }
+    }
+
+    /// Launch 3D physics simulation viewer
+    fn launch_3d_simulation(&mut self, world: &crate::stdlib::PhysicsWorld) -> RuntimeResult<()> {
+        println!("🎬 Launching 3D Physics Simulation...");
+
+        // Create simulation context
+        let sim_context = SimulationContext {
+            world: world.clone(),
+            mode: SimulationMode::ThreeD,
+            real_time: true,
+            interactive: true,
+        };
+
+        // Launch the engine GUI in 3D simulation mode
+        self.launch_simulation_engine(sim_context)
+    }
+
+    /// Launch matplotlib-like plotting interface
+    fn launch_plot_animation(&mut self, world: &crate::stdlib::PhysicsWorld) -> RuntimeResult<()> {
+        println!("📊 Launching Physics Plot Animation...");
+
+        // Create plotting context
+        let plot_context = PlotContext {
+            world: world.clone(),
+            mode: PlotMode::Animation,
+            time_slider: true,
+            interactive: true,
+        };
+
+        // Launch the plotting interface
+        self.launch_plot_engine(plot_context)
+    }
+
+    /// Run 3D physics simulation from expression
+    fn run_3d_physics_simulation(&mut self, expression: &Expression) -> RuntimeResult<Value> {
+        // Create a new physics world and evaluate the expression within it
+        let mut physics_world = crate::stdlib::PhysicsWorld::new();
+
+        // Set simulation context
+        self.simulation_mode = Some(SimulationMode::ThreeD);
+
+        // Evaluate expression (should create physics objects)
+        let _result = self.eval_expression(expression)?;
+
+        // Create some demo objects for the simulation
+        let demo_obj = crate::eval::simulation::create_demo_physics_object(0);
+        physics_world.objects.push(demo_obj);
+
+        // Launch 3D simulation
+        self.launch_3d_simulation(&physics_world)?;
+
+        Ok(Value::PhysicsWorld(physics_world))
+    }
+
+    /// Run plot animation from expression
+    fn run_plot_animation(&mut self, expression: &Expression) -> RuntimeResult<Value> {
+        // Create a new physics world and evaluate the expression within it
+        let mut physics_world = crate::stdlib::PhysicsWorld::new();
+
+        // Set plotting context
+        self.simulation_mode = Some(SimulationMode::Plot);
+
+        // Evaluate expression (should create physics objects)
+        let _result = self.eval_expression(expression)?;
+
+        // Create some demo objects for the plot
+        let demo_obj = crate::eval::simulation::create_demo_physics_object(0);
+        physics_world.objects.push(demo_obj);
+
+        // Launch plot animation
+        self.launch_plot_animation(&physics_world)?;
+
+        Ok(Value::PhysicsWorld(physics_world))
+    }
+
+    /// Launch simulation engine with given context
+    fn launch_simulation_engine(&mut self, context: SimulationContext) -> RuntimeResult<()> {
+        crate::eval::simulation::launch_3d_simulation(context)
+    }
+
+    /// Launch plot engine with given context
+    fn launch_plot_engine(&mut self, context: PlotContext) -> RuntimeResult<()> {
+        crate::eval::simulation::launch_plot_animation(context)
+    }
 }
 
 fn format_value(value: &Value) -> String {
@@ -1603,6 +1767,8 @@ fn format_value(value: &Value) -> String {
         Value::Function { .. } => "<function>".to_string(),
         Value::BuiltinFunction { name, .. } => format!("<builtin: {}>", name),
         Value::AsyncHandle(_) => "<async handle>".to_string(),
+        Value::PhysicsWorld(world) => format!("<physics_world:{}>", world.id),
+        Value::PhysicsObject(obj) => format!("<physics_object:{}>", obj.id),
     }
 }
 
@@ -1652,6 +1818,12 @@ impl std::fmt::Display for Value {
                     write!(f, "AsyncHandle(pending:{})", task.id)
                 }
             }
+            Value::PhysicsWorld(world) => {
+                write!(f, "PhysicsWorld(id:{}, objects:{})", world.id, world.objects.len())
+            }
+            Value::PhysicsObject(obj) => {
+                write!(f, "PhysicsObject(id:{}, shape:{})", obj.id, obj.shape)
+            }
         }
     }
 }
@@ -1681,6 +1853,8 @@ impl PartialEq for Value {
                             n1 == n2
             }
             (Value::AsyncHandle(a), Value::AsyncHandle(b)) => a.id == b.id,
+            (Value::PhysicsWorld(a), Value::PhysicsWorld(b)) => a.id == b.id,
+            (Value::PhysicsObject(a), Value::PhysicsObject(b)) => a.id == b.id,
             _ => false,
         }
     }

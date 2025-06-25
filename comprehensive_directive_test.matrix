@@ -1,0 +1,26 @@
+// Comprehensive test demonstrating @sim and @plot directives
+// This file shows the completed directive implementation working together
+
+// Create a 3D physics simulation
+let physics_simulation = @sim {
+    let gravity = 9.81;
+    let initial_height = 10.0;
+    let mass = 2.5;
+
+    // Set up the simulation parameters
+    let result = mass * gravity * initial_height;
+    result
+}
+
+// Create an animated plot visualization
+let data_visualization = @plot {
+    let time_points = [0.0, 1.0, 2.0, 3.0, 4.0];
+    let amplitudes = [1.0, 0.8, 0.6, 0.4, 0.2];
+
+    // Generate plotting data
+    let plot_data = amplitudes;
+    plot_data
+}
+
+// Test that both directives created proper physics worlds
+physics_simulation

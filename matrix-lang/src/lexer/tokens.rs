@@ -32,6 +32,10 @@ pub enum Token {
     Wait,
     #[token("gpu")]
     Gpu,
+    #[token("sim")]
+    Sim,
+    #[token("plot")]
+    Plot,
     #[token("import")]
     Import,
     #[token("return")]
@@ -188,6 +192,8 @@ impl fmt::Display for Token {
             Token::Spawn => write!(f, "spawn"),
             Token::Wait => write!(f, "wait"),
             Token::Gpu => write!(f, "gpu"),
+            Token::Sim => write!(f, "sim"),
+            Token::Plot => write!(f, "plot"),
             Token::Import => write!(f, "import"),
             Token::Return => write!(f, "return"),
             Token::True => write!(f, "true"),

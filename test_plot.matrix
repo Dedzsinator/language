@@ -1,0 +1,1 @@
+let animation = @plot { let x = 42; [x, x * 2] }

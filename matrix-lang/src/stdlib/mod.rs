@@ -14,32 +14,32 @@ static NEXT_WORLD_ID: LazyLock<Mutex<usize>> = LazyLock::new(|| Mutex::new(0));
 
 #[derive(Debug, Clone)]
 pub struct PhysicsWorld {
-    id: usize,
-    objects: Vec<PhysicsObject>,
-    gravity: Vec3,
-    time: f64,
-    dt: f64,
+    pub id: usize,
+    pub objects: Vec<PhysicsObject>,
+    pub gravity: Vec3,
+    pub time: f64,
+    pub dt: f64,
 }
 
 #[derive(Debug, Clone)]
 pub struct PhysicsObject {
-    id: usize,
-    shape: String,
-    mass: f64,
-    position: Vec3,
-    velocity: Vec3,
-    is_static: bool,
+    pub id: usize,
+    pub shape: String,
+    pub mass: f64,
+    pub position: Vec3,
+    pub velocity: Vec3,
+    pub is_static: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Vec3 {
-    x: f64,
-    y: f64,
-    z: f64,
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 
 impl PhysicsWorld {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut next_id = NEXT_WORLD_ID.lock().unwrap();
         let id = *next_id;
         *next_id += 1;
@@ -57,7 +57,7 @@ impl PhysicsWorld {
         }
     }
 
-    fn add_object(&mut self, shape: String, mass: f64, position: Vec3) -> usize {
+    pub fn add_object(&mut self, shape: String, mass: f64, position: Vec3) -> usize {
         let id = self.objects.len();
         self.objects.push(PhysicsObject {
             id,
@@ -74,7 +74,7 @@ impl PhysicsWorld {
         id
     }
 
-    fn step(&mut self) {
+    pub fn step(&mut self) {
         // Simple physics integration
         for obj in &mut self.objects {
             if !obj.is_static {
@@ -365,5 +365,15 @@ fn value_to_string(value: &Value) -> String {
         Value::Function { .. } => "<function>".to_string(),
         Value::BuiltinFunction { name, .. } => format!("<builtin: {}>", name),
         Value::AsyncHandle(_) => "<async handle>".to_string(),
+        Value::PhysicsWorld(world) => {
+            format!(
+                "PhysicsWorld(id:{}, objects:{})",
+                world.id,
+                world.objects.len()
+            )
+        }
+        Value::PhysicsObject(obj) => {
+            format!("PhysicsObject(id:{}, shape:{})", obj.id, obj.shape)
+        }
     }
 }

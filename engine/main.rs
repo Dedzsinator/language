@@ -10,19 +10,19 @@ use std::fs;
 use std::path::Path;
 
 // GUI modules for physics simulation (keep only GUI-related modules)
-pub mod gui;
-pub mod physics_debugger;
-pub mod physics_comprehensive;
-pub mod unity_layout;
-pub mod viewport;
-pub mod scene_view;
-pub mod game_view;
 pub mod animation_view;
+pub mod game_view;
+pub mod gui;
 pub mod inspector;
 pub mod object_hierarchy;
-pub mod scene_manager;
+pub mod physics_comprehensive;
+pub mod physics_debugger;
 pub mod project_browser;
+pub mod scene_manager;
+pub mod scene_view;
 pub mod scripting_panel;
+pub mod unity_layout;
+pub mod viewport;
 
 fn main() {
     let matches = Command::new("physics-engine-gui")
@@ -54,6 +54,13 @@ fn main() {
                 .help("Launch only the viewport interface")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("mode")
+                .long("mode")
+                .help("Specify the launch mode (3d_sim, plot_anim)")
+                .value_name("MODE")
+                .action(clap::ArgAction::Set),
+        )
         .get_matches();
 
     if matches.get_flag("gui") {
@@ -64,192 +71,95 @@ fn main() {
         launch_physics_debugger();
     } else if let Some(script_file) = matches.get_one::<String>("script") {
         load_and_run_script(script_file);
+    } else if let Some(mode) = matches.get_one::<String>("mode") {
+        launch_with_mode(mode);
     } else {
         // Default to GUI mode
         launch_unity_gui();
     }
 }
-            Arg::new("gui")
-                .long("gui")
-                .short('g')
-                .help("Launch Unity-style game engine editor")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .get_matches();
 
-    if matches.get_flag("gui") {
-        println!("Launching Unity-style editor...");
-        if let Err(e) = crate::gui::launch_unity_editor() {
-            eprintln!("Failed to launch editor: {}", e);
-            std::process::exit(1);
-        }
-        return;
-    } else if matches.get_flag("repl") || matches.get_one::<String>("file").is_none() {
-        run_repl();
-    } else if let Some(filename) = matches.get_one::<String>("file") {
-        let parse_only = matches.get_flag("parse-only");
-        run_file(filename, parse_only);
+/// Launch the Unity-style GUI interface
+fn launch_unity_gui() {
+    println!("🎮 Launching Unity-style Physics Engine GUI...");
+    if let Err(e) = gui::launch_physics_editor() {
+        eprintln!("Failed to launch GUI: {}", e);
+        std::process::exit(1);
     }
 }
 
-fn run_file(filename: &str, parse_only: bool) {
-    let path = Path::new(filename);
+/// Launch viewport-only mode
+fn launch_viewport_only() {
+    println!("🔍 Launching Viewport-only mode...");
+    // For now, just launch the standard GUI
+    if let Err(e) = gui::launch_physics_editor() {
+        eprintln!("Failed to launch viewport: {}", e);
+        std::process::exit(1);
+    }
+}
+
+/// Launch physics debugger mode
+fn launch_physics_debugger() {
+    println!("🔧 Launching Physics Debugger mode...");
+    // For now, just launch the standard GUI which includes debugging
+    if let Err(e) = gui::launch_physics_editor() {
+        eprintln!("Failed to launch debugger: {}", e);
+        std::process::exit(1);
+    }
+}
+
+/// Launch with specific mode for Matrix Language directives
+fn launch_with_mode(mode: &str) {
+    match mode {
+        "3d_sim" => {
+            println!("🎬 Launching 3D Physics Simulation mode...");
+            // Launch GUI in simulation mode
+            if let Err(e) = gui::launch_physics_editor() {
+                eprintln!("Failed to launch 3D simulation: {}", e);
+                std::process::exit(1);
+            }
+        }
+        "plot_anim" => {
+            println!("📊 Launching Plot Animation mode...");
+            // Launch GUI in plotting mode
+            if let Err(e) = gui::launch_physics_editor() {
+                eprintln!("Failed to launch plot animation: {}", e);
+                std::process::exit(1);
+            }
+        }
+        _ => {
+            eprintln!("Unknown mode: {}. Available modes: 3d_sim, plot_anim", mode);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Load and run a Matrix Language script
+fn load_and_run_script(script_file: &str) {
+    let path = Path::new(script_file);
 
     if !path.exists() {
-        eprintln!("Error: File '{}' not found", filename);
+        eprintln!("Error: File '{}' not found", script_file);
         std::process::exit(1);
     }
 
     let source = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(err) => {
-            eprintln!("Error reading file '{}': {}", filename, err);
+            eprintln!("Error reading file '{}': {}", script_file, err);
             std::process::exit(1);
         }
     };
 
-    match execute_source(&source, parse_only) {
+    match execute_source(&source, false) {
         Ok(_) => {
-            if parse_only {
-                println!("✓ Parsing completed successfully");
-            } else {
-                println!("✓ Execution completed successfully");
-            }
+            println!("✓ Execution completed successfully");
         }
         Err(err) => {
             eprintln!("Error: {}", err);
             std::process::exit(1);
         }
     }
-}
-
-fn run_repl() {
-    println!("Matrix Language REPL v0.1.0");
-    println!("Type 'exit' to quit, 'help' for commands");
-
-    let mut rl = Editor::<(), rustyline::history::DefaultHistory>::new()
-        .expect("Failed to create readline editor");
-
-    // Load history if it exists
-    let _ = rl.load_history("matrix_lang_history.txt");
-
-    // Create persistent interpreter and type checker for REPL session
-    let mut interpreter = Interpreter::new();
-    let mut type_checker = TypeChecker::new();
-
-    loop {
-        let readline = rl.readline(">> ");
-        match readline {
-            Ok(line) => {
-                let _ = rl.add_history_entry(line.as_str());
-
-                let trimmed = line.trim();
-
-                if trimmed.is_empty() {
-                    continue;
-                }
-
-                match trimmed {
-                    "exit" | "quit" => {
-                        println!("Goodbye!");
-                        break;
-                    }
-                    "help" => {
-                        print_help();
-                        continue;
-                    }
-                    "clear" => {
-                        print!("\x1B[2J\x1B[1;1H");
-                        continue;
-                    }
-                    _ => {}
-                }
-
-                match execute_repl_line(&line, &mut interpreter, &mut type_checker) {
-                    Ok(_) => {}
-                    Err(err) => {
-                        eprintln!("Error: {}", err);
-                    }
-                }
-            }
-            Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
-            }
-            Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break;
-            }
-            Err(err) => {
-                eprintln!("Error: {:?}", err);
-                break;
-            }
-        }
-    }
-
-    // Save history
-    let _ = rl.save_history("matrix_lang_history.txt");
-}
-
-fn execute_repl_line(
-    source: &str,
-    interpreter: &mut Interpreter,
-    type_checker: &mut TypeChecker,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Try to parse as a standalone expression first
-    let lexer = Lexer::new(source);
-    let mut parser =
-        Parser::new(lexer).map_err(|e| format!("Parser initialization error: {}", e))?;
-
-    // Try parsing as expression first, fallback to program if it fails
-    let expr_result = parser.parse_expression();
-
-    let result = if let Ok(expr) = expr_result {
-        // Standalone expression - evaluate directly
-        match interpreter.eval_expression(&expr) {
-            Ok(value) => {
-                // Only print result if it's not Unit (empty)
-                match value {
-                    crate::eval::Value::Unit => Ok(()),
-                    _ => {
-                        println!("{}", format_result(&value));
-                        Ok(())
-                    }
-                }
-            }
-            Err(e) => Err(format!("Runtime error: {}", e)),
-        }
-    } else {
-        // Try parsing as a full program (for let bindings, function definitions, etc.)
-        let lexer = Lexer::new(source);
-        let mut parser =
-            Parser::new(lexer).map_err(|e| format!("Parser initialization error: {}", e))?;
-
-        let ast = parser
-            .parse_program()
-            .map_err(|e| format!("Parse error: {}", e))?;
-
-        // Type checking
-        type_checker
-            .check_program(&ast)
-            .map_err(|e| format!("Type error: {}", e))?;
-
-        // Evaluation/Interpretation
-        let result = interpreter
-            .eval_program(&ast)
-            .map_err(|e| format!("Runtime error: {}", e))?;
-
-        // Only print result if it's not Unit (empty)
-        match result {
-            crate::eval::Value::Unit => Ok(()),
-            _ => {
-                println!("{}", format_result(&result));
-                Ok(())
-            }
-        }
-    };
-
-    result.map_err(|e| e.into())
 }
 
 fn execute_source(source: &str, parse_only: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -288,41 +198,25 @@ fn execute_source(source: &str, parse_only: bool) -> Result<(), Box<dyn std::err
 
     // Only print result if it's not Unit (empty)
     match result {
-        crate::eval::Value::Unit => {}
+        matrix_lang::eval::Value::Unit => {}
         _ => println!("Result: {}", format_result(&result)),
     }
 
     Ok(())
 }
 
-fn print_help() {
-    println!("Matrix Language REPL Commands:");
-    println!("  help           - Show this help message");
-    println!("  exit, quit     - Exit the REPL");
-    println!("  clear          - Clear the screen");
-    println!();
-    println!("Language Features:");
-    println!("  struct Vector2 {{ x: Float, y: Float }}");
-    println!("  let add = (a: Float, b: Float) => a + b");
-    println!("  let matrix = [[1, 2], [3, 4]]");
-    println!("  let comp = [i * j | i in 1..3, j in 1..3]");
-    println!("  match value {{ Some(x) => x, None => 0 }}");
-    println!("  parallel {{ expr1; expr2 }}");
-    println!("  @gpu let compute = (data: Matrix) => ...");
-}
-
-fn format_result(value: &crate::eval::interpreter::Value) -> String {
+fn format_result(value: &matrix_lang::eval::interpreter::Value) -> String {
     match value {
-        crate::eval::interpreter::Value::Int(i) => i.to_string(),
-        crate::eval::interpreter::Value::Float(f) => f.to_string(),
-        crate::eval::interpreter::Value::Bool(b) => b.to_string(),
-        crate::eval::interpreter::Value::String(s) => format!("\"{}\"", s),
-        crate::eval::interpreter::Value::Unit => "()".to_string(),
-        crate::eval::interpreter::Value::Array(arr) => {
+        matrix_lang::eval::interpreter::Value::Int(i) => i.to_string(),
+        matrix_lang::eval::interpreter::Value::Float(f) => f.to_string(),
+        matrix_lang::eval::interpreter::Value::Bool(b) => b.to_string(),
+        matrix_lang::eval::interpreter::Value::String(s) => format!("\"{}\"", s),
+        matrix_lang::eval::interpreter::Value::Unit => "()".to_string(),
+        matrix_lang::eval::interpreter::Value::Array(arr) => {
             let elements: Vec<String> = arr.iter().map(format_result).collect();
             format!("[{}]", elements.join(", "))
         }
-        crate::eval::interpreter::Value::Matrix(mat) => {
+        matrix_lang::eval::interpreter::Value::Matrix(mat) => {
             let rows: Vec<String> = mat
                 .iter()
                 .map(|row| {
@@ -332,24 +226,18 @@ fn format_result(value: &crate::eval::interpreter::Value) -> String {
                 .collect();
             format!("[{}]", rows.join(", "))
         }
-        crate::eval::interpreter::Value::Struct { name, fields } => {
+        matrix_lang::eval::interpreter::Value::Struct { name, fields } => {
             let field_strs: Vec<String> = fields
                 .iter()
                 .map(|(k, v)| format!("{}: {}", k, format_result(v)))
                 .collect();
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
-        crate::eval::interpreter::Value::Function { .. } => "<function>".to_string(),
-        crate::eval::interpreter::Value::BuiltinFunction { name, .. } => {
+        matrix_lang::eval::interpreter::Value::Function { .. } => "<function>".to_string(),
+        matrix_lang::eval::interpreter::Value::BuiltinFunction { name, .. } => {
             format!("<builtin: {}>", name)
         }
-        crate::eval::interpreter::Value::PhysicsWorldHandle(_) => "<physics_world>".to_string(),
-        crate::eval::interpreter::Value::AsyncHandle(task) => {
-            if task.is_complete() {
-                format!("<async_handle:completed:{}>", task.id)
-            } else {
-                format!("<async_handle:pending:{}>", task.id)
-            }
-        }
+        matrix_lang::eval::interpreter::Value::PhysicsWorld(_) => "<physics_world>".to_string(),
+        matrix_lang::eval::interpreter::Value::PhysicsObject(_) => "<physics_object>".to_string(),
     }
 }

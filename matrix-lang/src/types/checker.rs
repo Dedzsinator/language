@@ -552,6 +552,48 @@ impl TypeChecker {
                     }
                 }
             }
+
+            Expression::SimDirective { expression, span: _ } => {
+                // Type check the expression in physics simulation context
+                let expr_type = self.check_expression(expression)?;
+
+                // Add constraint that the type must be suitable for 3D physics simulation
+                let sim_constraint = TypeConstraint {
+                    typeclass: "SimulationCompatible".to_string(),
+                    type_param: expr_type.ty.clone(),
+                };
+
+                // Wrap type in PhysicsWorld to indicate simulation context
+                Ok(InferredType {
+                    ty: Type::PhysicsWorld,
+                    constraints: {
+                        let mut constraints = expr_type.constraints;
+                        constraints.push(sim_constraint);
+                        constraints
+                    },
+                })
+            }
+
+            Expression::PlotDirective { expression, span: _ } => {
+                // Type check the expression in physics plotting context
+                let expr_type = self.check_expression(expression)?;
+
+                // Add constraint that the type must be suitable for physics plotting
+                let plot_constraint = TypeConstraint {
+                    typeclass: "PlottingCompatible".to_string(),
+                    type_param: expr_type.ty.clone(),
+                };
+
+                // Wrap type in PhysicsWorld to indicate plotting context
+                Ok(InferredType {
+                    ty: Type::PhysicsWorld,
+                    constraints: {
+                        let mut constraints = expr_type.constraints;
+                        constraints.push(plot_constraint);
+                        constraints
+                    },
+                })
+            }
         }
     }
 

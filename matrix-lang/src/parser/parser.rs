@@ -992,6 +992,22 @@ impl<'input> Parser<'input> {
             Token::Spawn => self.parse_spawn(),
             Token::Wait => self.parse_wait(),
             Token::Gpu => self.parse_gpu_directive(),
+            Token::Sim => self.parse_sim_directive(),
+            Token::Plot => self.parse_plot_directive(),
+            Token::At => {
+                // Handle @ directives like @sim, @plot, @gpu
+                self.advance(); // consume @
+                match &self.current_token.token {
+                    Token::Sim => self.parse_sim_directive(),
+                    Token::Plot => self.parse_plot_directive(),
+                    Token::Gpu => self.parse_gpu_directive(),
+                    _ => Err(ParseError::unexpected_token(
+                        "sim, plot, or gpu directive",
+                        &self.current_token.token.to_string(),
+                        &self.current_token.span,
+                    )),
+                }
+            }
             _ => Err(ParseError::unexpected_token(
                 "expression",
                 &self.current_token.token.to_string(),
@@ -1668,11 +1684,70 @@ impl<'input> Parser<'input> {
         let start_span = self.current_token.span.clone();
         self.advance(); // consume gpu
 
-        self.expect(Token::Colon)?;
-        let expression = self.parse_expression()?;
+        // Expect a block expression: @gpu { ... }
+        if !self.check(&Token::LeftBrace) {
+            return Err(ParseError::unexpected_token(
+                "{",
+                &self.current_token.token.to_string(),
+                &self.current_token.span,
+            ));
+        }
+        let expression = self.parse_block()?;
         let end_span = expression.span().clone();
 
         Ok(Expression::GpuDirective {
+            expression: Box::new(expression),
+            span: Span::new(
+                start_span.start,
+                end_span.end,
+                start_span.line,
+                end_span.column,
+            ),
+        })
+    }
+
+    fn parse_sim_directive(&mut self) -> ParseResult<Expression> {
+        let start_span = self.current_token.span.clone();
+        self.advance(); // consume sim
+
+        // Expect a block expression: @sim { ... }
+        if !self.check(&Token::LeftBrace) {
+            return Err(ParseError::unexpected_token(
+                "{",
+                &self.current_token.token.to_string(),
+                &self.current_token.span,
+            ));
+        }
+        let expression = self.parse_block()?;
+        let end_span = expression.span().clone();
+
+        Ok(Expression::SimDirective {
+            expression: Box::new(expression),
+            span: Span::new(
+                start_span.start,
+                end_span.end,
+                start_span.line,
+                end_span.column,
+            ),
+        })
+    }
+
+    fn parse_plot_directive(&mut self) -> ParseResult<Expression> {
+        let start_span = self.current_token.span.clone();
+        self.advance(); // consume plot
+
+        // Expect a block expression: @plot { ... }
+        if !self.check(&Token::LeftBrace) {
+            return Err(ParseError::unexpected_token(
+                "{",
+                &self.current_token.token.to_string(),
+                &self.current_token.span,
+            ));
+        }
+        let expression = self.parse_block()?;
+        let end_span = expression.span().clone();
+
+        Ok(Expression::PlotDirective {
             expression: Box::new(expression),
             span: Span::new(
                 start_span.start,

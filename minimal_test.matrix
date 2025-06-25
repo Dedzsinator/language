@@ -1,0 +1,1 @@
+let simple_test = @sim { let x = 42; x };

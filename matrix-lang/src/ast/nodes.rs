@@ -311,6 +311,18 @@ pub enum Expression {
         span: Span,
     },
 
+    // Physics simulation directive (@sim)
+    SimDirective {
+        expression: Box<Expression>,
+        span: Span,
+    },
+
+    // Physics plotting directive (@plot)
+    PlotDirective {
+        expression: Box<Expression>,
+        span: Span,
+    },
+
     // Range expressions (1..10, 1..=10)
     Range {
         start: Box<Expression>,
@@ -485,6 +497,8 @@ impl Expression {
             Expression::Spawn { span, .. } => span,
             Expression::Wait { span, .. } => span,
             Expression::GpuDirective { span, .. } => span,
+            Expression::SimDirective { span, .. } => span,
+            Expression::PlotDirective { span, .. } => span,
             Expression::Range { span, .. } => span,
         }
     }

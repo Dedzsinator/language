@@ -1,2 +1,15 @@
 #V2
 let result = fibonacci_naive(10); result
+let test = @sim { let x = 42; x };
+@sim { let x = 42; x }
+@plot { let x = 42; [x, x * 2] }
+@sim { let x = 42; let y = x * 2; y }
+@plot { let a = 10; let b = 20; [a, b, a + b] }
+@plot { let x = 42; x }
+let sim = @sim { let ball = 42; ball }; let plot = @plot { let graph = [1, 2, 3]; graph }; sim
+let physics = @sim { let ball = 42; ball }; let animation = @plot { let graph = [1, 2, 3]; graph }; physics
+let physics = @sim { let ball = 42; ball }
+let animation = @plot { let graph = [1, 2, 3]; graph }
+physics
+let physics = @sim { let x = 42; x }
+let animation = @plot { let y = 84; y }

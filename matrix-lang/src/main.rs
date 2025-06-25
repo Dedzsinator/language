@@ -468,6 +468,13 @@ fn format_result(value: &crate::eval::interpreter::Value) -> String {
                 format!("<async_handle:pending:{}>", task.id)
             }
         }
+        crate::eval::interpreter::Value::PhysicsWorld(world) => {
+            format!("<physics_world:objects:{}>", world.objects.len())
+        }
+        crate::eval::interpreter::Value::PhysicsObject(obj) => {
+            format!("<physics_object:pos:[{},{},{}]:mass:{}>",
+                obj.position.x, obj.position.y, obj.position.z, obj.mass)
+        }
     }
 }
 

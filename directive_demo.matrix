@@ -1,0 +1,18 @@
+let physics_simulation = @sim {
+    let gravity = 9.81;
+    let initial_height = 10.0;
+    let mass = 2.5;
+
+    let result = mass * gravity * initial_height;
+    result
+}
+
+let data_visualization = @plot {
+    let time_points = [0.0, 1.0, 2.0, 3.0, 4.0];
+    let amplitudes = [1.0, 0.8, 0.6, 0.4, 0.2];
+
+    let plot_data = amplitudes;
+    plot_data
+}
+
+physics_simulation
