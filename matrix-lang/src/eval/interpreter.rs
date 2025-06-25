@@ -563,12 +563,12 @@ impl Interpreter {
 
                 // Try to JIT compile if possible
                 if self.can_jit_compile(func_def) {
-                    if let Err(e) = self.jit_compile_function(func_def) {
+                    if let Err(_e) = self.jit_compile_function(func_def) {
                         // Log JIT compilation failure but don't fail the function definition
                         #[cfg(debug_assertions)]
                         eprintln!(
                             "JIT compilation failed for function '{}': {}",
-                            func_def.name, e
+                            func_def.name, _e
                         );
                     } else {
                         #[cfg(debug_assertions)]

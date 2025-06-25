@@ -1,0 +1,2 @@
+#V2
+let result = fibonacci_naive(10); result
