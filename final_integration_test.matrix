@@ -1,0 +1,16 @@
+let physics_demo = @sim {
+    let gravity = 9.81
+    let mass = 1.5
+    let height = 8.0
+    let energy = mass * gravity * height
+    energy
+}
+
+let visualization = @plot {
+    let time_points = [0.0, 1.0, 2.0, 3.0, 4.0]
+    let positions = [8.0, 7.2, 5.8, 3.8, 1.2]
+    let plot_title = "Physics Simulation Data"
+    plot_title
+}
+
+let result = physics_demo

@@ -3,6 +3,7 @@
 
 // Core GUI Module
 pub mod gui;
+pub mod scripting_panel;
 
 /// Launch the Unity-style physics simulation GUI
 pub fn launch_physics_gui() -> Result<(), Box<dyn std::error::Error>> {

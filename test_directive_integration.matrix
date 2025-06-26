@@ -1,0 +1,14 @@
+let physics_simulation = @sim {
+    let gravity = 9.81
+    let initial_height = 10.0
+    let mass = 2.5
+    let result = mass * gravity * initial_height
+    result
+}
+
+let plot_visualization = @plot {
+    let x_values = [1.0, 2.0, 3.0, 4.0, 5.0]
+    let y_values = [1.0, 4.0, 9.0, 16.0, 25.0]
+    let plot_data = "Quadratic Function"
+    plot_data
+}

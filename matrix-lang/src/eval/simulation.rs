@@ -16,10 +16,10 @@ pub fn launch_3d_simulation(context: SimulationContext) -> RuntimeResult<()> {
     match launch_engine_gui("3d_sim") {
         Ok(mut child) => {
             println!("✅ 3D Simulation launched successfully");
-            
+
             // Give the engine time to start up
             std::thread::sleep(std::time::Duration::from_millis(1000));
-            
+
             // Check if the process is still running
             match child.try_wait() {
                 Ok(Some(status)) => {
@@ -60,10 +60,10 @@ pub fn launch_plot_animation(context: PlotContext) -> RuntimeResult<()> {
     match launch_engine_gui("plot_anim") {
         Ok(mut child) => {
             println!("✅ Plot Animation launched successfully");
-            
+
             // Give the engine time to start up
             std::thread::sleep(std::time::Duration::from_millis(1000));
-            
+
             // Check if the process is still running
             match child.try_wait() {
                 Ok(Some(status)) => {

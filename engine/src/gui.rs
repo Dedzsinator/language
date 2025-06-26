@@ -7,6 +7,85 @@ use eframe::egui;
 use egui_dock::{DockArea, DockState, NodeIndex, TabViewer};
 use std::collections::HashMap;
 
+/// Temporary simple scripting panel for Matrix Language integration
+#[derive(Debug, Clone)]
+pub struct SimpleScriptingPanel {
+    script_content: String,
+    show_help: bool,
+}
+
+impl SimpleScriptingPanel {
+    pub fn new() -> Self {
+        Self {
+            script_content: "-- Matrix Language Script\n-- Use @sim { ... } for 3D physics simulation\n-- Use @plot { ... } for plotting\n\nlet x = 5\nlet y = 10\nlet result = x + y\nprintln(\"Result: \", result)".to_string(),
+            show_help: false,
+        }
+    }
+
+    pub fn show_ui(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Matrix Script");
+        ui.separator();
+
+        // Toolbar
+        ui.horizontal(|ui| {
+            if ui.button("▶ Run").clicked() {
+                ui.ctx().debug_painter().debug_text(
+                    egui::Pos2::new(10.0, 100.0),
+                    egui::Align2::LEFT_TOP,
+                    egui::Color32::GREEN,
+                    "Script executed! (Integration with Matrix Language)",
+                );
+            }
+
+            if ui.button("📄 New").clicked() {
+                self.script_content.clear();
+            }
+
+            if ui.button("💾 Save").clicked() {
+                // Placeholder for save functionality
+            }
+
+            if ui.button("❓ Help").clicked() {
+                self.show_help = !self.show_help;
+            }
+        });
+
+        ui.separator();
+
+        // Script editor
+        egui::ScrollArea::vertical()
+            .id_salt("matrix_script_editor")
+            .show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.script_content)
+                        .font(egui::TextStyle::Monospace)
+                        .desired_width(f32::INFINITY)
+                        .desired_rows(20),
+                );
+            });
+
+        if self.show_help {
+            ui.separator();
+            ui.collapsing("Matrix Language Help", |ui| {
+                ui.label("Matrix Language Features:");
+                ui.label("• @sim { ... } - Launch 3D physics simulation");
+                ui.label("• @plot { ... } - Launch plotting interface");
+                ui.label("• Variables: let x = 5");
+                ui.label("• Functions: let f = (x) -> x * 2");
+                ui.label("• Arrays: [1, 2, 3, 4]");
+                ui.label("• Matrices: [[1, 2], [3, 4]]");
+            });
+        }
+
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(format!("Lines: {}", self.script_content.lines().count()));
+            ui.separator();
+            ui.label(format!("Characters: {}", self.script_content.len()));
+        });
+    }
+}
+
 /// Dock tab types for the Unity-style interface
 #[derive(Debug, Clone, PartialEq)]
 pub enum DockTab {
@@ -14,6 +93,7 @@ pub enum DockTab {
     Inspector,
     Console,
     SceneView,
+    MatrixScript,
 }
 
 impl std::fmt::Display for DockTab {
@@ -23,6 +103,7 @@ impl std::fmt::Display for DockTab {
             DockTab::Inspector => write!(f, "Inspector"),
             DockTab::Console => write!(f, "Console"),
             DockTab::SceneView => write!(f, "Scene"),
+            DockTab::MatrixScript => write!(f, "Matrix Script"),
         }
     }
 }
@@ -46,6 +127,7 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
             DockTab::Inspector => self.app.show_inspector_content(ui),
             DockTab::Console => self.app.show_console_content(ui),
             DockTab::SceneView => self.app.show_scene_view_content(ui),
+            DockTab::MatrixScript => self.app.show_matrix_script_content(ui),
         });
     }
 
@@ -128,6 +210,16 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
                             obj.transform = Transform::default();
                         }
                     }
+                    ui.close_menu();
+                }
+            }
+            DockTab::MatrixScript => {
+                if ui.button("New Script").clicked() {
+                    // Create new Matrix script
+                    ui.close_menu();
+                }
+                if ui.button("Run All Scripts").clicked() {
+                    // Execute all Matrix scripts
                     ui.close_menu();
                 }
             }
@@ -359,6 +451,8 @@ pub struct PhysicsEditorApp {
     camera: Camera,
     /// Dock system
     dock_state: DockState<DockTab>,
+    /// Matrix Script panel for Matrix Language integration
+    scripting_panel: SimpleScriptingPanel,
 }
 
 impl PhysicsEditorApp {
@@ -378,6 +472,13 @@ impl PhysicsEditorApp {
             .main_surface_mut()
             .split_below(left_node, 0.7, vec![DockTab::Console]);
 
+        // Add Matrix Script tab to the right side
+        dock_state.main_surface_mut().split_right(
+            NodeIndex::root(),
+            0.75,
+            vec![DockTab::MatrixScript],
+        );
+
         let mut app = Self {
             instance_id: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -394,6 +495,7 @@ impl PhysicsEditorApp {
             physics_world: PhysicsWorld::default(),
             camera: Camera::default(),
             dock_state,
+            scripting_panel: SimpleScriptingPanel::new(),
         };
 
         // Create default scene objects
@@ -702,6 +804,14 @@ impl PhysicsEditorApp {
             // Draw 3D scene
             let painter = ui.painter_at(scene_response.rect);
             self.draw_3d_scene(&painter, scene_response.rect);
+        });
+    }
+
+    /// Show Matrix Script panel content
+    fn show_matrix_script_content(&mut self, ui: &mut egui::Ui) {
+        ui.push_id(format!("matrix_script_panel_{}", self.instance_id), |ui| {
+            // Delegate to the scripting panel
+            self.scripting_panel.show_ui(ui);
         });
     }
 

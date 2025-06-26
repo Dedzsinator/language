@@ -1,4 +1,11 @@
-use super::*;
+use eframe::egui;
+use std::collections::HashMap;
+
+// Import Matrix Language components
+use matrix_lang::ast::Program;
+use matrix_lang::lexer::Lexer;
+use matrix_lang::parser::Parser;
+use matrix_lang::eval::Interpreter;
 
 /// Scripting panel for writing and editing Matrix Language scripts
 pub struct ScriptingPanel {
@@ -16,9 +23,9 @@ pub struct ScriptingPanel {
     case_sensitive: bool,
     regex_search: bool,
     // Callback for script execution results
-    pub script_execution_callback: Option<Box<dyn Fn(&str, &crate::ast::Program) + Send + Sync>>,
+    pub script_execution_callback: Option<Box<dyn Fn(&str, &Program) + Send + Sync>>,
     // Track last executed script for integration with viewport
-    last_executed_script: Option<crate::ast::Program>,
+    last_executed_script: Option<Program>,
 }
 
 #[derive(Debug, Clone)]
@@ -99,13 +106,13 @@ impl ScriptingPanel {
     /// Set callback for script execution results
     pub fn set_script_execution_callback<F>(&mut self, callback: F)
     where
-        F: Fn(&str, &crate::ast::Program) + Send + Sync + 'static,
+        F: Fn(&str, &Program) + Send + Sync + 'static,
     {
         self.script_execution_callback = Some(Box::new(callback));
     }
 
     /// Get the AST of the last executed script for integration with viewport
-    pub fn get_last_executed_script(&mut self) -> Option<crate::ast::Program> {
+    pub fn get_last_executed_script(&mut self) -> Option<Program> {
         self.last_executed_script.take()
     }
 
