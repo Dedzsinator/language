@@ -1,0 +1,56 @@
+// Test file for @sim directive - 3D physics simulation
+// This demonstrates the @sim directive for running physics simulations in 3D
+
+// Simple falling object simulation
+let simulation1 = @sim {
+    let gravity = 9.81;
+    let mass = 1.0;
+    let position = [0.0, 10.0, 0.0];  // Start 10 units high
+    let velocity = [0.0, 0.0, 0.0];   // Start at rest
+
+    // Create a sphere object
+    let sphere = physics_create_sphere(mass, 1.0);  // mass=1, radius=1
+    physics_set_position(sphere, position);
+    physics_set_velocity(sphere, velocity);
+
+    // Run simulation for 5 seconds
+    physics_simulate(5.0)
+};
+
+// Multi-object pendulum simulation
+let simulation2 = @sim {
+    let chain_length = 2.0;
+    let bob_mass = 0.5;
+    let num_links = 3;
+
+    // Create pendulum chain
+    let pendulum = physics_create_chain(num_links, chain_length, bob_mass);
+    physics_set_gravity([0.0, -9.81, 0.0]);
+
+    // Apply initial perturbation
+    physics_apply_force(pendulum, [1.0, 0.0, 0.0]);
+
+    // Run for 10 seconds to see oscillation
+    physics_simulate(10.0)
+};
+
+// Collision simulation
+let simulation3 = @sim {
+    let ball1_mass = 1.0;
+    let ball2_mass = 2.0;
+
+    // Create two spheres
+    let ball1 = physics_create_sphere(ball1_mass, 0.5);
+    let ball2 = physics_create_sphere(ball2_mass, 0.5);
+
+    // Position them for collision
+    physics_set_position(ball1, [-5.0, 0.0, 0.0]);
+    physics_set_position(ball2, [5.0, 0.0, 0.0]);
+
+    // Give them velocities toward each other
+    physics_set_velocity(ball1, [2.0, 0.0, 0.0]);
+    physics_set_velocity(ball2, [-1.0, 0.0, 0.0]);
+
+    // Simulate collision
+    physics_simulate(8.0)
+};

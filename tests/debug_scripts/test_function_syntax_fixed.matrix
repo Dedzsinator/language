@@ -1,4 +1,0 @@
--- Test the fixed function syntax
-let add = (a: Int, b: Int) => a + b
-let result = add(5, 3)
-print(result)

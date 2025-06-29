@@ -1,0 +1,69 @@
+// Test file for @plot directive - matplotlib-like plotting with time animation
+// This demonstrates the @plot directive for animated visualizations
+
+// Simple sine wave animation
+let plot1 = @plot {
+    let time_range = linspace(0.0, 4.0 * pi, 100);
+    let frequency = 2.0;
+
+    for t in time_range {
+        let y = sin(frequency * time_range + t);
+        plot_line(time_range, y);
+        plot_title("Animated Sine Wave");
+        plot_xlabel("Time");
+        plot_ylabel("Amplitude");
+        plot_xlim(0.0, 4.0 * pi);
+        plot_ylim(-1.5, 1.5);
+        plot_sleep(0.1);  // 100ms delay between frames
+    }
+};
+
+// Multiple function animation
+let plot2 = @plot {
+    let t_values = linspace(0.0, 10.0, 200);
+
+    for frame in 0..100 {
+        let time_offset = frame * 0.1;
+
+        // Generate multiple waves
+        let wave1 = [sin(t + time_offset) for t in t_values];
+        let wave2 = [cos(t + time_offset) for t in t_values];
+        let wave3 = [sin(2.0 * t + time_offset) * 0.5 for t in t_values];
+
+        // Plot all three waves
+        plot_line(t_values, wave1, "r-", "sin(t)");
+        plot_line(t_values, wave2, "g-", "cos(t)");
+        plot_line(t_values, wave3, "b-", "0.5*sin(2t)");
+
+        plot_title("Multiple Wave Functions");
+        plot_xlabel("Time");
+        plot_ylabel("Amplitude");
+        plot_legend();
+        plot_grid(true);
+        plot_sleep(0.05);
+    }
+};
+
+// Parametric curve animation (Lissajous curves)
+let plot3 = @plot {
+    let t_max = 4.0 * pi;
+    let steps = 120;
+
+    for frame in 0..steps {
+        let t_current = (frame / steps) * t_max;
+        let t_range = linspace(0.0, t_current, frame + 1);
+
+        // Generate parametric curve
+        let x_vals = [sin(3.0 * t) for t in t_range];
+        let y_vals = [cos(2.0 * t) for t in t_range];
+
+        plot_line(x_vals, y_vals, "b-");
+        plot_title("Lissajous Curve Animation");
+        plot_xlabel("x = sin(3t)");
+        plot_ylabel("y = cos(2t)");
+        plot_xlim(-1.2, 1.2);
+        plot_ylim(-1.2, 1.2);
+        plot_grid(true);
+        plot_sleep(0.08);
+    }
+};

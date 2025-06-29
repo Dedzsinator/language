@@ -1,0 +1,9 @@
+let simulation = @sim {
+    let gravity = 9.81
+    let mass = 2.5
+    let height = 10.0
+    let energy = mass * gravity * height
+    energy
+}
+
+simulation

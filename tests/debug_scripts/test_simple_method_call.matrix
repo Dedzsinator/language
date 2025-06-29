@@ -1,9 +1,0 @@
--- Test simplified method call pattern
-let arr = [1, 2, 3, 4, 5]
-let max_length = 3
-
-let test = () => {
-    if arr.length() > max_length {
-        arr.remove(0)
-    }
-}

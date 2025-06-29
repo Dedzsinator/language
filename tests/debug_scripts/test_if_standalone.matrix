@@ -1,4 +1,0 @@
--- Test if statement outside lambda
-if true {
-    42
-}

@@ -1,5 +1,5 @@
 use eframe::egui;
-use std::collections::HashMap;
+// use std::collections::HashMap; // Unused for now
 
 // Import Matrix Language components
 use matrix_lang::ast::Program;

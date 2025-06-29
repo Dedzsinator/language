@@ -1,6 +1,0 @@
--- Minimal test for if statement in lambda
-let test = () => {
-    if true {
-        42
-    }
-}

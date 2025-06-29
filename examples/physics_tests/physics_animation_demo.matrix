@@ -1,0 +1,30 @@
+-- Physics Animation Demo for the new matplotlib-like visualization
+-- This demonstrates the complete integration between Matrix Language and
+-- the physics engine's PhysicsAnimation dock tab
+
+let demo_sim = @sim {
+    -- Simple physics simulation that will be visualized
+    let ball_physics = {
+        position: [0.0, 10.0, 0.0],
+        velocity: [3.0, 0.0, 0.0],
+        mass: 2.0,
+        gravity: 9.81
+    }
+
+    -- The @sim directive will launch the 3D physics engine
+    -- and the PhysicsAnimation tab will be ready to receive data
+    ball_physics
+}
+
+let demo_plot = @plot {
+    -- Plotting directive for matplotlib-like animation
+    let time_series = [0.0, 1.0, 2.0, 3.0, 4.0]
+    let sine_wave = [sin(t) for t in time_series]
+
+    -- The @plot directive will launch the plot animation engine
+    -- with data flowing to the PhysicsAnimation dock tab
+    sine_wave
+}
+
+-- Both directives are now integrated with the GUI's PhysicsAnimation panel
+demo_sim

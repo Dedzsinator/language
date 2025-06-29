@@ -1,2 +1,0 @@
-let start_msg = println("Starting test")
-let pi_test = println(pi)

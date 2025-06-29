@@ -1,4 +1,0 @@
--- Test simple lambda with block
-let test = () -> {
-    1
-}

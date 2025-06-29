@@ -1,4 +1,0 @@
--- Test str function
-let test_number = 42
-let number_as_string = str(test_number)
-let test_output = println("Number as string: " + number_as_string)

@@ -1,5 +1,0 @@
-let world = create_physics_world()
-let sphere1 = add_rigid_body(world, "sphere", 1.0, 2.0, [0.0, 5.0, 0.0])
-set_gravity(world, [0.0, -9.81, 0.0])
-physics_step(world)
-print("Physics simulation step completed!")

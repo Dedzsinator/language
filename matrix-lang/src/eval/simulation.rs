@@ -12,6 +12,14 @@ pub fn launch_3d_simulation(context: SimulationContext) -> RuntimeResult<()> {
     println!("  Interactive: {}", context.interactive);
     println!("  Objects: {}", context.world.objects.len());
 
+    // Write simulation data to IPC file for GUI communication
+    println!("📝 Writing simulation data to IPC...");
+    if let Err(e) = write_simulation_data_to_ipc(&context) {
+        println!("⚠️ Failed to write simulation data for GUI: {}", e);
+    } else {
+        println!("✅ Successfully wrote simulation data to IPC");
+    }
+
     // Try to launch the physics engine GUI
     match launch_engine_gui("3d_sim") {
         Ok(mut child) => {
@@ -173,6 +181,126 @@ fn run_console_plotting(context: PlotContext) -> RuntimeResult<()> {
     }
 
     println!("\n📊 Plot animation completed");
+    Ok(())
+}
+
+/// Write simulation data to IPC file for GUI communication
+fn write_simulation_data_to_ipc(context: &SimulationContext) -> Result<(), Box<dyn std::error::Error>> {
+    use serde::{Serialize, Deserialize};
+    use std::fs;
+
+    // Convert Matrix Language simulation context to IPC format
+    #[derive(Serialize, Deserialize)]
+    struct IpcSimulationData {
+        time_points: Vec<f64>,
+        objects: Vec<IpcSimulationObject>,
+        metadata: IpcSimulationMetadata,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct IpcSimulationObject {
+        id: u32,
+        name: String,
+        positions: Vec<(f64, f64, f64)>,
+        velocities: Vec<(f64, f64, f64)>,
+        mass: f64,
+        shape: IpcObjectShape,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    enum IpcObjectShape {
+        Sphere { radius: f64 },
+        Box { width: f64, height: f64, depth: f64 },
+        Plane { width: f64, height: f64 },
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct IpcSimulationMetadata {
+        total_time: f64,
+        time_step: f64,
+        gravity: (f64, f64, f64),
+        simulation_id: String,
+        created_at: String,
+    }
+
+    // Generate time points (simulate physics over time)
+    let time_step = 1.0 / 60.0; // 60 FPS
+    let total_time = 10.0; // 10 seconds
+    let mut time_points = Vec::new();
+    for i in 0..=(total_time / time_step) as i32 {
+        time_points.push(i as f64 * time_step);
+    }
+
+    // Generate simulation objects
+    let mut ipc_objects = Vec::new();
+    for (obj_idx, obj) in context.world.objects.iter().enumerate() {
+        let mut positions = Vec::new();
+        let mut velocities = Vec::new();
+
+        // Simulate physics over time for this object
+        for &t in &time_points {
+            // Simple falling object physics simulation
+            let gravity = -9.81;
+            let initial_height = obj.position.y;
+            let initial_velocity = obj.velocity.y;
+
+            // Physics equations: y = y0 + v0*t + 0.5*a*t^2
+            let y = initial_height + initial_velocity * t + 0.5 * gravity * t * t;
+            let vy = initial_velocity + gravity * t;
+
+            // Add some horizontal motion for visual interest
+            let x = obj.position.x + (t * 0.5).sin() * 2.0;
+            let z = obj.position.z + (t * 0.3).cos() * 1.5;
+            let vx = (t * 0.5).cos() * 0.5 * 2.0;
+            let vz = -(t * 0.3).sin() * 0.3 * 1.5;
+
+            positions.push((x, y.max(0.0), z)); // Don't go below ground
+            velocities.push((vx, vy, vz));
+        }
+
+        ipc_objects.push(IpcSimulationObject {
+            id: obj_idx as u32,
+            name: format!("Object_{}", obj_idx),
+            positions,
+            velocities,
+            mass: 1.0,
+            shape: IpcObjectShape::Sphere { radius: 0.5 },
+        });
+    }
+
+    // Create metadata
+    let metadata = IpcSimulationMetadata {
+        total_time,
+        time_step,
+        gravity: (0.0, -9.81, 0.0),
+        simulation_id: format!("matrix_sim_{}", chrono::Utc::now().timestamp()),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    // Create final data structure
+    let sim_data = IpcSimulationData {
+        time_points,
+        objects: ipc_objects,
+        metadata,
+    };
+
+    // Write to IPC file
+    let data_file_path = if cfg!(target_os = "windows") {
+        "C:/tmp/matrix_lang_simulation_data.json"
+    } else {
+        "/tmp/matrix_lang_simulation_data.json"
+    };
+
+    // Ensure directory exists
+    if let Some(parent) = std::path::Path::new(data_file_path).parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let json_content = serde_json::to_string_pretty(&sim_data)?;
+    fs::write(data_file_path, json_content)?;
+
+    println!("📊 Wrote simulation data to {}", data_file_path);
+
     Ok(())
 }
 

@@ -1,0 +1,9 @@
+let physics_simulation = @sim {
+    let gravity = 9.81
+    let initial_height = 10.0
+    let mass = 2.5
+    let result = mass * gravity * initial_height
+    result
+}
+
+let output = physics_simulation

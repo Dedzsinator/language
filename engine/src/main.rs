@@ -2,8 +2,7 @@
 // Launches the Unity-style egui-based physics editor with Matrix Language directive support
 
 use clap::{Arg, Command};
-
-mod gui;
+use physics_simulation_gui::gui;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("physics-engine-gui")

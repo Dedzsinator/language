@@ -1,4 +1,0 @@
--- Test block expression outside lambda
-let result = {
-    1
-}

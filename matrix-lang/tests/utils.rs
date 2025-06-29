@@ -4,62 +4,35 @@ use std::time::{Duration, Instant};
 
 /// Test execution utilities
 pub fn execute(source: &str) -> RuntimeResult<Value> {
-    // First, try to parse as a full program (for let statements, etc.)
     let lexer = Lexer::new(source);
     let mut parser = Parser::new(lexer).map_err(|e| RuntimeError::Generic {
         message: format!("Parser creation error: {:?}", e),
     })?;
 
-    if let Ok(ast) = parser.parse_program() {
-        // Full program
-        let mut interpreter = Interpreter::new();
-        stdlib::register_all(&mut interpreter);
-        return interpreter.eval_program(&ast);
-    }
-
-    // Fall back to expression parsing if program parsing fails
-    let lexer = Lexer::new(source);
-    let mut parser = Parser::new(lexer).map_err(|e| RuntimeError::Generic {
-        message: format!("Parser creation error: {:?}", e),
-    })?;
-
-    let expr = parser.parse_expression().map_err(|e| RuntimeError::Generic {
+    let ast = parser.parse_program().map_err(|e| RuntimeError::Generic {
         message: format!("Parser error: {:?}", e),
     })?;
 
     let mut interpreter = Interpreter::new();
     stdlib::register_all(&mut interpreter);
-    interpreter.eval_expression(&expr)
+
+    interpreter.eval_program(&ast)
 }
 
 /// Execute with type checking
 pub fn execute_with_type_check(source: &str) -> Result<Value, String> {
-    // First, try to parse as a full program
     let lexer = Lexer::new(source);
     let mut parser = Parser::new(lexer).map_err(|e| format!("Parser creation error: {:?}", e))?;
 
-    if let Ok(ast) = parser.parse_program() {
-        // Full program
-        let mut type_checker = TypeChecker::new();
-        type_checker.check_program(&ast).map_err(|e| format!("Type error: {:?}", e))?;
-
-        let mut interpreter = Interpreter::new();
-        stdlib::register_all(&mut interpreter);
-        return interpreter.eval_program(&ast).map_err(|e| format!("Runtime error: {:?}", e));
-    }
-
-    // Fall back to expression parsing
-    let lexer = Lexer::new(source);
-    let mut parser = Parser::new(lexer).map_err(|e| format!("Parser creation error: {:?}", e))?;
-
-    let expr = parser.parse_expression().map_err(|e| format!("Parser error: {:?}", e))?;
+    let ast = parser.parse_program().map_err(|e| format!("Parser error: {:?}", e))?;
 
     let mut type_checker = TypeChecker::new();
-    type_checker.check_expression(&expr).map_err(|e| format!("Type error: {:?}", e))?;
+    type_checker.check_program(&ast).map_err(|e| format!("Type error: {:?}", e))?;
 
     let mut interpreter = Interpreter::new();
     stdlib::register_all(&mut interpreter);
-    interpreter.eval_expression(&expr).map_err(|e| format!("Runtime error: {:?}", e))
+
+    interpreter.eval_program(&ast).map_err(|e| format!("Runtime error: {:?}", e))
 }
 
 /// Benchmark execution time

@@ -1,7 +1,0 @@
--- Test if with method call condition
-let arr = [1, 2, 3]
-let test = () => {
-    if arr.length > 2 {
-        99
-    }
-}

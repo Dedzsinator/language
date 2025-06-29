@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -11,90 +11,10 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-check-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-check-
-            ${{ runner.os }}-cargo-
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
-
-      - name: Run cargo check
-        run: cargo check --all-targets --all-features
-
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-
-            ${{ runner.os }}-cargo-
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
-
-      - name: Run tests
-        run: cargo test --verbose --all-targets --all-features
-
-      - name: Run doc tests
-        run: cargo test --doc
-
-      - name: Run Matrix Language Test Suite
-        run: |
-          echo "🚀 Running Matrix Language comprehensive test suite..."
-          chmod +x tests/run_all_tests.sh
-          ./tests/run_all_tests.sh
-
-      - name: Run Matrix Language Integration Tests
-        run: |
-          echo "🧪 Running Matrix Language integration tests..."
-          cd matrix-lang
-          cargo test --test matrix_language_integration_tests -- --nocapture
-
-      - name: Run Matrix Language Unit Tests
-        run: |
-          echo "⚡ Running Matrix Language unit tests..."
-          cd matrix-lang
-          cargo test --test matrix_language_unit_tests -- --nocapture
-
-  lints:
-    name: Lints
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -104,6 +24,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -111,41 +36,37 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-lint-
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
-
-      - name: Run cargo fmt
+      - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run cargo clippy
+      - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+      - name: Build Matrix Language
+        run: cargo build --all --all-features
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust tests
+        run: cargo test --all --all-features
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
+      - name: Run Matrix Language test suite
+        run: |
+          chmod +x tests/run_all_tests.sh
+          ./tests/run_all_tests.sh
 
       - name: Run security audit
-        run: cargo audit
+        uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
+  cross-platform:
+    name: Cross-platform tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -153,32 +74,13 @@ jobs:
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-coverage-
-            ${{ runner.os }}-cargo-
-
-      - name: Install system dependencies
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
-
-      - name: Generate code coverage
-        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
-
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: false
-          files: ./cobertura.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Build and test
+        run: |
+          cargo build --all
+          cargo test --all

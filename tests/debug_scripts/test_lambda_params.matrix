@@ -1,4 +1,0 @@
--- Test lambda with parameters and block
-let test = (x: Float) => {
-    x + 1.0
-}

@@ -1,6 +1,0 @@
--- Test if statement inside let binding
-let result = if true {
-    42
-} else {
-    0
-}

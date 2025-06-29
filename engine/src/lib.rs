@@ -3,6 +3,7 @@
 
 // Core GUI Module
 pub mod gui;
+pub mod ipc;
 pub mod scripting_panel;
 
 /// Launch the Unity-style physics simulation GUI

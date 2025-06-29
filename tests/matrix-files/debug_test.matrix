@@ -1,5 +1,0 @@
-let test1 = println("Test 1")
-let pi_val = pi
-let test2 = println(pi_val)
-let abs_val = abs(-5.0)
-let test3 = println(abs_val)

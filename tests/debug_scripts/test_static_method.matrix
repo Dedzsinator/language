@@ -1,9 +1,0 @@
--- Test static method call syntax
-struct Vec3 {
-    x: Float,
-    y: Float,
-    z: Float
-}
-
-let result = Vec3::new(1.0, 2.0, 3.0)
-let final_result = result.x

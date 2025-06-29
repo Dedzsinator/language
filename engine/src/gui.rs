@@ -94,6 +94,7 @@ pub enum DockTab {
     Console,
     SceneView,
     MatrixScript,
+    PhysicsAnimation,
 }
 
 impl std::fmt::Display for DockTab {
@@ -104,6 +105,7 @@ impl std::fmt::Display for DockTab {
             DockTab::Console => write!(f, "Console"),
             DockTab::SceneView => write!(f, "Scene"),
             DockTab::MatrixScript => write!(f, "Matrix Script"),
+            DockTab::PhysicsAnimation => write!(f, "Physics Animation"),
         }
     }
 }
@@ -128,6 +130,7 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
             DockTab::Console => self.app.show_console_content(ui),
             DockTab::SceneView => self.app.show_scene_view_content(ui),
             DockTab::MatrixScript => self.app.show_matrix_script_content(ui),
+            DockTab::PhysicsAnimation => self.app.show_physics_animation_content(ui),
         });
     }
 
@@ -220,6 +223,16 @@ impl<'a> TabViewer for EditorTabViewer<'a> {
                 }
                 if ui.button("Run All Scripts").clicked() {
                     // Execute all Matrix scripts
+                    ui.close_menu();
+                }
+            }
+            DockTab::PhysicsAnimation => {
+                if ui.button("Play Animation").clicked() {
+                    self.app.animation_data.is_playing = !self.app.animation_data.is_playing;
+                    ui.close_menu();
+                }
+                if ui.button("Reset Animation").clicked() {
+                    self.app.animation_data.current_time = 0.0;
                     ui.close_menu();
                 }
             }
@@ -427,6 +440,56 @@ impl Default for PhysicsWorld {
     }
 }
 
+/// Physics Animation Data for matplotlib-like visualization
+#[derive(Debug, Clone)]
+pub struct PhysicsAnimationData {
+    pub time_points: Vec<f64>,
+    pub position_data: Vec<Vec<(f64, f64, f64)>>, // positions for each object over time
+    pub velocity_data: Vec<Vec<(f64, f64, f64)>>, // velocities for each object over time
+    pub current_time: f64,
+    pub is_playing: bool,
+    pub playback_speed: f64,
+}
+
+impl Default for PhysicsAnimationData {
+    fn default() -> Self {
+        Self {
+            time_points: Vec::new(),
+            position_data: Vec::new(),
+            velocity_data: Vec::new(),
+            current_time: 0.0,
+            is_playing: false,
+            playback_speed: 1.0,
+        }
+    }
+}
+
+/// Matplotlib-style plotting panel
+#[derive(Debug, Clone)]
+pub struct PhysicsPlotter {
+    pub show_position_plot: bool,
+    pub show_velocity_plot: bool,
+    pub show_energy_plot: bool,
+    pub plot_width: f32,
+    pub plot_height: f32,
+    pub time_range: (f64, f64),
+    pub auto_scale: bool,
+}
+
+impl Default for PhysicsPlotter {
+    fn default() -> Self {
+        Self {
+            show_position_plot: true,
+            show_velocity_plot: true,
+            show_energy_plot: false,
+            plot_width: 400.0,
+            plot_height: 300.0,
+            time_range: (0.0, 10.0),
+            auto_scale: true,
+        }
+    }
+}
+
 /// Main Physics Editor Application
 pub struct PhysicsEditorApp {
     /// Unique instance ID for this app to prevent ID conflicts
@@ -453,6 +516,12 @@ pub struct PhysicsEditorApp {
     dock_state: DockState<DockTab>,
     /// Matrix Script panel for Matrix Language integration
     scripting_panel: SimpleScriptingPanel,
+    /// Physics animation data for matplotlib-like visualization
+    animation_data: PhysicsAnimationData,
+    /// Physics plotter for visualization
+    physics_plotter: PhysicsPlotter,
+    /// IPC manager for Matrix Language communication
+    ipc_manager: crate::ipc::IpcManager,
 }
 
 impl PhysicsEditorApp {
@@ -472,11 +541,11 @@ impl PhysicsEditorApp {
             .main_surface_mut()
             .split_below(left_node, 0.7, vec![DockTab::Console]);
 
-        // Add Matrix Script tab to the right side
+        // Add Matrix Script and Physics Animation tabs to the right side
         dock_state.main_surface_mut().split_right(
             NodeIndex::root(),
             0.75,
-            vec![DockTab::MatrixScript],
+            vec![DockTab::MatrixScript, DockTab::PhysicsAnimation],
         );
 
         let mut app = Self {
@@ -496,6 +565,9 @@ impl PhysicsEditorApp {
             camera: Camera::default(),
             dock_state,
             scripting_panel: SimpleScriptingPanel::new(),
+            animation_data: PhysicsAnimationData::default(),
+            physics_plotter: PhysicsPlotter::default(),
+            ipc_manager: crate::ipc::IpcManager::new(),
         };
 
         // Create default scene objects
@@ -813,6 +885,335 @@ impl PhysicsEditorApp {
             // Delegate to the scripting panel
             self.scripting_panel.show_ui(ui);
         });
+    }
+
+    /// Show Physics Animation panel content - matplotlib-like visualization
+    fn show_physics_animation_content(&mut self, ui: &mut egui::Ui) {
+        ui.push_id(
+            format!("physics_animation_panel_{}", self.instance_id),
+            |ui| {
+                ui.heading("Physics Animation");
+                ui.separator();
+
+                // Data source selection
+                ui.horizontal(|ui| {
+                    ui.label("Data Source:");
+                    if ui.button("📁 Load from @sim").clicked() {
+                        // Check for new simulation data from Matrix Language
+                        if let Some(sim_data) = self.ipc_manager.check_for_simulation_data() {
+                            self.animation_data = sim_data.into();
+                            self.add_console_message(
+                                "✅ Loaded simulation data from Matrix Language @sim directive"
+                                    .to_string(),
+                            );
+                        } else {
+                            self.add_console_message(
+                                "⚠️ No simulation data found. Run a @sim directive first."
+                                    .to_string(),
+                            );
+                        }
+                    }
+
+                    if ui.button("📊 Generate Sample").clicked() {
+                        self.generate_sample_physics_data();
+                    }
+
+                    if ui.button("🗑 Clear Data").clicked() {
+                        self.animation_data.time_points.clear();
+                        self.animation_data.position_data.clear();
+                        self.animation_data.velocity_data.clear();
+                        self.animation_data.current_time = 0.0;
+                        self.ipc_manager.clear_data();
+                        self.add_console_message("🧹 Animation data cleared".to_string());
+                    }
+                });
+
+                ui.separator();
+
+                // Animation controls
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(if self.animation_data.is_playing {
+                            "⏸ Pause"
+                        } else {
+                            "▶ Play"
+                        })
+                        .clicked()
+                    {
+                        self.animation_data.is_playing = !self.animation_data.is_playing;
+                    }
+
+                    if ui.button("⏮ Reset").clicked() {
+                        self.animation_data.current_time = 0.0;
+                    }
+
+                    ui.label("Speed:");
+                    ui.add(
+                        egui::Slider::new(&mut self.animation_data.playback_speed, 0.1..=5.0)
+                            .text("x"),
+                    );
+                });
+
+                ui.separator();
+
+                // Time scrubber
+                if !self.animation_data.time_points.is_empty() {
+                    let max_time = self
+                        .animation_data
+                        .time_points
+                        .last()
+                        .copied()
+                        .unwrap_or(1.0);
+                    ui.horizontal(|ui| {
+                        ui.label("Time:");
+                        ui.add(
+                            egui::Slider::new(
+                                &mut self.animation_data.current_time,
+                                0.0..=max_time,
+                            )
+                            .text("s"),
+                        );
+                    });
+                }
+
+                ui.separator();
+
+                // Plot options
+                ui.collapsing("📈 Plot Options", |ui| {
+                    ui.checkbox(
+                        &mut self.physics_plotter.show_position_plot,
+                        "Show Position Plot",
+                    );
+                    ui.checkbox(
+                        &mut self.physics_plotter.show_velocity_plot,
+                        "Show Velocity Plot",
+                    );
+                    ui.checkbox(
+                        &mut self.physics_plotter.show_energy_plot,
+                        "Show Energy Plot",
+                    );
+                    ui.checkbox(&mut self.physics_plotter.auto_scale, "Auto Scale");
+
+                    ui.horizontal(|ui| {
+                        ui.label("Plot Height:");
+                        ui.add(
+                            egui::Slider::new(&mut self.physics_plotter.plot_height, 150.0..=400.0)
+                                .text("px"),
+                        );
+                    });
+                });
+
+                ui.separator();
+
+                // Real-time data status
+                if self.animation_data.time_points.is_empty() {
+                    ui.vertical_centered(|ui| {
+                        ui.label("🎬 Run a @sim directive to see physics animation");
+                        ui.label("Or click 'Generate Sample' to see matplotlib-style plots");
+                        ui.add_space(10.0);
+
+                        // Show connection status
+                        ui.horizontal(|ui| {
+                            ui.label("🔗 Matrix Language Status:");
+                            ui.colored_label(egui::Color32::GREEN, "Ready");
+                        });
+                    });
+                } else {
+                    // Show data info
+                    ui.collapsing("📊 Data Information", |ui| {
+                        ui.label(format!(
+                            "Time Points: {}",
+                            self.animation_data.time_points.len()
+                        ));
+                        ui.label(format!(
+                            "Objects: {}",
+                            self.animation_data.position_data.len()
+                        ));
+                        if let Some(max_time) = self.animation_data.time_points.last() {
+                            ui.label(format!("Duration: {:.2}s", max_time));
+                        }
+                    });
+
+                    // Main plotting area
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        self.draw_physics_plots(ui);
+                    });
+                }
+            },
+        );
+    }
+
+    /// Draw matplotlib-style physics plots
+    fn draw_physics_plots(&mut self, ui: &mut egui::Ui) {
+        use egui_plot::{Line, Plot, PlotPoints};
+
+        // Position plot
+        if self.physics_plotter.show_position_plot {
+            ui.label("📍 Position vs Time");
+            let position_plot = Plot::new("position_plot")
+                .height(200.0)
+                .width(ui.available_width())
+                .show_axes([true, true])
+                .show_grid([true, true]);
+
+            position_plot.show(ui, |plot_ui| {
+                if !self.animation_data.position_data.is_empty() {
+                    for (obj_idx, positions) in self.animation_data.position_data.iter().enumerate()
+                    {
+                        // X position
+                        let x_points: PlotPoints = self
+                            .animation_data
+                            .time_points
+                            .iter()
+                            .zip(positions.iter())
+                            .map(|(t, pos)| [*t, pos.0 as f64])
+                            .collect();
+                        let x_line = Line::new(x_points)
+                            .color(egui::Color32::RED)
+                            .name(format!("Object {} X", obj_idx + 1));
+                        plot_ui.line(x_line);
+
+                        // Y position
+                        let y_points: PlotPoints = self
+                            .animation_data
+                            .time_points
+                            .iter()
+                            .zip(positions.iter())
+                            .map(|(t, pos)| [*t, pos.1 as f64])
+                            .collect();
+                        let y_line = Line::new(y_points)
+                            .color(egui::Color32::GREEN)
+                            .name(format!("Object {} Y", obj_idx + 1));
+                        plot_ui.line(y_line);
+
+                        // Z position
+                        let z_points: PlotPoints = self
+                            .animation_data
+                            .time_points
+                            .iter()
+                            .zip(positions.iter())
+                            .map(|(t, pos)| [*t, pos.2 as f64])
+                            .collect();
+                        let z_line = Line::new(z_points)
+                            .color(egui::Color32::BLUE)
+                            .name(format!("Object {} Z", obj_idx + 1));
+                        plot_ui.line(z_line);
+                    }
+                }
+
+                // Current time marker
+                if self.animation_data.current_time > 0.0 {
+                    let time_line_points: PlotPoints = vec![
+                        [self.animation_data.current_time, -10.0],
+                        [self.animation_data.current_time, 10.0],
+                    ]
+                    .into();
+                    let time_line = Line::new(time_line_points)
+                        .color(egui::Color32::YELLOW)
+                        .width(2.0)
+                        .name("Current Time");
+                    plot_ui.line(time_line);
+                }
+            });
+        }
+
+        // Velocity plot
+        if self.physics_plotter.show_velocity_plot {
+            ui.add_space(10.0);
+            ui.label("🚀 Velocity vs Time");
+            let velocity_plot = Plot::new("velocity_plot")
+                .height(200.0)
+                .width(ui.available_width())
+                .show_axes([true, true])
+                .show_grid([true, true]);
+
+            velocity_plot.show(ui, |plot_ui| {
+                if !self.animation_data.velocity_data.is_empty() {
+                    for (obj_idx, velocities) in
+                        self.animation_data.velocity_data.iter().enumerate()
+                    {
+                        // Velocity magnitude
+                        let vel_points: PlotPoints = self
+                            .animation_data
+                            .time_points
+                            .iter()
+                            .zip(velocities.iter())
+                            .map(|(t, vel)| {
+                                let magnitude =
+                                    (vel.0 * vel.0 + vel.1 * vel.1 + vel.2 * vel.2).sqrt();
+                                [*t, magnitude as f64]
+                            })
+                            .collect();
+                        let vel_line = Line::new(vel_points)
+                            .color(egui::Color32::PURPLE)
+                            .name(format!("Object {} Speed", obj_idx + 1));
+                        plot_ui.line(vel_line);
+                    }
+                }
+            });
+        }
+    }
+
+    /// Generate sample physics data for demonstration
+    fn generate_sample_physics_data(&mut self) {
+        self.animation_data.time_points.clear();
+        self.animation_data.position_data.clear();
+        self.animation_data.velocity_data.clear();
+
+        // Generate time points (0 to 10 seconds, 60 FPS)
+        for i in 0..=600 {
+            let t = i as f64 / 60.0;
+            self.animation_data.time_points.push(t);
+        }
+
+        // Generate sample object data (falling sphere with bounce)
+        let mut positions = Vec::new();
+        let mut velocities = Vec::new();
+
+        for &t in &self.animation_data.time_points {
+            let gravity: f64 = -9.81;
+            let bounce_damping: f64 = 0.7;
+
+            // Calculate position with bouncing
+            let period = 2.0; // Time to complete one bounce cycle
+            let cycle = (t / period) as i32;
+            let cycle_time = t - (cycle as f64 * period);
+
+            let y = if cycle_time < period / 2.0 {
+                // Falling
+                5.0 + 5.0 * cycle_time - 0.5 * gravity.abs() * cycle_time * cycle_time
+            } else {
+                // Rising after bounce
+                let bounce_time = cycle_time - period / 2.0;
+                let initial_velocity = bounce_damping.powi(cycle) * 10.0;
+                initial_velocity * bounce_time - 0.5 * gravity.abs() * bounce_time * bounce_time
+            }
+            .max(0.0);
+
+            let x = (t * 0.5).sin() * 2.0;
+            let z = 0.0;
+
+            positions.push((x, y, z));
+
+            // Calculate velocity
+            let vel_x = (t * 0.5).cos() * 0.5 * 2.0;
+            let vel_y = if cycle_time < period / 2.0 {
+                5.0 + gravity * cycle_time
+            } else {
+                let bounce_time = cycle_time - period / 2.0;
+                let initial_velocity = bounce_damping.powi(cycle) * 10.0;
+                initial_velocity + gravity * bounce_time
+            };
+            let vel_z = 0.0;
+
+            velocities.push((vel_x, vel_y, vel_z));
+        }
+
+        self.animation_data.position_data.push(positions);
+        self.animation_data.velocity_data.push(velocities);
+        self.animation_data.current_time = 0.0;
+
+        self.add_console_message("📊 Generated sample physics animation data".to_string());
     }
 
     /// Pick object at screen position for selection
@@ -1264,6 +1665,14 @@ impl Default for PhysicsEditorApp {
 
 impl eframe::App for PhysicsEditorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Check for new simulation data from Matrix Language (automatic polling)
+        if let Some(sim_data) = self.ipc_manager.check_for_simulation_data() {
+            self.animation_data = sim_data.into();
+            self.add_console_message(
+                "🎬 Received new simulation data from Matrix Language @sim directive!".to_string(),
+            );
+        }
+
         // Menu bar
         self.show_menu_bar(ctx);
 
@@ -1324,6 +1733,29 @@ impl eframe::App for PhysicsEditorApp {
                         self.show_preferences = false;
                     }
                 });
+        }
+
+        // Animation time advancement when playing
+        if self.animation_data.is_playing && !self.animation_data.time_points.is_empty() {
+            let delta_time = ctx.input(|i| i.unstable_dt);
+            let max_time = self
+                .animation_data
+                .time_points
+                .last()
+                .copied()
+                .unwrap_or(0.0);
+
+            // Advance time with playback speed
+            self.animation_data.current_time +=
+                (delta_time as f64) * self.animation_data.playback_speed;
+
+            // Handle looping when reaching the end
+            if self.animation_data.current_time > max_time {
+                self.animation_data.current_time = 0.0; // Loop back to start
+            }
+
+            // Request repaint for smooth animation
+            ctx.request_repaint();
         }
 
         // Request repaint for smooth animation when playing

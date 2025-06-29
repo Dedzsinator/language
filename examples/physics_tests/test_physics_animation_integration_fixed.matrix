@@ -1,0 +1,87 @@
+-- Test Physics Animation Integration with matplotlib-like visualization
+-- This script tests the complete integration between Matrix Language @sim directives
+-- and the engine's PhysicsAnimation dock tab
+
+println("🧪 Testing Physics Animation Integration")
+
+-- Test 1: Basic simulation with animation data
+let basic_sim = @sim {
+    -- Create a simple bouncing ball simulation
+    let ball = {
+        position: [0.0, 5.0, 0.0],
+        velocity: [2.0, 0.0, 0.0],
+        mass: 1.0,
+        restitution: 0.8
+    }
+
+    simulate_physics(ball, 5.0) -- 5 seconds
+}
+
+println("✅ Basic simulation completed")
+
+-- Test 2: Multi-object simulation with different behaviors
+let multi_sim = @sim {
+    let objects = [
+        {
+            name: "Ball_1",
+            position: [0.0, 8.0, 0.0],
+            velocity: [1.0, 0.0, 0.0],
+            mass: 1.0,
+            shape: "sphere"
+        },
+        {
+            name: "Ball_2",
+            position: [3.0, 6.0, 0.0],
+            velocity: [-1.5, 2.0, 0.0],
+            mass: 2.0,
+            shape: "sphere"
+        },
+        {
+            name: "Box_1",
+            position: [1.0, 4.0, 1.0],
+            velocity: [0.0, 0.0, -1.0],
+            mass: 0.5,
+            shape: "box"
+        }
+    ]
+
+    for obj in objects {
+        simulate_object(obj, 10.0) -- 10 seconds
+    }
+}
+
+println("✅ Multi-object simulation completed")
+
+-- Test 3: Complex physics with forces and constraints
+let complex_sim = @sim {
+    let pendulum = {
+        position: [0.0, 3.0, 0.0],
+        velocity: [0.0, 0.0, 0.0],
+        mass: 1.0,
+        constraint: "rope",
+        constraint_length: 2.0,
+        gravity: 9.81
+    }
+
+    let spring_system = {
+        mass_1: { position: [-2.0, 2.0, 0.0], mass: 1.0 },
+        mass_2: { position: [2.0, 2.0, 0.0], mass: 1.0 },
+        spring_constant: 10.0,
+        damping: 0.1
+    }
+
+    simulate_complex_physics([pendulum, spring_system], 8.0)
+}
+
+println("✅ Complex simulation completed")
+
+-- Test 4: Verify animation data generation
+println("📊 Animation data should now be visible in Physics Animation panel")
+println("Expected features:")
+println("  - Position vs Time plots (X, Y, Z coordinates)")
+println("  - Velocity vs Time plots (speed magnitude)")
+println("  - Real-time playback controls")
+println("  - Time scrubber for navigation")
+println("  - Sample data generation button")
+
+println("🎬 Physics Animation Integration Test Complete!")

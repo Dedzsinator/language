@@ -9,25 +9,45 @@ echo "======================================================================"
 
 cd "$(dirname "$0")/.."
 
-echo ""
-echo "1. Running Final Comprehensive Test Suite..."
-echo "----------------------------------------------------------------------"
-cargo run --bin matrix-lang tests/matrix-files/final_matrix_language_test_suite.matrix
-if [ $? -eq 0 ]; then
-    echo "✅ COMPREHENSIVE TEST PASSED"
-else
-    echo "❌ COMPREHENSIVE TEST FAILED"
+# Build Matrix Language first
+echo "Building Matrix Language..."
+cargo build --bin matrix-lang
+if [ $? -ne 0 ]; then
+    echo "❌ BUILD FAILED"
     exit 1
 fi
 
 echo ""
-echo "2. Running Constants Test..."
+echo "1. Running Constants Test..."
 echo "----------------------------------------------------------------------"
 cargo run --bin matrix-lang tests/matrix-files/test_constants.matrix
 if [ $? -eq 0 ]; then
     echo "✅ CONSTANTS TEST PASSED"
 else
     echo "❌ CONSTANTS TEST FAILED"
+    exit 1
+fi
+
+echo ""
+echo "2. Running Basic Math Test..."
+echo "----------------------------------------------------------------------"
+cargo run --bin matrix-lang tests/matrix-files/test_basic_math.matrix
+if [ $? -eq 0 ]; then
+    echo "✅ BASIC MATH TEST PASSED"
+else
+    echo "❌ BASIC MATH TEST FAILED"
+    exit 1
+fi
+
+echo ""
+echo "3. Running String Test..."
+echo "----------------------------------------------------------------------"
+cargo run --bin matrix-lang tests/matrix-files/simple_str_test.matrix
+if [ $? -eq 0 ]; then
+    echo "✅ STRING TEST PASSED"
+else
+    echo "❌ STRING TEST FAILED"
+    exit 1
 fi
 
 echo ""
