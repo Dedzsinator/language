@@ -1,5 +1,5 @@
-pub mod parser;
 pub mod error;
+pub mod parser;
 
-pub use parser::*;
 pub use error::*;
+pub use parser::*;
