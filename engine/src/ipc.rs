@@ -116,7 +116,10 @@ impl IpcManager {
     }
 
     /// Write simulation data (used by Matrix Language)
-    pub fn write_simulation_data(&self, data: &PhysicsSimulationData) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_simulation_data(
+        &self,
+        data: &PhysicsSimulationData,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let json_content = serde_json::to_string_pretty(data)?;
 
         // Ensure the directory exists
@@ -135,7 +138,9 @@ impl From<crate::gui::PhysicsAnimationData> for PhysicsSimulationData {
         let mut objects = Vec::new();
 
         for (obj_idx, positions) in animation_data.position_data.iter().enumerate() {
-            let velocities = animation_data.velocity_data.get(obj_idx)
+            let velocities = animation_data
+                .velocity_data
+                .get(obj_idx)
                 .cloned()
                 .unwrap_or_else(|| vec![(0.0, 0.0, 0.0); positions.len()]);
 

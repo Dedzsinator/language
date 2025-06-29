@@ -104,7 +104,7 @@ pub fn launch_plot_animation(context: PlotContext) -> RuntimeResult<()> {
 fn launch_engine_gui(mode: &str) -> Result<std::process::Child, std::io::Error> {
     // First try to run the engine as a separate process
     let mut cmd = Command::new("cargo");
-    cmd.args(&[
+    cmd.args([
         "run",
         "--manifest-path",
         "engine/Cargo.toml",
@@ -185,8 +185,10 @@ fn run_console_plotting(context: PlotContext) -> RuntimeResult<()> {
 }
 
 /// Write simulation data to IPC file for GUI communication
-fn write_simulation_data_to_ipc(context: &SimulationContext) -> Result<(), Box<dyn std::error::Error>> {
-    use serde::{Serialize, Deserialize};
+fn write_simulation_data_to_ipc(
+    context: &SimulationContext,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use serde::{Deserialize, Serialize};
     use std::fs;
 
     // Convert Matrix Language simulation context to IPC format

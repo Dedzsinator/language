@@ -1,7 +1,7 @@
+use crate::ast::nodes::{Expression, Item};
+use crate::eval::interpreter::{Interpreter, Value};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::ast::nodes::{Item, Expression};
-use crate::eval::interpreter::{Interpreter, Value};
 
 #[test]
 fn test_sim_directive_parsing() {
@@ -83,7 +83,10 @@ fn test_sim_directive_evaluation() {
             let test_value = interpreter.environment.get("test").unwrap();
             match test_value {
                 Value::PhysicsWorld(_) => assert!(true),
-                _ => panic!("Expected PhysicsWorld in environment, got: {:?}", test_value),
+                _ => panic!(
+                    "Expected PhysicsWorld in environment, got: {:?}",
+                    test_value
+                ),
             }
         }
         _ => panic!("Expected PhysicsWorld as program result, got: {:?}", result),
@@ -115,7 +118,10 @@ fn test_plot_directive_evaluation() {
             let plot_value = interpreter.environment.get("test_plot").unwrap();
             match plot_value {
                 Value::PhysicsWorld(_) => assert!(true),
-                _ => panic!("Expected PhysicsWorld in environment, got: {:?}", plot_value),
+                _ => panic!(
+                    "Expected PhysicsWorld in environment, got: {:?}",
+                    plot_value
+                ),
             }
         }
         _ => panic!("Expected PhysicsWorld as program result, got: {:?}", result),

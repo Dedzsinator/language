@@ -38,6 +38,12 @@ pub struct Vec3 {
     pub z: f64,
 }
 
+impl Default for PhysicsWorld {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PhysicsWorld {
     pub fn new() -> Self {
         let mut next_id = NEXT_WORLD_ID.lock().unwrap();

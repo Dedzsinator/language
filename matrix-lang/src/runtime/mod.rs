@@ -58,6 +58,12 @@ pub struct StackFrame {
     pub line_number: usize,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Runtime {
     pub fn new() -> Self {
         Self {
@@ -483,6 +489,12 @@ impl Runtime {
     /// Trigger garbage collection
     pub fn gc(&mut self) {
         self.memory_manager.collect_garbage();
+    }
+}
+
+impl Default for MemoryManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

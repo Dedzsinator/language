@@ -200,6 +200,12 @@ pub struct TypeContext {
     pub next_type_var: usize,
 }
 
+impl Default for TypeContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeContext {
     pub fn new() -> Self {
         let mut ctx = Self {

@@ -388,8 +388,14 @@ fn register_simulation_functions(interpreter: &mut crate::eval::Interpreter) {
                     // Return a simple result struct
                     let mut result = HashMap::new();
                     result.insert("circuit_id".to_string(), Value::Int(circuit_id as i64));
-                    result.insert("num_qubits".to_string(), Value::Int(circuit.num_qubits as i64));
-                    result.insert("num_gates".to_string(), Value::Int(circuit.gates.len() as i64));
+                    result.insert(
+                        "num_qubits".to_string(),
+                        Value::Int(circuit.num_qubits as i64),
+                    );
+                    result.insert(
+                        "num_gates".to_string(),
+                        Value::Int(circuit.gates.len() as i64),
+                    );
                     Ok(Value::Struct {
                         name: "SimulationResult".to_string(),
                         fields: result,
@@ -443,7 +449,10 @@ fn register_simulation_functions(interpreter: &mut crate::eval::Interpreter) {
                 let circuits = CIRCUITS.lock().unwrap();
                 if let Some(circuit) = circuits.get(&circuit_id) {
                     let mut info = HashMap::new();
-                    info.insert("num_qubits".to_string(), Value::Int(circuit.num_qubits as i64));
+                    info.insert(
+                        "num_qubits".to_string(),
+                        Value::Int(circuit.num_qubits as i64),
+                    );
                     info.insert("is_normalized".to_string(), Value::Bool(true));
                     info.insert("entropy".to_string(), Value::Float(0.0));
                     info.insert("purity".to_string(), Value::Float(1.0));
@@ -556,9 +565,11 @@ fn apply_rx_gate(args: &[Value]) -> RuntimeResult<Value> {
     let angle = match &args[2] {
         Value::Float(f) => *f,
         Value::Int(i) => *i as f64,
-        _ => return Err(RuntimeError::TypeError {
-            message: "Angle must be a number".to_string(),
-        }),
+        _ => {
+            return Err(RuntimeError::TypeError {
+                message: "Angle must be a number".to_string(),
+            })
+        }
     };
     add_gate_to_circuit(circuit_id, format!("RX({},{})", qubit, angle))
 }
@@ -569,9 +580,11 @@ fn apply_ry_gate(args: &[Value]) -> RuntimeResult<Value> {
     let angle = match &args[2] {
         Value::Float(f) => *f,
         Value::Int(i) => *i as f64,
-        _ => return Err(RuntimeError::TypeError {
-            message: "Angle must be a number".to_string(),
-        }),
+        _ => {
+            return Err(RuntimeError::TypeError {
+                message: "Angle must be a number".to_string(),
+            })
+        }
     };
     add_gate_to_circuit(circuit_id, format!("RY({},{})", qubit, angle))
 }
@@ -582,9 +595,11 @@ fn apply_rz_gate(args: &[Value]) -> RuntimeResult<Value> {
     let angle = match &args[2] {
         Value::Float(f) => *f,
         Value::Int(i) => *i as f64,
-        _ => return Err(RuntimeError::TypeError {
-            message: "Angle must be a number".to_string(),
-        }),
+        _ => {
+            return Err(RuntimeError::TypeError {
+                message: "Angle must be a number".to_string(),
+            })
+        }
     };
     add_gate_to_circuit(circuit_id, format!("RZ({},{})", qubit, angle))
 }

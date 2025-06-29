@@ -8,6 +8,12 @@ pub struct Unifier {
     substitutions: HashMap<String, Type>,
 }
 
+impl Default for Unifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Unifier {
     pub fn new() -> Self {
         Self {
@@ -159,6 +165,12 @@ pub struct TypeChecker {
     warnings: Vec<String>,
 }
 
+impl Default for TypeChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeChecker {
     pub fn new() -> Self {
         Self {
@@ -226,7 +238,10 @@ impl TypeChecker {
                 if !is_builtin {
                     // For non-builtin modules, we would check if the file exists
                     // For now, we'll assume all imports are valid
-                    self.add_warning(format!("Cannot verify existence of module '{}'", module_name));
+                    self.add_warning(format!(
+                        "Cannot verify existence of module '{}'",
+                        module_name
+                    ));
                 }
 
                 // Check for circular imports by tracking current import chain
@@ -553,7 +568,10 @@ impl TypeChecker {
                 }
             }
 
-            Expression::SimDirective { expression, span: _ } => {
+            Expression::SimDirective {
+                expression,
+                span: _,
+            } => {
                 // Type check the expression in physics simulation context
                 let expr_type = self.check_expression(expression)?;
 
@@ -574,7 +592,10 @@ impl TypeChecker {
                 })
             }
 
-            Expression::PlotDirective { expression, span: _ } => {
+            Expression::PlotDirective {
+                expression,
+                span: _,
+            } => {
                 // Type check the expression in physics plotting context
                 let expr_type = self.check_expression(expression)?;
 
@@ -836,7 +857,8 @@ impl TypeChecker {
                 }
 
                 // Instantiate polymorphic function types with fresh type variables
-                let (fresh_param_types, fresh_return_type) = self.instantiate_function_type(param_types, return_type);
+                let (fresh_param_types, fresh_return_type) =
+                    self.instantiate_function_type(param_types, return_type);
 
                 // Check argument types against fresh instantiation
                 for (arg, param_type) in args.iter().zip(fresh_param_types.iter()) {
@@ -1375,7 +1397,11 @@ impl TypeChecker {
 
     /// Instantiate a polymorphic function type with fresh type variables
     /// This prevents type variable conflicts across different function calls
-    fn instantiate_function_type(&mut self, param_types: &[Type], return_type: &Type) -> (Vec<Type>, Type) {
+    fn instantiate_function_type(
+        &mut self,
+        param_types: &[Type],
+        return_type: &Type,
+    ) -> (Vec<Type>, Type) {
         use std::collections::HashMap;
 
         // Collect all type variables in the function signature
@@ -1393,7 +1419,8 @@ impl TypeChecker {
         }
 
         // Substitute type variables with fresh ones
-        let fresh_param_types: Vec<Type> = param_types.iter()
+        let fresh_param_types: Vec<Type> = param_types
+            .iter()
             .map(|ty| ty.substitute(&substitution_map))
             .collect();
         let fresh_return_type = return_type.substitute(&substitution_map);
@@ -1446,11 +1473,25 @@ impl TypeChecker {
                 self.collect_type_vars(inner, vars);
             }
             // Base types have no type variables
-            Type::Int | Type::Float | Type::Bool | Type::String | Type::Unit |
-            Type::Struct(_) | Type::Vector2 | Type::Vector3 | Type::Quaternion |
-            Type::Transform | Type::RigidBody | Type::SoftBody | Type::FluidSystem |
-            Type::Particle | Type::ForceField | Type::Material | Type::Constraint |
-            Type::PhysicsWorld | Type::Tensor(_) => {}
+            Type::Int
+            | Type::Float
+            | Type::Bool
+            | Type::String
+            | Type::Unit
+            | Type::Struct(_)
+            | Type::Vector2
+            | Type::Vector3
+            | Type::Quaternion
+            | Type::Transform
+            | Type::RigidBody
+            | Type::SoftBody
+            | Type::FluidSystem
+            | Type::Particle
+            | Type::ForceField
+            | Type::Material
+            | Type::Constraint
+            | Type::PhysicsWorld
+            | Type::Tensor(_) => {}
         }
     }
 

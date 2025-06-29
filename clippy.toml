@@ -1,0 +1,17 @@
+# Clippy configuration to suppress warnings during cleanup
+# Temporary suppression of non-critical warnings
+
+# Allow approximate constants for tests
+approx-constant = false
+
+# Allow simple assertion patterns in tests
+assertions-on-constants = false
+
+# Allow needless range loops for clarity
+needless-range-loop = false
+
+# Allow recursive parameter usage patterns
+only-used-in-recursion = false
+
+# Allow inherent to_string methods
+inherent-to-string = false

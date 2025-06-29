@@ -1,5 +1,5 @@
-use crate::lexer::tokens::Token;
 use crate::ast::Span;
+use crate::lexer::tokens::Token;
 use logos::Logos;
 
 /// A token with position information
@@ -34,7 +34,7 @@ impl<'input> Lexer<'input> {
             last_pos: 0,
         }
     }
-    
+
     /// Get the next token with span information
     pub fn next_token(&mut self) -> TokenWithSpan {
         match self.lexer.next() {
@@ -54,7 +54,7 @@ impl<'input> Lexer<'input> {
             }
         }
     }
-    
+
     /// Peek at the next token without consuming it
     pub fn peek_token(&self) -> Token {
         let mut cloned_lexer = self.lexer.clone();
@@ -64,42 +64,41 @@ impl<'input> Lexer<'input> {
             None => Token::Eof,
         }
     }
-    
+
     /// Get all tokens as a vector
     pub fn tokenize(mut self) -> Result<Vec<TokenWithSpan>, String> {
         let mut tokens = Vec::new();
-        
+
         loop {
             let token_with_span = self.next_token();
             let is_eof = token_with_span.token == Token::Eof;
-            
+
             if token_with_span.token == Token::Error {
                 return Err(format!(
-                    "Lexical error at line {}, column {}: unexpected character", 
-                    token_with_span.span.line, 
-                    token_with_span.span.column
+                    "Lexical error at line {}, column {}: unexpected character",
+                    token_with_span.span.line, token_with_span.span.column
                 ));
             }
-            
+
             tokens.push(token_with_span);
-            
+
             if is_eof {
                 break;
             }
         }
-        
+
         Ok(tokens)
     }
-    
+
     fn current_span(&self) -> Span {
         let range = self.lexer.span();
         Span::new(range.start, range.end, self.line, self.column)
     }
-    
+
     fn update_position(&mut self) {
         let current_pos = self.lexer.span().end;
         let slice = &self.input[self.last_pos..current_pos];
-        
+
         for ch in slice.chars() {
             if ch == '\n' {
                 self.line += 1;
@@ -108,25 +107,25 @@ impl<'input> Lexer<'input> {
                 self.column += 1;
             }
         }
-        
+
         self.last_pos = current_pos;
     }
-    
+
     /// Get the current position in the input
     pub fn position(&self) -> usize {
         self.lexer.span().start
     }
-    
+
     /// Get the current line number
     pub fn line(&self) -> usize {
         self.line
     }
-    
+
     /// Get the current column number
     pub fn column(&self) -> usize {
         self.column
     }
-    
+
     /// Get the remaining input
     pub fn remaining(&self) -> &'input str {
         self.lexer.remainder()
@@ -135,7 +134,7 @@ impl<'input> Lexer<'input> {
 
 impl<'input> Iterator for Lexer<'input> {
     type Item = TokenWithSpan;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         let token_with_span = self.next_token();
         if token_with_span.token == Token::Eof {
@@ -149,14 +148,14 @@ impl<'input> Iterator for Lexer<'input> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_basic_tokens() {
         let input = "struct Vector2 { x: Float, y: Float }";
         let lexer = Lexer::new(input);
-        
+
         let tokens: Vec<_> = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0].token, Token::Struct);
         assert_eq!(tokens[1].token, Token::Identifier("Vector2".to_string()));
         assert_eq!(tokens[2].token, Token::LeftBrace);
@@ -164,26 +163,26 @@ mod tests {
         assert_eq!(tokens[4].token, Token::Colon);
         assert_eq!(tokens[5].token, Token::FloatType);
     }
-    
+
     #[test]
     fn test_numbers() {
         let input = "42 3.14 1.5e-10";
         let lexer = Lexer::new(input);
-        
+
         let tokens: Vec<_> = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0].token, Token::IntLiteral(42));
         assert_eq!(tokens[1].token, Token::FloatLiteral(3.14));
         assert_eq!(tokens[2].token, Token::FloatLiteral(1.5e-10));
     }
-    
+
     #[test]
     fn test_operators() {
         let input = "+ - * / % ^ ?? => -> == != <= >=";
         let lexer = Lexer::new(input);
-        
+
         let tokens: Vec<_> = lexer.tokenize().unwrap();
-        
+
         assert_eq!(tokens[0].token, Token::Plus);
         assert_eq!(tokens[1].token, Token::Minus);
         assert_eq!(tokens[2].token, Token::Star);
@@ -198,19 +197,28 @@ mod tests {
         assert_eq!(tokens[11].token, Token::LessEqual);
         assert_eq!(tokens[12].token, Token::GreaterEqual);
     }
-    
+
     #[test]
     fn test_string_literals() {
         let input = r#""hello world" "escaped \"quote\"" "multi\nline""#;
         let lexer = Lexer::new(input);
-        
+
         let tokens: Vec<_> = lexer.tokenize().unwrap();
-        
-        assert_eq!(tokens[0].token, Token::StringLiteral("hello world".to_string()));
-        assert_eq!(tokens[1].token, Token::StringLiteral("escaped \\\"quote\\\"".to_string()));
-        assert_eq!(tokens[2].token, Token::StringLiteral("multi\\nline".to_string()));
+
+        assert_eq!(
+            tokens[0].token,
+            Token::StringLiteral("hello world".to_string())
+        );
+        assert_eq!(
+            tokens[1].token,
+            Token::StringLiteral("escaped \\\"quote\\\"".to_string())
+        );
+        assert_eq!(
+            tokens[2].token,
+            Token::StringLiteral("multi\\nline".to_string())
+        );
     }
-    
+
     #[test]
     fn test_comments() {
         let input = r#"
@@ -221,9 +229,9 @@ mod tests {
             let y = 3.14
         "#;
         let lexer = Lexer::new(input);
-        
+
         let tokens: Vec<_> = lexer.tokenize().unwrap();
-        
+
         // Comments should be skipped
         assert_eq!(tokens[0].token, Token::Let);
         assert_eq!(tokens[1].token, Token::Identifier("x".to_string()));

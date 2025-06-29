@@ -21,14 +21,13 @@ rand_pcg = { workspace = true }
 clap = { workspace = true }
 rustyline = { workspace = true }
 
-# JIT compilation with LLVM
-inkwell = { workspace = true, optional = true }
-llvm-sys = { workspace = true, optional = true }
-
 # Async and performance
 rayon = { workspace = true }
 tokio = { workspace = true }
 num_cpus = { workspace = true }
+
+# Physics simulation (for @sim directive)
+nalgebra = { workspace = true }
 
 # Quantum computing
 num-complex = "0.4"
@@ -37,8 +36,17 @@ lazy_static = "1.4"
 
 [features]
 default = []
-jit = ["inkwell", "llvm-sys"]
+jit = ["dep:inkwell", "dep:llvm-sys"]
 debug = []
+
+[dependencies.inkwell]
+version = "0.4"
+features = ["llvm17-0"]
+optional = true
+
+[dependencies.llvm-sys]
+version = "170"
+optional = true
 
 [[bin]]
 name = "matrix-lang"

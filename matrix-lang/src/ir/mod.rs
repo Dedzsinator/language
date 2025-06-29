@@ -225,6 +225,12 @@ pub struct IrGenerator {
     symbol_table: HashMap<String, IrValue>,
 }
 
+impl Default for IrGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IrGenerator {
     pub fn new() -> Self {
         Self {
@@ -555,6 +561,12 @@ impl IrGenerator {
 
 /// IR Optimizer
 pub struct IrOptimizer;
+
+impl Default for IrOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IrOptimizer {
     pub fn new() -> Self {

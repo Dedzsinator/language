@@ -3,9 +3,9 @@ use eframe::egui;
 
 // Import Matrix Language components
 use matrix_lang::ast::Program;
+use matrix_lang::eval::Interpreter;
 use matrix_lang::lexer::Lexer;
 use matrix_lang::parser::Parser;
-use matrix_lang::eval::Interpreter;
 
 /// Scripting panel for writing and editing Matrix Language scripts
 pub struct ScriptingPanel {

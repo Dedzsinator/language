@@ -17,10 +17,7 @@ pub use optimization::{JitOptimizer, OptimizationLevel};
 // Re-export LLVM types when JIT is enabled
 #[cfg(feature = "jit")]
 pub use inkwell::{
-    context::Context,
-    execution_engine::ExecutionEngine,
-    module::Module,
-    values::FunctionValue,
+    context::Context, execution_engine::ExecutionEngine, module::Module, values::FunctionValue,
 };
 
 /// JIT compilation errors
@@ -114,7 +111,8 @@ impl<'ctx> JitContext<'ctx> {
     pub fn with_optimization(opt_level: OptimizationLevel) -> Result<Self, JitError> {
         let context = Box::leak(Box::new(Context::create()));
         let compiler = JitCompiler::new(context, "matrix_jit");
-        let execution_engine = compiler.module
+        let execution_engine = compiler
+            .module
             .create_jit_execution_engine(inkwell::OptimizationLevel::Default)
             .map_err(|e| JitError::LlvmError(e.to_string()))?;
         let optimizer = JitOptimizer::new(opt_level.clone());
@@ -153,15 +151,25 @@ impl<'ctx> JitContext<'ctx> {
         let compiled_func = CompiledFunction {
             name: func_def.name.clone(),
             function_value,
-            param_types: func_def.params.iter()
-                .map(|p| p.param_type.clone().unwrap_or(crate::types::types::Type::Any))
+            param_types: func_def
+                .params
+                .iter()
+                .map(|p| {
+                    p.param_type
+                        .clone()
+                        .unwrap_or(crate::types::types::Type::Any)
+                })
                 .collect(),
-            return_type: func_def.return_type.clone().unwrap_or(crate::types::types::Type::Any),
+            return_type: func_def
+                .return_type
+                .clone()
+                .unwrap_or(crate::types::types::Type::Any),
             optimization_level: self.optimization_level.clone(),
         };
 
         // Store compiled function
-        self.compiled_functions.insert(func_def.name.clone(), compiled_func);
+        self.compiled_functions
+            .insert(func_def.name.clone(), compiled_func);
 
         // Update statistics
         self.stats.functions_compiled += 1;
@@ -171,10 +179,15 @@ impl<'ctx> JitContext<'ctx> {
     }
 
     /// Execute a compiled function
-    pub fn execute_function(&self, name: &str, args: &[crate::eval::interpreter::Value]) -> Result<crate::eval::interpreter::Value, JitError> {
+    pub fn execute_function(
+        &self,
+        name: &str,
+        args: &[crate::eval::interpreter::Value],
+    ) -> Result<crate::eval::interpreter::Value, JitError> {
         if let Some(compiled_func) = self.compiled_functions.get(name) {
             let executor = JitExecutor::new(&self.execution_engine);
-            executor.execute_function(name, args)
+            executor
+                .execute_function(name, args)
                 .map_err(|e| JitError::ExecutionFailed(e.to_string()))
         } else {
             Err(JitError::FunctionNotFound(name.to_string()))
@@ -233,7 +246,11 @@ impl JitContext {
         Err(JitError::NotAvailable)
     }
 
-    pub fn execute_function(&self, _name: &str, _args: &[crate::eval::interpreter::Value]) -> Result<crate::eval::interpreter::Value, JitError> {
+    pub fn execute_function(
+        &self,
+        _name: &str,
+        _args: &[crate::eval::interpreter::Value],
+    ) -> Result<crate::eval::interpreter::Value, JitError> {
         Err(JitError::NotAvailable)
     }
 

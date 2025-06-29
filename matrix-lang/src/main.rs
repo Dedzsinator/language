@@ -472,8 +472,10 @@ fn format_result(value: &crate::eval::interpreter::Value) -> String {
             format!("<physics_world:objects:{}>", world.objects.len())
         }
         crate::eval::interpreter::Value::PhysicsObject(obj) => {
-            format!("<physics_object:pos:[{},{},{}]:mass:{}>",
-                obj.position.x, obj.position.y, obj.position.z, obj.mass)
+            format!(
+                "<physics_object:pos:[{},{},{}]:mass:{}>",
+                obj.position.x, obj.position.y, obj.position.z, obj.mass
+            )
         }
     }
 }

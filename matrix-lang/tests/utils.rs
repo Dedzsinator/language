@@ -24,15 +24,21 @@ pub fn execute_with_type_check(source: &str) -> Result<Value, String> {
     let lexer = Lexer::new(source);
     let mut parser = Parser::new(lexer).map_err(|e| format!("Parser creation error: {:?}", e))?;
 
-    let ast = parser.parse_program().map_err(|e| format!("Parser error: {:?}", e))?;
+    let ast = parser
+        .parse_program()
+        .map_err(|e| format!("Parser error: {:?}", e))?;
 
     let mut type_checker = TypeChecker::new();
-    type_checker.check_program(&ast).map_err(|e| format!("Type error: {:?}", e))?;
+    type_checker
+        .check_program(&ast)
+        .map_err(|e| format!("Type error: {:?}", e))?;
 
     let mut interpreter = Interpreter::new();
     stdlib::register_all(&mut interpreter);
 
-    interpreter.eval_program(&ast).map_err(|e| format!("Runtime error: {:?}", e))
+    interpreter
+        .eval_program(&ast)
+        .map_err(|e| format!("Runtime error: {:?}", e))
 }
 
 /// Benchmark execution time
@@ -49,8 +55,13 @@ where
     }
 
     let elapsed = start.elapsed();
-    println!("Benchmark '{}': {} iterations in {:?} ({:?} per iteration)",
-             name, iterations, elapsed, elapsed / iterations as u32);
+    println!(
+        "Benchmark '{}': {} iterations in {:?} ({:?} per iteration)",
+        name,
+        iterations,
+        elapsed,
+        elapsed / iterations as u32
+    );
 
     elapsed
 }
@@ -65,9 +76,14 @@ pub fn assert_int_value(value: &Value, expected: i64) {
 
 pub fn assert_float_value(value: &Value, expected: f64, tolerance: f64) {
     match value {
-        Value::Float(actual) => assert!((actual - expected).abs() < tolerance,
-                                        "Expected Float({}), got Float({}), difference {} exceeds tolerance {}",
-                                        expected, actual, (actual - expected).abs(), tolerance),
+        Value::Float(actual) => assert!(
+            (actual - expected).abs() < tolerance,
+            "Expected Float({}), got Float({}), difference {} exceeds tolerance {}",
+            expected,
+            actual,
+            (actual - expected).abs(),
+            tolerance
+        ),
         _ => panic!("Expected Float({}), got {:?}", expected, value),
     }
 }
@@ -89,7 +105,10 @@ pub fn assert_string_value(value: &Value, expected: &str) {
 pub fn assert_array_length(value: &Value, expected_length: usize) {
     match value {
         Value::Array(array) => assert_eq!(array.len(), expected_length),
-        _ => panic!("Expected Array with length {}, got {:?}", expected_length, value),
+        _ => panic!(
+            "Expected Array with length {}, got {:?}",
+            expected_length, value
+        ),
     }
 }
 
@@ -101,7 +120,10 @@ pub fn assert_matrix_dimensions(value: &Value, expected_rows: usize, expected_co
                 assert_eq!(matrix[0].len(), expected_cols);
             }
         }
-        _ => panic!("Expected Matrix with dimensions {}x{}, got {:?}", expected_rows, expected_cols, value),
+        _ => panic!(
+            "Expected Matrix with dimensions {}x{}, got {:?}",
+            expected_rows, expected_cols, value
+        ),
     }
 }
 
@@ -111,20 +133,25 @@ where
     F: FnOnce() -> RuntimeResult<Value>,
 {
     match f() {
-        Ok(value) => panic!("Expected runtime error '{}', but got success: {:?}", expected_error_type, value),
+        Ok(value) => panic!(
+            "Expected runtime error '{}', but got success: {:?}",
+            expected_error_type, value
+        ),
         Err(error) => {
             let error_string = format!("{:?}", error);
-            assert!(error_string.contains(expected_error_type),
-                    "Expected error containing '{}', got: {}", expected_error_type, error_string);
+            assert!(
+                error_string.contains(expected_error_type),
+                "Expected error containing '{}', got: {}",
+                expected_error_type,
+                error_string
+            );
         }
     }
 }
 
 /// Parallel execution testing
 pub fn test_parallel_execution(sources: Vec<&str>) -> Vec<RuntimeResult<Value>> {
-    sources.into_iter()
-        .map(|source| execute(source))
-        .collect()
+    sources.into_iter().map(|source| execute(source)).collect()
 }
 
 /// Memory usage testing (simplified)
@@ -153,13 +180,17 @@ pub fn test_jit_compilation(source: &str) -> Result<(Value, Duration), String> {
     let lexer = Lexer::new(source);
     let mut parser = Parser::new(lexer).map_err(|e| format!("Parser creation error: {:?}", e))?;
 
-    let ast = parser.parse_program().map_err(|e| format!("Parser error: {:?}", e))?;
+    let ast = parser
+        .parse_program()
+        .map_err(|e| format!("Parser error: {:?}", e))?;
 
     let mut interpreter = Interpreter::new();
     stdlib::register_all(&mut interpreter);
 
     // Execute with JIT enabled
-    let result = interpreter.eval_program(&ast).map_err(|e| format!("Runtime error: {:?}", e))?;
+    let result = interpreter
+        .eval_program(&ast)
+        .map_err(|e| format!("Runtime error: {:?}", e))?;
 
     let elapsed = start.elapsed();
     Ok((result, elapsed))

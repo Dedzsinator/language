@@ -11,8 +11,8 @@ use thiserror::Error;
 /// Simulation mode for physics directives
 #[derive(Debug, Clone, PartialEq)]
 pub enum SimulationMode {
-    ThreeD,  // 3D scene simulation (@sim)
-    Plot,    // Plot animation (@plot)
+    ThreeD, // 3D scene simulation (@sim)
+    Plot,   // Plot animation (@plot)
 }
 
 /// Simulation context for @sim directive
@@ -27,8 +27,8 @@ pub struct SimulationContext {
 /// Plot mode for plotting directives
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlotMode {
-    Animation,  // Animated plot with time slider
-    Static,     // Static plot
+    Animation, // Animated plot with time slider
+    Static,    // Static plot
 }
 
 /// Plot context for @plot directive
@@ -145,7 +145,7 @@ pub enum Value {
     Struct {
         name: String,
         fields: HashMap<String, Value>,
-        },
+    },
     Function {
         params: Vec<Parameter>,
         body: Expression,
@@ -167,7 +167,7 @@ impl Value {
             Value::Int(_) => "Int",
             Value::Float(_) => "Float",
             Value::Bool(_) => "Bool",
-                        Value::String(_) => "String",
+            Value::String(_) => "String",
             Value::Unit => "Unit",
             Value::Array(_) => "Array",
             Value::Matrix(_) => "Matrix",
@@ -425,6 +425,12 @@ pub struct Interpreter {
     simulation_mode: Option<SimulationMode>,    // Current simulation mode for directives
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         let mut interpreter = Self {
@@ -559,7 +565,6 @@ impl Interpreter {
                 },
             },
         );
-
     }
 
     pub fn eval_program(&mut self, program: &Program) -> RuntimeResult<Value> {
@@ -1762,7 +1767,7 @@ fn format_value(value: &Value) -> String {
                 .iter()
                 .map(|(k, v)| format!("{}: {}", k, format_value(v)))
                 .collect();
-                    format!("{} {{ {} }}", name, field_strs.join(", "))
+            format!("{} {{ {} }}", name, field_strs.join(", "))
         }
         Value::Function { .. } => "<function>".to_string(),
         Value::BuiltinFunction { name, .. } => format!("<builtin: {}>", name),
@@ -1809,7 +1814,7 @@ impl std::fmt::Display for Value {
                 write!(f, "fn({})", param_strs.join(", "))
             }
             Value::BuiltinFunction { name, arity, .. } => {
-                            write!(f, "builtin {}({})", name, arity)
+                write!(f, "builtin {}({})", name, arity)
             }
             Value::AsyncHandle(task) => {
                 if task.is_complete() {
@@ -1819,7 +1824,12 @@ impl std::fmt::Display for Value {
                 }
             }
             Value::PhysicsWorld(world) => {
-                write!(f, "PhysicsWorld(id:{}, objects:{})", world.id, world.objects.len())
+                write!(
+                    f,
+                    "PhysicsWorld(id:{}, objects:{})",
+                    world.id,
+                    world.objects.len()
+                )
             }
             Value::PhysicsObject(obj) => {
                 write!(f, "PhysicsObject(id:{}, shape:{})", obj.id, obj.shape)
@@ -1850,7 +1860,7 @@ impl PartialEq for Value {
             ) => n1 == n2 && f1 == f2,
             (Value::Function { .. }, Value::Function { .. }) => false, // Functions can't be compared
             (Value::BuiltinFunction { name: n1, .. }, Value::BuiltinFunction { name: n2, .. }) => {
-                            n1 == n2
+                n1 == n2
             }
             (Value::AsyncHandle(a), Value::AsyncHandle(b)) => a.id == b.id,
             (Value::PhysicsWorld(a), Value::PhysicsWorld(b)) => a.id == b.id,

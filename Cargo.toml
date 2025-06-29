@@ -36,10 +36,6 @@ logos = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 rustyline = "13.0"
 
-# JIT compilation with LLVM
-inkwell = { version = "0.4", features = ["llvm17-0"] }
-llvm-sys = { version = "170" }
-
 [profile.dev]
 # Development optimization for faster builds
 opt-level = 0
